@@ -14,6 +14,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 # Importaciones absolutas en lugar de relativas
 from models.models import Device
+from models import models, schemas
+
 from models.database import get_db
 
 router = APIRouter(

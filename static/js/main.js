@@ -366,6 +366,7 @@ function preparePlaylistForEditing(playlist) {
     // Formatear fecha para el input datetime-local
     if (playlist.expiration_date) {
         const date = new Date(playlist.expiration_date);
+        // Asegurarse de que la zona horaria se maneje correctamente
         const localDatetime = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
             .toISOString()
             .slice(0, 16);
@@ -417,12 +418,15 @@ async function savePlaylistChanges() {
     try {
         const playlistId = document.getElementById('editPlaylistId').value;
         
+        // Obtener los valores de los campos del formulario
         const playlistData = {
             title: document.getElementById('editPlaylistTitle').value,
             description: document.getElementById('editPlaylistDescription').value || null,
             expiration_date: document.getElementById('editPlaylistExpiration').value || null,
             is_active: document.getElementById('editPlaylistActive').checked
         };
+        
+        console.log("Enviando datos:", playlistData); // Para depuración
         
         const response = await fetch(`${API_URL}/playlists/${playlistId}`, {
             method: 'PUT',
@@ -442,7 +446,7 @@ async function savePlaylistChanges() {
         
         // Recargar playlists y abrir detalles
         await loadPlaylists();
-        openPlaylistDetail(parseInt(playlistId));
+        await openPlaylistDetail(parseInt(playlistId)); // Asegurarse de esperar a que termine
         
     } catch (error) {
         console.error('Error al guardar cambios de la playlist:', error);

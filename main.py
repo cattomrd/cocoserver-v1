@@ -53,7 +53,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.include_router(videos.router, prefix="/api")
 app.include_router(playlists.router, prefix="/api")
 app.include_router(raspberry.router, prefix="/api")
-app.include_router(ui.router, prefix="/ui")
+app.include_router(ui.router, prefix="/api")
 app.include_router(services.router, prefix="/api")
 app.include_router(devices.router, prefix="/api")
 # Ruta raíz
@@ -62,9 +62,9 @@ templates = Jinja2Templates(directory="templates")
 # Montar directorios estáticos
 
 # Ruta para /templates/index.html usando Jinja2Templates
-@app.get("/templates/index.html")
-async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+# @app.get("/templates/index.html")
+# async def home(request: Request):
+#     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/")
 async def root(request: Request):

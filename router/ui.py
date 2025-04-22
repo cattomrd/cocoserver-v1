@@ -139,35 +139,12 @@ async def control_device_service(
             "result": result
         }
     )
-
-# @router.post("/devices/{device_id}/update", response_class=HTMLResponse)
-# async def update_device_info(
-#     request: Request,
-#     device_id: str,
-#     name: str = Form(None),
-#     location: str = Form(None),
-#     is_active: bool = Form(False),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Actualizar información básica de un dispositivo
-#     """
-#     device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
-#     if device is None:
-#         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
-    
-#     # Actualizar solo los campos proporcionados
-#     if name:
-#         device.name = name
-#     if location is not None:  # Podría ser una cadena vacía
-#         device.location = location
-    
-#     device.is_active = is_active
-    
-#     db.commit()
-    
-#     # Redirigir a la página de detalle
-#     return RedirectResponse(url=f"/ui/devices/{device_id}", status_code=303)
+@router.get("/videos", response_class=HTMLResponse)
+async def get_dashboard(request: Request):
+    """
+    Página principal del dashboard
+    """
+    return templates.TemplateResponse("videos.html", {"request": request, "title": "Raspberry Pi Registry"})
 
 @router.post("/devices/{device_id}/delete", response_class=HTMLResponse)
 async def delete_device_ui(
@@ -190,16 +167,16 @@ async def delete_device_ui(
 
     
     # Redirigir a la página de detalle con un mensaje
-    return templates.TemplateResponse(
-        "service_control.html", 
-        {
-            "request": request,
-            "title": f"Control de Servicio: {device.name}",
-            "device": device,
-            "action": action,
-            "result": result
-        }
-    )
+    # return templates.TemplateResponse(
+    #     "service_control.html", 
+    #     {
+    #         "request": request,
+    #         "title": f"Control de Servicio: {device.name}",
+    #         "device": device,
+    #         "action": action,
+    #         "result": result
+    #     }
+    # )
 
 @router.post("/devices/{device_id}/update", response_class=HTMLResponse)
 async def update_device_info(
@@ -230,22 +207,4 @@ async def update_device_info(
     # Redirigir a la página de detalle
     return RedirectResponse(url=f"/ui/devices/{device_id}", status_code=303)
 
-# @router.post("/devices/{device_id}/delete", response_class=HTMLResponse)
-# async def delete_device_ui(
-#     request: Request,
-#     device_id: str,
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Eliminar un dispositivo
-#     """
-#     device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
-#     if device is None:
-#         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
-    
-#     db.delete(device)
-#     db.commit()
-    
-#     # Redirigir a la lista de dispositivos
-#     return RedirectResponse(url="/ui/devices", status_code=303)
 

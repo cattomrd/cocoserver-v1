@@ -138,7 +138,7 @@ def check_for_updates(
         new_playlists = db.query(Playlist).filter(
             Playlist.is_active == True,
             (Playlist.expiration_date == None) | (Playlist.expiration_date > now),
-            ~Playlist.id.in_(playlist_id_list)
+            Playlist.id.in_(playlist_id_list)
         ).all()
         
         for playlist in new_playlists:

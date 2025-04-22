@@ -1,0 +1,22 @@
+[Unit]
+Description=video_loop
+Wants=graphical.target
+After=graphical.target
+
+[Service]
+RestartSec=10  
+WorkingDirectory=/home/jlr/vs  
+StandardOutput=journal  
+StandardError=journal   
+Environment=DISPLAY=:0
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=XAUTHORITY=/home/jlr/.Xauthority
+Type=simple
+ExecStart=/bin/bash /usr/bin/videoloop
+Restart=always
+KillSignal=SIGKILL
+User=jlr
+Group=jlr
+
+[Install]
+WantedBy=graphical.target

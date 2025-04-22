@@ -1,63 +1,83 @@
-# Cliente actualizado para Raspberry Pi (client/client.py)
+#!/usr/bin/env python3
+# Cliente para sincronización de videos en Raspberry Pi con reinicio de servicio
 
 import os
 import sys
 import json
 import time
 import requests
-import schedule
-from datetime import datetime
-import subprocess
+import traceback
 import argparse
 import logging
-import traceback
+import subprocess
+from datetime import datetime
 
 # Configuración de logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("raspberry_client.log"),
+        logging.FileHandler("raspberry_downloader.log"),
         logging.StreamHandler(sys.stdout)
     ]
 )
-logger = logging.getLogger("RaspberryClient")
+logger = logging.getLogger("RaspberryDownloader")
 
-class VideoPlayerClient:
-    def __init__(self, server_url, download_path, check_interval=30):
-        """
-        Inicializa el cliente para Raspberry Pi
-        
-        Args:
-            server_url (str): URL del servidor de videos
-            download_path (str): Ruta donde se guardarán los videos descargados
-            check_interval (int): Intervalo en minutos para verificar actualizaciones
-        """
+class VideoDownloaderClient:
+    def __init__(self, server_url, download_path, check_interval=30, service_name="videoloop.service"):
+        """Inicializa el cliente de descarga"""
         self.server_url = server_url
         self.download_path = download_path
         self.check_interval = check_interval
         self.playlists_path = os.path.join(download_path, "playlists")
-        self.videos_path = os.path.join(download_path, "videos")
+        self.service_name = service_name
         
         # Crear directorios si no existen
         os.makedirs(self.playlists_path, exist_ok=True)
-        os.makedirs(self.videos_path, exist_ok=True)
-        
-        # Lista local de playlists activas
-        self.active_playlists = {}
         
         # Estado del cliente
+        self.active_playlists = {}
         self.last_update = None
-        
-        # Cargar datos guardados previamente
-        self.load_saved_state()
-        
-        # Video en reproducción actual
-        self.currently_playing = None
-        self.current_playlist = None
+        self.changes_detected = False
     
-    def load_saved_state(self):
-        """Carga el estado guardado del cliente"""
+    def start(self):
+        """Inicia el cliente de sincronización"""
+        logger.info(f"Iniciando cliente sincronizador para {self.server_url}")
+        logger.info(f"Directorio de descarga: {self.download_path}")
+        logger.info(f"Intervalo de verificación: {self.check_interval} minutos")
+        logger.info(f"Servicio a reiniciar: {self.service_name}")
+        
+        # Cargar estado previo si existe
+        self.load_state()
+        
+        # Verificar inmediatamente al inicio
+        self.check_for_updates()
+        
+        # Si se detectaron cambios en la verificación inicial, reiniciar servicio
+        if self.changes_detected:
+            self.restart_videoloop_service()
+            self.changes_detected = False
+        
+        # Bucle principal de sincronización
+        try:
+            while True:
+                # Esperar antes de la próxima verificación
+                logger.info(f"Esperando {self.check_interval} minutos hasta la próxima verificación...")
+                time.sleep(self.check_interval * 60)
+                
+                # Verificar actualizaciones
+                self.check_for_updates()
+                
+                # Si se detectaron cambios, reiniciar el servicio de reproducción
+                if self.changes_detected:
+                    self.restart_videoloop_service()
+                    self.changes_detected = False
+        
+        except KeyboardInterrupt:
+            logger.info("Cliente detenido por el usuario")
+    
+    def load_state(self):
+        """Carga el estado previo si existe"""
         state_file = os.path.join(self.download_path, "client_state.json")
         
         if os.path.exists(state_file):
@@ -66,33 +86,16 @@ class VideoPlayerClient:
                     state = json.load(f)
                     self.active_playlists = state.get("active_playlists", {})
                     self.last_update = state.get("last_update")
-                logger.info(f"Estado cargado: {len(self.active_playlists)} playlists encontradas")
+                logger.info(f"Estado cargado: {len(self.active_playlists)} playlists activas")
             except Exception as e:
                 logger.error(f"Error al cargar el estado: {e}")
-                self.active_playlists = {}
-                self.last_update = None
     
-    def save_state(self):
-        """Guarda el estado actual del cliente"""
-        state_file = os.path.join(self.download_path, "client_state.json")
-        
-        try:
-            state = {
-                "active_playlists": self.active_playlists,
-                "last_update": datetime.now().isoformat()
-            }
-            
-            with open(state_file, "w") as f:
-                json.dump(state, f, indent=4)
-            
-            logger.info("Estado guardado correctamente")
-        except Exception as e:
-            logger.error(f"Error al guardar el estado: {e}")
-    
-    # En la función check_for_updates del cliente
     def check_for_updates(self):
         """Verifica si hay actualizaciones en las playlists"""
         logger.info("Verificando actualizaciones de playlists...")
+        
+        # Resetear flag de cambios
+        self.changes_detected = False
         
         try:
             # Preparar parámetros para la verificación
@@ -105,210 +108,106 @@ class VideoPlayerClient:
                 params["playlist_ids"] = playlist_ids
             
             # Obtener actualizaciones del servidor
-            logger.info(f"Solicitando actualizaciones a: {self.server_url}/api/raspberry/check-updates")
+            logger.info(f"Solicitando playlists activas de: {self.server_url}/api/raspberry/playlists/active")
             response = requests.get(
-                f"{self.server_url}/api/raspberry/check-updates", 
-                params=params
+                f"{self.server_url}/api/raspberry/playlists/active", 
+                params=params,
+                timeout=30
             )
             
             if response.status_code != 200:
                 logger.error(f"Error al obtener actualizaciones: {response.status_code}")
                 return
             
-            data = response.json()
+            # Procesar playlists activas
+            active_playlists = response.json()
+            logger.info(f"Recibidas {len(active_playlists)} playlists activas")
             
-            # Comprobar el tipo de respuesta
-            if isinstance(data, list):
-                # Si es una lista, asumimos que son playlists activas
-                logger.info(f"Formato lista detectado. Playlists activas: {len(data)}")
+            # Identificar playlists nuevas o modificadas
+            playlists_to_update = []
+            for playlist in active_playlists:
+                playlist_id = str(playlist["id"])
                 
-                # Actualizar el diccionario de playlists activas
-                new_active_playlists = {}
-                for playlist in data:
-                    playlist_id = str(playlist["id"])
-                    new_active_playlists[playlist_id] = playlist
-                    self.download_playlist(playlist)
-                
-                # Actualizar la lista completa de playlists activas
-                self.active_playlists = new_active_playlists
-                
-            else:
-                # Si es un diccionario, extraemos los valores
-                active_playlists = data.get("active_playlists", [])
-                expired_playlist_ids = data.get("expired_playlists", [])
-                logger.info(f"Formato diccionario detectado. Playlists activas: {len(active_playlists)}, expiradas: {len(expired_playlist_ids)}")
-                self.last_update = data.get("timestamp", datetime.now().isoformat())
-                
-                # Procesar playlists expiradas
-                if expired_playlist_ids:
-                    logger.info(f"Encontradas {len(expired_playlist_ids)} playlists expiradas")
-                    for playlist_id in expired_playlist_ids:
-                        self.remove_playlist(str(playlist_id))
-                
-                # Procesar playlists activas/actualizadas
-                if active_playlists:
-                    logger.info(f"Encontradas {len(active_playlists)} playlists activas/actualizadas")
-                    for playlist in active_playlists:
-                        playlist_id = str(playlist["id"])
-                        logger.info(f"Procesando playlist ID {playlist_id}: {playlist['title']}")
-                        
-                        # Actualizar o agregar la playlist
-                        self.active_playlists[playlist_id] = playlist
-                        self.download_playlist(playlist)
+                # Verificar si es una playlist nueva o modificada
+                if playlist_id not in self.active_playlists:
+                    logger.info(f"Nueva playlist encontrada: {playlist['title']} (ID: {playlist_id})")
+                    playlists_to_update.append(playlist)
+                    self.changes_detected = True
+                else:
+                    # Comparar para ver si ha sido modificada
+                    old_playlist = self.active_playlists[playlist_id]
+                    
+                    # Verificar si hay cambios en los videos de la playlist
+                    old_videos = {str(v["id"]): v for v in old_playlist.get("videos", [])}
+                    new_videos = {str(v["id"]): v for v in playlist.get("videos", [])}
+                    
+                    if len(old_videos) != len(new_videos):
+                        logger.info(f"Cambio en el número de videos en playlist: {playlist['title']} (ID: {playlist_id})")
+                        playlists_to_update.append(playlist)
+                        self.changes_detected = True
+                    else:
+                        # Verificar si hay nuevos videos o videos modificados
+                        for video_id, video in new_videos.items():
+                            if video_id not in old_videos:
+                                logger.info(f"Nuevo video en playlist {playlist_id}: Video ID {video_id}")
+                                playlists_to_update.append(playlist)
+                                self.changes_detected = True
+                                break
+                            # También podríamos verificar si los videos han cambiado
+                            # (por ejemplo, verificando fechas o metadatos)
             
-            # Guardar estado actual
+            # Identificar playlists expiradas
+            expired_playlists = []
+            for playlist_id in list(self.active_playlists.keys()):
+                if not any(str(p["id"]) == playlist_id for p in active_playlists):
+                    logger.info(f"Playlist expirada o eliminada: ID {playlist_id}")
+                    expired_playlists.append(playlist_id)
+                    self.changes_detected = True
+            
+            # Procesar playlists expiradas
+            for playlist_id in expired_playlists:
+                self.remove_playlist(playlist_id)
+            
+            # Descargar playlists nuevas o modificadas
+            for playlist in playlists_to_update:
+                self.download_playlist(playlist)
+            
+            # Actualizar lista de playlists activas
+            self.active_playlists = {str(p["id"]): p for p in active_playlists}
+            self.last_update = datetime.now().isoformat()
+            
+            # Actualizar estado en el sistema de archivos
             self.save_state()
-            logger.info(f"Actualización completada. Total playlists activas: {len(self.active_playlists)}")
             
-        except Exception as e:    
+            logger.info(f"Sincronización completada. Total playlists activas: {len(self.active_playlists)}")
+            logger.info(f"¿Se detectaron cambios? {'Sí' if self.changes_detected else 'No'}")
+            
+        except Exception as e:
             logger.error(f"Error durante la verificación de actualizaciones: {e}")
             logger.error(traceback.format_exc())
     
-    def update_playlist(self, playlist):
-        """
-        Actualiza una playlist existente
-        
-        Args:
-            playlist (dict): Datos actualizados de la playlist
-        """
-        playlist_id = str(playlist["id"])
-        logger.info(f"Actualizando playlist {playlist_id}: {playlist['title']}")
-        
-        # Directorio de la playlist
-        playlist_dir = os.path.join(self.playlists_path, playlist_id)
-        os.makedirs(playlist_dir, exist_ok=True)
-        
-        # Cargar datos actuales
-        playlist_file = os.path.join(playlist_dir, "playlist.json")
-        current_videos = {}
-        
-        if os.path.exists(playlist_file):
-            try:
-                with open(playlist_file, "r") as f:
-                    current_data = json.load(f)
-                    current_videos = {str(v["id"]): v for v in current_data.get("videos", [])}
-            except Exception as e:
-                logger.error(f"Error al leer playlist actual: {e}")
-                current_videos = {}
-        
-        # Actualizar el archivo de la playlist
-        with open(playlist_file, "w") as f:
-            json.dump(playlist, f, indent=4)
-        
-        # Guardar en la lista de playlists activas
-        self.active_playlists[playlist_id] = playlist
-        
-        # Identificar videos nuevos
-        new_videos = []
-        for video in playlist.get("videos", []):
-            if str(video["id"]) not in current_videos:
-                new_videos.append(video)
-        
-        # Descargar solo los videos nuevos
-        for video in new_videos:
-            self.download_video(video, playlist_dir)
-        
-        logger.info(f"Playlist {playlist_id} actualizada con {len(new_videos)} nuevos videos")
-    
-
-    def download_video(self, video, playlist_dir):
-        """
-        Descarga un video desde el servidor y lo guarda localmente
-        
-        Args:
-            video (dict): Diccionario con los datos del video
-            playlist_dir (str): Directorio donde se guardará el video
-        """
-        video_id = str(video["id"])
-        video_filename = f"{video_id}.mp4"
-        video_path = os.path.join(playlist_dir, video_filename)
-        
-        # Verificar si el video ya existe
-        if os.path.exists(video_path):
-            file_size = os.path.getsize(video_path)
-            # Verificar si el archivo está completo (opcional)
-            if file_size > 0:  # Podrías comparar con video.get("size") si está disponible
-                logger.info(f"Video {video_id} ya existe, omitiendo descarga")
-                return
-        
-        # URL completa del video
-        video_url = f"{self.server_url}/api/videos/{video_id}/download"
-        temp_path = f"{video_path}.tmp"
+    def save_state(self):
+        """Guarda el estado actual del cliente"""
+        state_file = os.path.join(self.download_path, "client_state.json")
         
         try:
-            logger.info(f"Iniciando descarga de video {video_id}: {video['title']}")
-            logger.info(f"URL de descarga: {video_url}")
+            state = {
+                "active_playlists": self.active_playlists,
+                "last_update": self.last_update,
+                "last_sync": datetime.now().isoformat()
+            }
             
-            # Configurar headers para manejar descargas parciales
-            headers = {}
-            if os.path.exists(temp_path):
-                downloaded_size = os.path.getsize(temp_path)
-                headers['Range'] = f'bytes={downloaded_size}-'
+            with open(state_file, "w") as f:
+                json.dump(state, f, indent=4)
             
-            # Realizar la solicitud con stream=True para descargar en chunks
-            with requests.get(video_url, headers=headers, stream=True, timeout=30) as response:
-                response.raise_for_status()  # Lanza excepción para códigos 4XX/5XX
-                
-                # Verificar si es una descarga parcial (206) o completa (200)
-                if response.status_code == 206:
-                    mode = 'ab'  # Append si es descarga parcial
-                    total_size = int(response.headers.get('content-range').split('/')[1])
-                else:
-                    mode = 'wb'  # Write nuevo archivo
-                    total_size = int(response.headers.get('content-length', 0))
-                
-                # Mostrar información de la descarga
-                logger.info(f"Tamaño total: {total_size} bytes")
-                logger.info(f"Modo de descarga: {'resume' if mode == 'ab' else 'new'}")
-                
-                # Descargar en chunks y mostrar progreso
-                downloaded = os.path.getsize(temp_path) if os.path.exists(temp_path) else 0
-                chunk_size = 8192  # 8KB chunks
-                
-                with open(temp_path, mode) as file:
-                    for chunk in response.iter_content(chunk_size=chunk_size):
-                        if chunk:  # Filtrar keep-alive chunks
-                            file.write(chunk)
-                            downloaded += len(chunk)
-                            # Log progreso cada 1MB
-                            if downloaded % (1024*1024) < chunk_size:
-                                logger.info(f"Descargados {downloaded}/{total_size} bytes ({downloaded/total_size:.1%})")
-                
-                # Renombrar el archivo temporal al finalizar
-                os.rename(temp_path, video_path)
-                logger.info(f"Video {video_id} descargado correctamente en {video_path}")
-                
-                # Verificar integridad del archivo (opcional)
-                actual_size = os.path.getsize(video_path)
-                if total_size > 0 and actual_size != total_size:
-                    logger.warning(f"Tamaño del archivo ({actual_size}) no coincide con el esperado ({total_size})")
-                    os.remove(video_path)
-                    raise IOError("Tamaño del archivo incorrecto")
-        
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error al descargar video {video_id}: {str(e)}")
-            # Intentar eliminar el archivo temporal si hubo error
-            if os.path.exists(temp_path):
-                try:
-                    os.remove(temp_path)
-                except OSError:
-                    pass
-            raise
-        
+            logger.debug("Estado guardado correctamente")
         except Exception as e:
-            logger.error(f"Error inesperado al descargar video {video_id}: {str(e)}")
-            logger.error(traceback.format_exc())
-            raise
- 
+            logger.error(f"Error al guardar el estado: {e}")
+    
     def download_playlist(self, playlist):
-        """
-        Descarga o actualiza una playlist y sus videos
-        
-        Args:
-            playlist (dict): Diccionario con los datos de la playlist
-        """
+        """Descarga una playlist y sus videos"""
         playlist_id = str(playlist["id"])
-        logger.info(f"Descargando/actualizando playlist {playlist_id}: {playlist['title']}")
+        logger.info(f"Descargando playlist {playlist_id}: {playlist['title']}")
         
         # Crear directorio para la playlist
         playlist_dir = os.path.join(self.playlists_path, playlist_id)
@@ -316,265 +215,286 @@ class VideoPlayerClient:
         
         # Guardar información de la playlist
         playlist_file = os.path.join(playlist_dir, "playlist.json")
-        
-        # Verificar si la playlist ya existe
-        existing_videos = {}
-        if os.path.exists(playlist_file):
-            try:
-                with open(playlist_file, "r") as f:
-                    existing_data = json.load(f)
-                    # Crear un diccionario de videos existentes para comparar
-                    existing_videos = {str(v["id"]): v for v in existing_data.get("videos", [])}
-                logger.info(f"Playlist existente encontrada con {len(existing_videos)} videos")
-            except Exception as e:
-                logger.error(f"Error al leer playlist existente: {e}")
-        
-        # Guardar la información actualizada de la playlist
         with open(playlist_file, "w") as f:
             json.dump(playlist, f, indent=4)
         
-        logger.info(f"Información de playlist guardada en {playlist_file}")
-        
-        # Agregar a las playlists activas
-        self.active_playlists[playlist_id] = playlist
-        
-        # Descargar videos que no existen localmente
-        videos_to_download = []
+        # Descargar videos
         for video in playlist.get("videos", []):
             video_id = str(video["id"])
-            # Verificar si el video ya existe
-            if video_id in existing_videos:
-                # Si el video ya existe, verificar si hay cambios (por ejemplo, en el título o fecha de expiración)
-                if (video.get("title") != existing_videos[video_id].get("title") or 
-                    video.get("expiration_date") != existing_videos[video_id].get("expiration_date")):
-                    logger.info(f"Video {video_id} requiere actualización de metadatos")
-                    videos_to_download.append(video)
-            else:
-                # Si es un video nuevo, agregarlo a la lista de descarga
-                videos_to_download.append(video)
-        
-        if not videos_to_download:
-            logger.info(f"No hay nuevos videos para descargar en la playlist {playlist_id}")
-            return
-        
-        # Descargar los videos nuevos o actualizados
-        logger.info(f"Descargando {len(videos_to_download)} videos para la playlist {playlist_id}")
-        for video in videos_to_download:
+            video_filename = f"{video_id}.mp4"
+            video_path = os.path.join(playlist_dir, video_filename)
+            
+            # Si el video ya existe y tiene tamaño mayor que cero, omitir descarga
+            if os.path.exists(video_path) and os.path.getsize(video_path) > 0:
+                logger.debug(f"Video {video_id} ya existe, omitiendo descarga")
+                continue
+            
+            # Descargar el video
             try:
-                self.download_video(video, playlist_dir)
+                video_url = f"{self.server_url}/api/videos/{video_id}/download"
+                logger.info(f"Descargando video {video_id}: {video['title']}")
+                
+                with requests.get(video_url, stream=True, timeout=120) as response:
+                    response.raise_for_status()
+                    total_size = int(response.headers.get('content-length', 0))
+                    
+                    # Crear archivo temporal para la descarga
+                    temp_path = f"{video_path}.tmp"
+                    
+                    # Descargar en chunks para archivos grandes
+                    downloaded = 0
+                    with open(temp_path, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                                downloaded += len(chunk)
+                                
+                                # Mostrar progreso cada 5%
+                                if total_size > 0 and downloaded % (total_size // 20) < 8192:
+                                    progress = (downloaded / total_size) * 100
+                                    logger.info(f"Progreso de descarga {video_id}: {progress:.1f}%")
+                    
+                    # Mover archivo temporal a destino final
+                    os.rename(temp_path, video_path)
+                    logger.info(f"Video {video_id} descargado correctamente")
+                    
+                    # Marcar que se detectaron cambios
+                    self.changes_detected = True
+            
             except Exception as e:
-                logger.error(f"Error al descargar video {video.get('id')}: {e}")
+                logger.error(f"Error al descargar video {video_id}: {e}")
+                # Eliminar archivo temporal si existe
+                if os.path.exists(f"{video_path}.tmp"):
+                    os.remove(f"{video_path}.tmp")
         
-        logger.info(f"Playlist {playlist_id} descargada/actualizada correctamente")
+        # Crear archivo m3u con rutas absolutas
+        self.create_m3u_playlist(playlist, playlist_dir)
+        
+        logger.info(f"Playlist {playlist_id} descargada correctamente")
+    
+    def create_m3u_playlist(self, playlist, playlist_dir):
+        """Crea un archivo m3u con la lista de videos"""
+        m3u_path = os.path.join(playlist_dir, "playlist.m3u")
+        
+        # Guardar contenido anterior para verificar cambios
+        old_content = ""
+        if os.path.exists(m3u_path):
+            with open(m3u_path, "r") as f:
+                old_content = f.read()
+        
+        # Recopilar rutas de videos
+        video_paths = []
+        for video in playlist.get("videos", []):
+            video_id = str(video["id"])
+            video_path = os.path.join(playlist_dir, f"{video_id}.mp4")
+            
+            if os.path.exists(video_path) and os.path.getsize(video_path) > 0:
+                # Usar ruta absoluta para mayor compatibilidad
+                video_absolute_path = os.path.abspath(video_path)
+                video_paths.append(video_absolute_path)
+        
+        # Crear archivo m3u
+        if video_paths:
+            new_content = "\n".join(video_paths)
+            
+            # Verificar si el contenido ha cambiado
+            if new_content != old_content:
+                with open(m3u_path, "w") as f:
+                    f.write(new_content)
+                
+                logger.info(f"Archivo m3u actualizado con {len(video_paths)} videos")
+                self.changes_detected = True
+            else:
+                logger.debug("Archivo m3u sin cambios")
+        else:
+            logger.warning(f"No se encontraron videos válidos para crear el archivo m3u")
+        
+        # Copiar el script de reproducción mejorado
+        self.create_play_script(playlist_dir)
+    
+    def create_play_script(self, playlist_dir):
+        """Crea o actualiza el script play_videos.sh en el directorio de la playlist"""
+        script_path = os.path.join(playlist_dir, "play_videos.sh")
+        
+        # Contenido del script
+        script_content = """#!/bin/bash
+# Script avanzado para reproducir videos en bucle
+# Verifica múltiples reproductores y usa el primero disponible
 
-    def remove_playlist(self, playlist_id):
-        """
-        Elimina una playlist expirada
+# Obtener directorio del script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR" || exit 1
+
+echo "===== Reproductor de Videos ====="
+echo "Directorio: $(pwd)"
+echo "Fecha: $(date)"
+
+# Verificar si existe la playlist m3u
+if [ ! -f "playlist.m3u" ]; then
+  echo "Error: playlist.m3u no encontrada"
+  exit 1
+fi
+
+# Contar videos en la playlist
+NUM_VIDEOS=$(grep -c . playlist.m3u)
+echo "Encontrados $NUM_VIDEOS videos en la playlist"
+
+# Mostrar contenido de la playlist
+echo "Contenido de playlist.m3u:"
+cat playlist.m3u
+
+# Función para verificar si un comando está disponible
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Intentar reproducir con VLC (primera opción)
+if command_exists cvlc || command_exists vlc; then
+  echo "Usando VLC para reproducción..."
+  
+  if command_exists cvlc; then
+    echo "Ejecutando: cvlc --loop --no-video-title-show --fullscreen playlist.m3u"
+    exec cvlc --loop --no-video-title-show --fullscreen playlist.m3u
+  else
+    echo "Ejecutando: vlc --loop --no-video-title-show --fullscreen --started-from-file playlist.m3u"
+    exec vlc --loop --no-video-title-show --fullscreen --started-from-file playlist.m3u
+  fi
+
+# Intentar con MPV
+elif command_exists mpv; then
+  echo "Usando MPV para reproducción..."
+  echo "Ejecutando: mpv --fullscreen --loop-playlist=inf playlist.m3u"
+  exec mpv --fullscreen --loop-playlist=inf playlist.m3u
+
+# Intentar con SMPlayer
+elif command_exists smplayer; then
+  echo "Usando SMPlayer para reproducción..."
+  echo "Ejecutando: smplayer -fullscreen -loop playlist.m3u"
+  exec smplayer -fullscreen -loop playlist.m3u
+
+# Intentar con OMXPlayer (Raspberry Pi)
+elif command_exists omxplayer; then
+  echo "Usando OMXPlayer para reproducción (Raspberry Pi)..."
+  echo "OMXPlayer no soporta archivos m3u directamente, reproduciendo videos individualmente..."
+  
+  while true; do
+    while read -r video_path; do
+      # Ignorar líneas vacías
+      if [ -z "$video_path" ]; then
+        continue
+      fi
+      
+      echo "Reproduciendo: $video_path"
+      if [ -f "$video_path" ]; then
+        omxplayer -o hdmi --no-osd --no-keys "$video_path"
+      else
+        echo "Advertencia: El archivo $video_path no existe"
+      fi
+      
+      # Pequeña pausa entre videos
+      sleep 1
+    done < playlist.m3u
+    
+    echo "Playlist completada, reiniciando..."
+    sleep 2
+  done
+
+# Intentar con MPlayer
+elif command_exists mplayer; then
+  echo "Usando MPlayer para reproducción..."
+  echo "Ejecutando: mplayer -fs -loop 0 -playlist playlist.m3u"
+  exec mplayer -fs -loop 0 -playlist playlist.m3u
+
+else
+  echo "Error: No se encontró ningún reproductor de video compatible"
+  echo "Por favor, instale VLC, MPV, SMPlayer, OMXPlayer o MPlayer"
+  exit 1
+fi
+"""
         
-        Args:
-            playlist_id (str): ID de la playlist a eliminar
-        """
+        # Escribir el script
+        with open(script_path, "w") as f:
+            f.write(script_content)
+        
+        # Hacer el script ejecutable
+        os.chmod(script_path, 0o755)
+        
+        logger.debug(f"Script de reproducción creado/actualizado: {script_path}")
+    
+    def remove_playlist(self, playlist_id):
+        """Elimina una playlist expirada"""
         logger.info(f"Eliminando playlist {playlist_id}")
         
-        # Detener reproducción si es la playlist actual
-        if self.current_playlist == playlist_id:
-            self.stop_playback()
-            self.current_playlist = None
+        # Marcar la playlist como inactiva pero mantener los archivos
+        if playlist_id in self.active_playlists:
+            del self.active_playlists[playlist_id]
         
-        # Directorio de la playlist
+        # Opcionalmente, si se quieren eliminar los archivos, descomentar lo siguiente:
+        """
         playlist_dir = os.path.join(self.playlists_path, playlist_id)
-        
-        # Eliminar el directorio si existe
         if os.path.exists(playlist_dir):
             try:
                 for file in os.listdir(playlist_dir):
-                    os.remove(os.path.join(playlist_dir, file))
+                    file_path = os.path.join(playlist_dir, file)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
                 os.rmdir(playlist_dir)
-                logger.info(f"Playlist {playlist_id} eliminada correctamente")
+                logger.info(f"Directorio de playlist {playlist_id} eliminado")
             except Exception as e:
-                logger.error(f"Error al eliminar playlist {playlist_id}: {e}")
-        
-        # Eliminar de la lista de playlists activas
-        if playlist_id in self.active_playlists:
-            del self.active_playlists[playlist_id]
+                logger.error(f"Error al eliminar directorio de playlist {playlist_id}: {e}")
+        """
     
-    def play_playlist(self, playlist_id):
-        """
-        Reproduce los videos de una playlist
-        
-        Args:
-            playlist_id (str): ID de la playlist
-        """
-        playlist_dir = os.path.join(self.playlists_path, playlist_id)
-        playlist_file = os.path.join(playlist_dir, "playlist.json")
-        
-        if not os.path.exists(playlist_file):
-            logger.error(f"Playlist {playlist_id} no encontrada")
-            return
+    def restart_videoloop_service(self):
+        """Reinicia el servicio de reproducción de video"""
+        logger.info(f"Reiniciando servicio {self.service_name}...")
         
         try:
-            with open(playlist_file, "r") as f:
-                playlist = json.load(f)
+            # Verificar si el servicio existe
+            check_cmd = ["systemctl", "status", self.service_name]
+            check_result = subprocess.run(check_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             
-            # Verificar si la playlist ha expirado
-            if playlist.get("expiration_date"):
-                expiration_date = datetime.fromisoformat(playlist["expiration_date"].replace('Z', '+00:00'))
-                if datetime.now() > expiration_date:
-                    logger.warning(f"La playlist {playlist_id} ha expirado: {playlist['title']}")
-                    self.remove_playlist(playlist_id)
-                    return
-            
-            # Establecer como playlist actual
-            self.current_playlist = playlist_id
-            
-            logger.info(f"Reproduciendo playlist: {playlist['title']}")
-            
-            # Filtrar videos que no han expirado
-            active_videos = []
-            for video in playlist.get("videos", []):
-                if video.get("expiration_date"):
-                    expiration_date = datetime.fromisoformat(video["expiration_date"].replace('Z', '+00:00'))
-                    if datetime.now() > expiration_date:
-                        logger.warning(f"Video {video['id']} ha expirado: {video['title']}")
-                        continue
-                
-                video_path = os.path.join(playlist_dir, f"{video['id']}.mp4")
-                if os.path.exists(video_path):
-                    active_videos.append((video, video_path))
-            
-            if not active_videos:
-                logger.warning("No hay videos activos en esta playlist")
+            if check_result.returncode == 4:  # 4 indica que el servicio no existe
+                logger.warning(f"El servicio {self.service_name} no existe")
                 return
             
-            # Reproducir todos los videos de la playlist en bucle
-            while self.current_playlist == playlist_id:
-                for video, video_path in active_videos:
-                    if self.current_playlist != playlist_id:
-                        break  # Salir si se cambió la playlist
-                    
-                    logger.info(f"Reproduciendo video: {video['title']}")
-                    self.currently_playing = video['id']
-                    
-                    # Reproducir el video
-                    self.play_video(video_path)
-                    
-                    # Verificar actualizaciones después de cada video
-                    self.check_for_updates()
-                    
-                    # Si la playlist ha sido eliminada o cambiada, salir
-                    if self.current_playlist != playlist_id:
-                        break
+            # Reiniciar el servicio
+            restart_cmd = ["sudo", "systemctl", "restart", self.service_name]
+            restart_result = subprocess.run(restart_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             
-        except Exception as e:
-            logger.error(f"Error al reproducir playlist: {e}")
-    
-    def play_video(self, video_path):
-        """
-        Reproduce un video utilizando el reproductor adecuado
-        
-        Args:
-            video_path (str): Ruta al video a reproducir
-        """
-        try:
-            # Usar omxplayer en Raspberry Pi o vlc en otros sistemas
-            if os.path.exists("/usr/bin/omxplayer"):
-                process = subprocess.Popen(["omxplayer", video_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                process.wait()
+            if restart_result.returncode == 0:
+                logger.info(f"Servicio {self.service_name} reiniciado correctamente")
             else:
-                process = subprocess.Popen(["cvlc", "-f", "--play-and-exit", "--video-on-top", "--no-video-title-show", video_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                process.wait()
-            
-            return process.returncode == 0
-        except Exception as e:
-            logger.error(f"Error al reproducir video {video_path}: {e}")
-            return False
-    
-    def stop_playback(self):
-        """Detiene la reproducción actual"""
-        if self.currently_playing:
-            logger.info(f"Deteniendo reproducción del video {self.currently_playing}")
-            
-            # Matar procesos de reproducción
-            try:
-                if os.path.exists("/usr/bin/omxplayer"):
-                    subprocess.run(["killall", "omxplayer.bin"], stderr=subprocess.PIPE)
-                else:
-                    subprocess.run(["killall", "vlc"], stderr=subprocess.PIPE)
-            except Exception as e:
-                logger.error(f"Error al detener reproducción: {e}")
-            
-            self.currently_playing = None
-    
-    def start_playback_loop(self):
-        """Inicia el bucle de reproducción de playlists"""
-        while True:
-            if not self.active_playlists:
-                logger.info("No hay playlists activas para reproducir")
-                time.sleep(30)  # Esperar 30 segundos
-                self.check_for_updates()
-                continue
-            
-            # Reproducir todas las playlists en secuencia
-            for playlist_id in list(self.active_playlists.keys()):
-                # Si ya no está en las playlists activas, saltar
-                if playlist_id not in self.active_playlists:
-                    continue
+                error = restart_result.stderr.decode('utf-8', errors='ignore')
+                logger.error(f"Error al reiniciar el servicio: {error}")
                 
-                self.play_playlist(playlist_id)
-    
-    def start(self):
-        """Inicia el cliente"""
-        logger.info(f"Iniciando cliente para {self.server_url}")
+                # Intento alternativo con sudo explícito por si hay problemas de permisos
+                if "permission denied" in error.lower():
+                    logger.info("Intentando reiniciar con sudo explícito...")
+                    os.system(f"echo 'Reiniciando servicio desde script' | sudo -S systemctl restart {self.service_name}")
+                    logger.info("Comando de reinicio alternativo ejecutado")
         
-        # Verificar inmediatamente al inicio
-        self.check_for_updates()
-        
-        # Programar verificaciones periódicas
-        schedule.every(self.check_interval).minutes.do(self.check_for_updates)
-        
-        # Iniciar thread para las verificaciones programadas
-        import threading
-        scheduler_thread = threading.Thread(target=self._run_scheduler)
-        scheduler_thread.daemon = True
-        scheduler_thread.start()
-        
-        # Iniciar reproducción
-        try:
-            self.start_playback_loop()
-        except KeyboardInterrupt:
-            logger.info("Cliente detenido por el usuario")
         except Exception as e:
-            logger.error(f"Error en el bucle principal: {e}")
-        finally:
-            self.stop_playback()
-            self.save_state()
-    
-    def _run_scheduler(self):
-        """Ejecuta el scheduler en un thread separado"""
-        while True:
-            schedule.run_pending()
-            time.sleep(1)
+            logger.error(f"Error al intentar reiniciar el servicio: {e}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Cliente de video para Raspberry Pi")
+    parser = argparse.ArgumentParser(description="Cliente de sincronización de videos")
     parser.add_argument("--server", required=True, help="URL del servidor")
-    parser.add_argument("--download-path", default="./downloads", help="Ruta donde se guardarán los videos")
-    parser.add_argument("--check-interval", type=int, default=30, help="Intervalo en minutos para verificar actualizaciones")
-    parser.add_argument("--play", help="Reproducir una playlist específica (ID)")
+    parser.add_argument("--download-path", default="./downloads", help="Ruta de descarga")
+    parser.add_argument("--check-interval", type=int, default=30, 
+                        help="Intervalo de verificación en minutos")
+    parser.add_argument("--service", default="videoloop.service",
+                        help="Nombre del servicio a reiniciar cuando hay cambios")
     
     args = parser.parse_args()
     
-    client = VideoPlayerClient(
+    client = VideoDownloaderClient(
         server_url=args.server,
         download_path=args.download_path,
-        check_interval=args.check_interval
+        check_interval=args.check_interval,
+        service_name=args.service
     )
     
-    if args.play:
-        client.play_playlist(args.play)
-    else:
-        client.start()
+    client.start()
 
 if __name__ == "__main__":
     main()
-

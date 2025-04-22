@@ -1,0 +1,6 @@
+#!/bin/bash 
+
+# Script to loop a video file using VLC 
+# ruta /usr/bin/videolopp
+
+cvlc --loop --no-video-title-show --fullscreen /home/jlr/vs/downloads/playlists/1/playlist.m3u

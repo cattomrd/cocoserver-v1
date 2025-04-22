@@ -1,0 +1,96 @@
+<!-- Archivo app/templates/service_control.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Control de Servicio</h1>
+            <a href="/ui/devices/{{ device.device_id }}" class="btn btn-outline-secondary">Volver al Dispositivo</a>
+        </div>
+        
+        <div class="card">
+            <div class="card-header {% if result.success %}bg-success{% else %}bg-danger{% endif %} text-white">
+                <h5 class="card-title mb-0">
+                    {% if action == 'start' %}
+                        Iniciando Servicio
+                    {% elif action == 'stop' %}
+                        Deteniendo Servicio
+                    {% elif action == 'restart' %}
+                        Reiniciando Servicio
+                    {% else %}
+                        Consultando Estado
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <h4 class="mb-3">Resultado de la operación:</h4>
+                
+                <div class="alert {% if result.success %}alert-success{% else %}alert-danger{% endif %}">
+                    {{ result.message }}
+                </div>
+                
+                <table class="table mt-4">
+                    <tr>
+                        <th style="width: 30%">Dispositivo:</th>
+                        <td>{{ device.name }} ({{ device.device_id }})</td>
+                    </tr>
+                    <tr>
+                        <th>Acción realizada:</th>
+                        <td>
+                            {% if action == 'start' %}
+                                <span class="badge bg-success">Iniciar</span>
+                            {% elif action == 'stop' %}
+                                <span class="badge bg-danger">Detener</span>
+                            {% elif action == 'restart' %}
+                                <span class="badge bg-warning">Reiniciar</span>
+                            {% else %}
+                                <span class="badge bg-info">Consultar Estado</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Estado del servicio:</th>
+                        <td>
+                            {% if device.videoloop_status == 'running' %}
+                                <span class="badge bg-success">En ejecución</span>
+                            {% elif device.videoloop_status == 'stopped' %}
+                                <span class="badge bg-danger">Detenido</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Desconocido</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Hora de la acción:</th>
+                        <td>{{ result.timestamp.strftime('%Y-%m-%d %H:%M:%S') if result.timestamp else "No disponible" }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex">
+                    <a href="/ui/devices/{{ device.device_id }}" class="btn btn-primary me-2">Volver a los Detalles</a>
+                    
+                    {% if result.success %}
+                        {% if device.videoloop_status == 'running' %}
+                            <form action="/ui/devices/{{ device.device_id }}/service" method="post" class="me-2">
+                                <input type="hidden" name="action" value="stop">
+                                <button type="submit" class="btn btn-danger">Detener Servicio</button>
+                            </form>
+                            <form action="/ui/devices/{{ device.device_id }}/service" method="post">
+                                <input type="hidden" name="action" value="restart">
+                                <button type="submit" class="btn btn-warning">Reiniciar Servicio</button>
+                            </form>
+                        {% else %}
+                            <form action="/ui/devices/{{ device.device_id }}/service" method="post">
+                                <input type="hidden" name="action" value="start">
+                                <button type="submit" class="btn btn-success">Iniciar Servicio</button>
+                            </form>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

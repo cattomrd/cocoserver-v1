@@ -1,0 +1,311 @@
+<!-- Archivo app/templates/device_detail.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Detalles del Dispositivo</h1>
+            <a href="/ui/devices" class="btn btn-outline-secondary">Volver a la lista</a>
+        </div>
+        
+        <div class="row">
+            <!-- Información del dispositivo -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">Información del Dispositivo</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table">
+                            <tr>
+                                <th style="width: 30%">Nombre:</th>
+                                <td>{{ device.name }}</td>
+                            </tr>
+                            <tr>
+                                <th>ID del Dispositivo:</th>
+                                <td>{{ device.device_id }}</td>
+                            </tr>
+                            <tr>
+                                <th>Modelo:</th>
+                                <td>{{ device.model }}</td>
+                            </tr>
+                            <tr>
+                                <th>Dirección IP:</th>
+                                <td>{{ device.ip_address }}</td>
+                            </tr>
+                            <tr>
+                                <th>Dirección MAC:</th>
+                                <td>{{ device.mac_address }}</td>
+                            </tr>
+                            <tr>
+                                <th>Ubicación:</th>
+                                <td>{{ device.location if device.location else 'No especificada' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Estado:</th>
+                                <td>
+                                    {% if device.is_active %}
+                                    <span class="badge bg-success">Activo</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Inactivo</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Registrado:</th>
+                                <td>{{ device.registered_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            </tr>
+                            <tr>
+                                <th>Última Actividad:</th>
+                                <td>{{ device.last_seen.strftime('%Y-%m-%d %H:%M') }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="card-footer">
+                        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#editDeviceModal">
+                            Editar Información
+                        </button>
+                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteDeviceModal">
+                            Eliminar Dispositivo
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Información de Estado y Servicio -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="card-title mb-0">Estado del Sistema</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card text-center mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-title">CPU Temp</h6>
+                                        <h3 class="{% if device.cpu_temp and device.cpu_temp > 70 %}text-danger{% elif device.cpu_temp and device.cpu_temp > 60 %}text-warning{% else %}text-success{% endif %}">
+                                            {% if device.cpu_temp %}{{ device.cpu_temp }}°C{% else %}--{% endif %}
+                                        </h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card text-center mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Memoria</h6>
+                                        <h3 class="{% if device.memory_usage and device.memory_usage > 85 %}text-danger{% elif device.memory_usage and device.memory_usage > 70 %}text-warning{% else %}text-success{% endif %}">
+                                            {% if device.memory_usage %}{{ device.memory_usage }}%{% else %}--{% endif %}
+                                        </h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card text-center mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Disco</h6>
+                                        <h3 class="{% if device.disk_usage and device.disk_usage > 90 %}text-danger{% elif device.disk_usage and device.disk_usage > 75 %}text-warning{% else %}text-success{% endif %}">
+                                            {% if device.disk_usage %}{{ device.disk_usage }}%{% else %}--{% endif %}
+                                        </h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Servicio videoloop -->
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="card-title mb-0">Servicio Videoloop</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if device.is_active %}
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Estado Actual:</h6>
+                                    {% if device.videoloop_status == 'running' %}
+                                        <p><span class="badge bg-success">En ejecución</span></p>
+                                    {% elif device.videoloop_status == 'stopped' %}
+                                        <p><span class="badge bg-danger">Detenido</span></p>
+                                    {% else %}
+                                        <p><span class="badge bg-secondary">Desconocido</span></p>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h6>Acciones disponibles:</h6>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% if device.videoloop_status == 'running' %}
+                                            <form action="/ui/devices/{{ device.device_id }}/service" method="post">
+                                                <input type="hidden" name="action" value="stop">
+                                                <button type="submit" class="btn btn-sm btn-danger">Detener</button>
+                                            </form>
+                                            <form action="/ui/devices/{{ device.device_id }}/service" method="post">
+                                                <input type="hidden" name="action" value="restart">
+                                                <button type="submit" class="btn btn-sm btn-warning">Reiniciar</button>
+                                            </form>
+                                        {% elif device.videoloop_status == 'stopped' %}
+                                            <form action="/ui/devices/{{ device.device_id }}/service" method="post">
+                                                <input type="hidden" name="action" value="start">
+                                                <button type="submit" class="btn btn-sm btn-success">Iniciar</button>
+                                            </form>
+                                        {% else %}
+                                            <form action="/ui/devices/{{ device.device_id }}/service" method="post">
+                                                <input type="hidden" name="action" value="status">
+                                                <button type="submit" class="btn btn-sm btn-info">Verificar Estado</button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-warning mb-0">
+                                Este dispositivo está marcado como inactivo. Para controlar el servicio, primero debe activarlo.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de edición de dispositivo para app/templates/device_detail.html -->
+
+<!-- Modal de edición de dispositivo -->
+<div class="modal fade" id="editDeviceModal" tabindex="-1" aria-labelledby="editDeviceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editDeviceModalLabel">Editar Dispositivo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="/ui/devices/{{ device.device_id }}/update" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="name" name="name" value="{{ device.name }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="location" class="form-label">Ubicación</label>
+                        <input type="text" class="form-control" id="location" name="location" value="{{ device.location or '' }}">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación de eliminación -->
+<div class="modal fade" id="deleteDeviceModal" tabindex="-1" aria-labelledby="deleteDeviceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteDeviceModalLabel">Confirmar eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas eliminar el dispositivo <strong>{{ device.name }}</strong>?</p>
+                <p class="text-danger">Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form action="/ui/devices/{{ device.device_id }}/delete" method="post">
+                    <button type="submit" class="btn btn-danger">Eliminar dispositivo</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+div class="card-footer d-flex justify-content-between">
+    <div>
+        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#editDeviceModal">
+            Editar Información
+        </button>
+        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteDeviceModal">
+            Eliminar Dispositivo
+        </button>
+    </div>
+    <div>
+        <a href="/api/devices/{{ device.device_id }}/ping" class="btn btn-info" id="pingButton">
+            Verificar Estado (Ping)
+        </a>
+    </div>
+</div>
+
+<!-- Añadir script para la verificación por AJAX -->
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const pingButton = document.getElementById('pingButton');
+    if (pingButton) {
+        pingButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Cambiar el texto del botón mientras hace la verificación
+            pingButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Verificando...';
+            pingButton.disabled = true;
+            
+            // Realizar la solicitud AJAX
+            fetch('/api/devices/{{ device.device_id }}/ping')
+                .then(response => response.json())
+                .then(data => {
+                    // Actualizar la interfaz con el resultado
+                    const statusBadge = document.getElementById('deviceStatusBadge');
+                    if (statusBadge) {
+                        if (data.is_active) {
+                            statusBadge.className = 'badge bg-success';
+                            statusBadge.textContent = 'Activo';
+                        } else {
+                            statusBadge.className = 'badge bg-danger';
+                            statusBadge.textContent = 'Inactivo';
+                        }
+                    }
+                    
+                    // Mostrar notificación
+                    const alertBox = document.createElement('div');
+                    alertBox.className = `alert ${data.is_active ? 'alert-success' : 'alert-warning'} alert-dismissible fade show mt-3`;
+                    alertBox.innerHTML = `
+                        <strong>${data.is_active ? '¡Dispositivo Activo!' : 'Dispositivo Inactivo'}</strong>
+                        <p>Ping a ${data.name} (${data.ip_address}): ${data.is_active ? 'Exitoso' : 'Fallido'}</p>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    `;
+                    
+                    // Insertar la notificación antes de la tabla de información
+                    const cardBody = document.querySelector('.card-body');
+                    cardBody.insertBefore(alertBox, cardBody.firstChild);
+                    
+                    // Restaurar el botón
+                    pingButton.innerHTML = 'Verificar Estado (Ping)';
+                    pingButton.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    // Mostrar error
+                    const cardBody = document.querySelector('.card-body');
+                    const alertBox = document.createElement('div');
+                    alertBox.className = 'alert alert-danger alert-dismissible fade show mt-3';
+                    alertBox.innerHTML = `
+                        <strong>Error</strong>
+                        <p>No se pudo completar la verificación. Inténtalo de nuevo más tarde.</p>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    `;
+                    cardBody.insertBefore(alertBox, cardBody.firstChild);
+                    
+                    // Restaurar el botón
+                    pingButton.innerHTML = 'Verificar Estado (Ping)';
+                    pingButton.disabled = false;
+                });
+        });
+    }
+});
+</script>
+{% endblock %}
+

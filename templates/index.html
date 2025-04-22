@@ -1,375 +1,62 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Plataforma de Gestión de Videos</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <style>
-        body {
-            padding-top: 20px;
-            padding-bottom: 40px;
-        }
-        .video-thumbnail {
-            height: 150px;
-            object-fit: cover;
-        }
-        .nav-pills .nav-link.active {
-            background-color: #007bff;
-        }
-        .playlist-card {
-            transition: transform 0.3s;
-        }
-        .playlist-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        .expiration-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-        }
-        .progress {
-            height: 25px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1 class="mb-4 text-center">Plataforma de Gestión de Videos</h1>
+<!-- Archivo app/templates/index.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">Dashboard de Dispositivos Raspberry Pi</h1>
         
-        <!-- Navegación por pestañas -->
-        <ul class="nav nav-pills mb-4" id="mainTab" role="tablist">
-            <li class="nav-item">
-                <a class="nav-link active" id="videos-tab" data-bs-toggle="tab" href="#videos" role="tab">Videos</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" id="playlists-tab" data-bs-toggle="tab" href="#playlists" role="tab">Listas de Reproducción</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" id="raspberry-tab" data-bs-toggle="tab" href="#raspberry" role="tab">Raspberry Pi</a>
-            </li>
-        </ul>
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Bienvenido al Sistema de Registro</h5>
+                <p class="card-text">
+                    Este sistema te permite administrar y monitorear tus dispositivos Raspberry Pi, 
+                    incluyendo el control del servicio videoloop.
+                </p>
+                <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                    <a href="/ui/devices" class="btn btn-primary">Ver Dispositivos</a>
+                    <a href="/docs" class="btn btn-outline-secondary" target="_blank">Documentación API</a>
+                </div>
+            </div>
+        </div>
         
-        <!-- Contenido de las pestañas -->
-        <div class="tab-content" id="mainTabContent">
-            <!-- Pestaña de Videos -->
-            <div class="tab-pane fade show active" id="videos" role="tabpanel">
-                <div class="row mb-4">
-                    <div class="col-md-12">
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0">Subir Nuevo Video</h5>
-                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#uploadForm">
-                                    <i class="fas fa-plus"></i> Mostrar/Ocultar
-                                </button>
-                            </div>
-                            <div id="uploadForm" class="collapse">
-                                <div class="card-body">
-                                    <form id="videoUploadForm">
-                                        <div class="mb-3">
-                                            <label for="videoTitle" class="form-label">Título</label>
-                                            <input type="text" class="form-control" id="videoTitle" name="title" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="videoDescription" class="form-label">Descripción</label>
-                                            <textarea class="form-control" id="videoDescription" name="description" rows="3"></textarea>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="videoExpiration" class="form-label">Fecha de Expiración (opcional)</label>
-                                            <input type="datetime-local" class="form-control" id="videoExpiration" name="expiration_date">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="videoFile" class="form-label">Archivo de Video</label>
-                                            <input type="file" class="form-control" id="videoFile" name="file" accept="video/*" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <div class="progress d-none" id="uploadProgress">
-                                                <div class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                                            </div>
-                                        </div>
-                                        <button type="submit" class="btn btn-primary">Subir Video</button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">Gestión de Dispositivos</h5>
                     </div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-md-12">
-                        <div class="form-group">
-                            <label for="videoFilterExpiration" class="form-label">Filtrar por estado:</label>
-                            <select class="form-select" id="videoFilterExpiration">
-                                <option value="all">Todos los videos</option>
-                                <option value="active">Videos activos</option>
-                                <option value="expired">Videos expirados</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0">Biblioteca de Videos</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row" id="videosList">
-                                    <!-- Los videos se cargarán aquí dinámicamente -->
-                                    <div class="col-12 text-center py-5" id="videosLoading">
-                                        <div class="spinner-border text-primary" role="status">
-                                            <span class="visually-hidden">Cargando...</span>
-                                        </div>
-                                        <p class="mt-2">Cargando videos...</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="card-body">
+                        <p>Registra, visualiza y administra tus dispositivos Raspberry Pi.</p>
+                        <a href="/ui/devices" class="btn btn-sm btn-outline-primary">Ir a Dispositivos</a>
                     </div>
                 </div>
             </div>
             
-            <!-- Pestaña de Listas de Reproducción -->
-            <div class="tab-pane fade" id="playlists" role="tabpanel">
-                <div class="row mb-4">
-                    <div class="col-md-12">
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0">Crear Nueva Lista de Reproducción</h5>
-                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#playlistForm">
-                                    <i class="fas fa-plus"></i> Mostrar/Ocultar
-                                </button>
-                            </div>
-                            <div id="playlistForm" class="collapse">
-                                <div class="card-body">
-                                    <form id="playlistCreateForm">
-                                        <div class="mb-3">
-                                            <label for="playlistTitle" class="form-label">Título</label>
-                                            <input type="text" class="form-control" id="playlistTitle" name="title" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="playlistDescription" class="form-label">Descripción</label>
-                                            <textarea class="form-control" id="playlistDescription" name="description" rows="3"></textarea>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="playlistExpiration" class="form-label">Fecha de Expiración (opcional)</label>
-                                            <input type="datetime-local" class="form-control" id="playlistExpiration" name="expiration_date">
-                                        </div>
-                                        <div class="mb-3 form-check">
-                                            <input type="checkbox" class="form-check-input" id="playlistActive" name="is_active" checked>
-                                            <label class="form-check-label" for="playlistActive">Lista Activa</label>
-                                        </div>
-                                        <button type="submit" class="btn btn-primary">Crear Lista de Reproducción</button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="card-title mb-0">Control de Servicios</h5>
                     </div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-md-12">
-                        <div class="form-group">
-                            <label for="playlistFilterStatus" class="form-label">Filtrar por estado:</label>
-                            <select class="form-select" id="playlistFilterStatus">
-                                <option value="all">Todas las listas</option>
-                                <option value="active">Listas activas</option>
-                                <option value="inactive">Listas inactivas</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0">Listas de Reproducción</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row" id="playlistsList">
-                                    <!-- Las listas se cargarán aquí dinámicamente -->
-                                    <div class="col-12 text-center py-5" id="playlistsLoading">
-                                        <div class="spinner-border text-primary" role="status">
-                                            <span class="visually-hidden">Cargando...</span>
-                                        </div>
-                                        <p class="mt-2">Cargando listas de reproducción...</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="card-body">
+                        <p>Inicia, detiene o reinicia el servicio videoloop en tus dispositivos.</p>
+                        <a href="/ui/devices" class="btn btn-sm btn-outline-success">Administrar Servicios</a>
                     </div>
                 </div>
             </div>
             
-            <!-- Pestaña de Raspberry Pi -->
-            <div class="tab-pane fade" id="raspberry" role="tabpanel">
-                <div class="row">
-                    <div class="col-md-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0">Información para Clientes Raspberry Pi</h5>
-                            </div>
-                            <div class="card-body">
-                                <h6>Instrucciones de configuración</h6>
-                                <p>Para configurar su Raspberry Pi con esta plataforma, siga estos pasos:</p>
-                                <ol>
-                                    <li>Asegúrese de que su Raspberry Pi esté conectada a internet.</li>
-                                    <li>Descargue el script cliente desde el siguiente enlace:
-                                        <a href="#" class="btn btn-sm btn-outline-primary ms-2">Descargar Cliente</a>
-                                    </li>
-                                    <li>Ejecute el script con los siguientes parámetros:</li>
-                                </ol>
-                                <div class="bg-light p-3 mb-4">
-                                    <code>python3 client.py --server="http://[URL_DEL_SERVIDOR]" --download-path="./videos" --check-interval=30</code>
-                                </div>
-                                
-                                <div class="alert alert-info">
-                                    <h6>API para Raspberry Pi</h6>
-                                    <p>Los dispositivos Raspberry Pi pueden acceder a las listas de reproducción activas mediante el siguiente endpoint:</p>
-                                    <div class="bg-white p-2">
-                                        <code>GET /api/raspberry/playlists/active</code>
-                                    </div>
-                                </div>
-                                
-                                <h6 class="mt-4">Estado de Listas Activas para Raspberry Pi</h6>
-                                <div id="raspberryActiveList">
-                                    <!-- Listas activas para Raspberry Pi -->
-                                </div>
-                            </div>
-                        </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="card-title mb-0">Monitoreo</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>Verifica el estado y desempeño de tus dispositivos en tiempo real.</p>
+                        <a href="/ui/devices" class="btn btn-sm btn-outline-info">Monitorear Dispositivos</a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    
-    <!-- Modal para detalles de la lista de reproducción -->
-    <div class="modal fade" id="playlistDetailModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="playlistDetailTitle">Detalles de la Lista</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="playlistInfo">
-                        <p id="playlistDetailDescription"></p>
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div>
-                                <span class="badge bg-info" id="playlistDetailDate"></span>
-                                <span class="badge" id="playlistDetailStatus"></span>
-                                <span class="badge" id="playlistDetailExpirationDate"></span>
-                            </div>
-                            <div>
-                                <button class="btn btn-sm btn-outline-primary" id="editPlaylistBtn">
-                                    <i class="fas fa-edit"></i> Editar
-                                </button>
-                                <button class="btn btn-sm btn-success" id="playlistDownloadBtn">
-                                    <i class="fas fa-download"></i> Descargar Lista
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <h6 class="mb-3">Videos en esta lista</h6>
-                        <div class="list-group" id="playlistVideos">
-                            <!-- Videos en la lista -->
-                        </div>
-                        
-                        <hr class="my-4" />
-                        
-                        <h6>Agregar videos a esta lista</h6>
-                        <div class="input-group mb-3">
-                            <select class="form-select" id="addVideoSelect">
-                                <option value="">Seleccionar video...</option>
-                            </select>
-                            <button class="btn btn-primary" id="addVideoBtn">Agregar Video</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                    <button type="button" class="btn btn-danger" id="deletePlaylistBtn">Eliminar Lista</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Modal para editar una lista de reproducción -->
-    <div class="modal fade" id="editPlaylistModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Editar Lista de Reproducción</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="editPlaylistForm">
-                        <input type="hidden" id="editPlaylistId">
-                        <div class="mb-3">
-                            <label for="editPlaylistTitle" class="form-label">Título</label>
-                            <input type="text" class="form-control" id="editPlaylistTitle" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editPlaylistDescription" class="form-label">Descripción</label>
-                            <textarea class="form-control" id="editPlaylistDescription" rows="3"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editPlaylistExpiration" class="form-label">Fecha de Expiración (opcional)</label>
-                            <input type="datetime-local" class="form-control" id="editPlaylistExpiration">
-                        </div>
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" id="editPlaylistActive">
-                            <label class="form-check-label" for="editPlaylistActive">Lista Activa</label>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" id="savePlaylistChangesBtn">Guardar Cambios</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Modal para editar un video -->
-    <div class="modal fade" id="editVideoModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Editar Video</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="editVideoForm">
-                        <input type="hidden" id="editVideoId">
-                        <div class="mb-3">
-                            <label for="editVideoTitle" class="form-label">Título</label>
-                            <input type="text" class="form-control" id="editVideoTitle" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editVideoDescription" class="form-label">Descripción</label>
-                            <textarea class="form-control" id="editVideoDescription" rows="3"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editVideoExpiration" class="form-label">Fecha de Expiración (opcional)</label>
-                            <input type="datetime-local" class="form-control" id="editVideoExpiration">
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" id="saveVideoChangesBtn">Guardar Cambios</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/js/main.js"></script>
-</body>
-</html>
+</div>
+{% endblock %}

@@ -9,7 +9,7 @@ from models import models
 from models.database import engine
 
 # Importar los routers
-from router import videos, playlists, raspberry
+from router import videos, playlists, raspberry, ui, services, devices
 
 # Crear las tablas en la base de datos
 models.Base.metadata.create_all(bind=engine)
@@ -48,11 +48,14 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 app.mount("/playlists", StaticFiles(directory=PLAYLIST_DIR), name="playlists")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+
 # Incluir los routers
 app.include_router(videos.router, prefix="/api")
 app.include_router(playlists.router, prefix="/api")
 app.include_router(raspberry.router, prefix="/api")
-
+app.include_router(ui.router, prefix="/ui")
+app.include_router(services.router, prefix="/api")
+app.include_router(devices.router, prefix="/api")
 # Ruta raíz
 templates = Jinja2Templates(directory="templates")
 
@@ -62,6 +65,11 @@ templates = Jinja2Templates(directory="templates")
 @app.get("/templates/index.html")
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/")
+async def root(request: Request):
+    # Redireccionar al dashboard UI
+    return templates.TemplateResponse("index.html", {"request": request, "title": "Raspberry Pi Registry"})
 
 
 # Ejecutar la aplicación con uvicorn (para desarrollo)

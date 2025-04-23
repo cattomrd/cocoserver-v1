@@ -1,3 +1,5 @@
+# Actualizar main.py
+
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,7 +11,7 @@ from models import models
 from models.database import engine
 
 # Importar los routers
-from router import videos, playlists, raspberry, ui, services, devices
+from router import videos, playlists, raspberry, ui, services, devices, device_playlists
 
 # Crear las tablas en la base de datos
 models.Base.metadata.create_all(bind=engine)
@@ -38,7 +40,6 @@ STATIC_DIR = "static"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(PLAYLIST_DIR, exist_ok=True)
 os.makedirs(STATIC_DIR, exist_ok=True)
-#os.makedirs(TEMPLATES_DIR, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory='templates')
@@ -48,29 +49,22 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 app.mount("/playlists", StaticFiles(directory=PLAYLIST_DIR), name="playlists")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-
 # Incluir los routers
 app.include_router(videos.router, prefix="/api")
-app.include_router(playlists.router, prefix="/api")
-app.include_router(raspberry.router, prefix="/api")
+app.include_router(playlists.router)
+app.include_router(raspberry.router)
 app.include_router(ui.router)
-app.include_router(services.router, prefix="/api")
-app.include_router(devices.router, prefix="/api")
+app.include_router(services.router)
+app.include_router(devices.router)  # Router de dispositivos
+app.include_router(device_playlists.router, prefix="/api")  # Nuevo router
+
 # Ruta raíz
 templates = Jinja2Templates(directory="templates")
-
-# Montar directorios estáticos
-
-# Ruta para /templates/index.html usando Jinja2Templates
-# @app.get("/templates/index.html")
-# async def home(request: Request):
-#     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/")
 async def root(request: Request):
     # Redireccionar al dashboard UI
     return templates.TemplateResponse("index.html", {"request": request, "title": "Raspberry Pi Registry"})
-
 
 # Ejecutar la aplicación con uvicorn (para desarrollo)
 if __name__ == "__main__":

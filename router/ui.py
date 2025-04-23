@@ -13,9 +13,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 # Importaciones absolutas en lugar de relativas
-from models.models import Device
 from models import models, schemas
-
 from models.database import get_db
 
 router = APIRouter(
@@ -43,9 +41,9 @@ async def get_devices_page(
     """
     Página que muestra la lista de dispositivos registrados
     """
-    query = db.query(Device)
+    query = db.query(models.Device)
     if active_only:
-        query = query.filter(Device.is_active == True)
+        query = query.filter(models.Device.is_active == True)
     
     devices = query.all()
     return templates.TemplateResponse(
@@ -57,6 +55,11 @@ async def get_devices_page(
             "active_only": active_only
         }
     )
+
+@router.get("/videos", response_class=HTMLResponse)
+#async def get_videos_page(
+async def home(request: Request):
+    return templates.TemplateResponse("videos.html", {"request": request})
 
 @router.get("/devices/{device_id}", response_class=HTMLResponse)
 async def get_device_detail(
@@ -142,34 +145,7 @@ async def control_device_service(
         }
     )
 
-# @router.post("/devices/{device_id}/update", response_class=HTMLResponse)
-# async def update_device_info(
-#     request: Request,
-#     device_id: str,
-#     name: str = Form(None),
-#     location: str = Form(None),
-#     is_active: bool = Form(False),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Actualizar información básica de un dispositivo
-#     """
-#     device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
-#     if device is None:
-#         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
-    
-#     # Actualizar solo los campos proporcionados
-#     if name:
-#         device.name = name
-#     if location is not None:  # Podría ser una cadena vacía
-#         device.location = location
-    
-#     device.is_active = is_active
-    
-#     db.commit()
-    
-#     # Redirigir a la página de detalle
-#     return RedirectResponse(url=f"/ui/devices/{device_id}", status_code=303)
+
 
 @router.post("/devices/{device_id}/delete", response_class=HTMLResponse)
 async def delete_device_ui(
@@ -232,22 +208,4 @@ async def update_device_info(
     # Redirigir a la página de detalle
     return RedirectResponse(url=f"/ui/devices/{device_id}", status_code=303)
 
-# @router.post("/devices/{device_id}/delete", response_class=HTMLResponse)
-# async def delete_device_ui(
-#     request: Request,
-#     device_id: str,
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Eliminar un dispositivo
-#     """
-#     device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
-#     if device is None:
-#         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
-    
-#     db.delete(device)
-#     db.commit()
-    
-#     # Redirigir a la lista de dispositivos
-#     return RedirectResponse(url="/ui/devices", status_code=303)
 

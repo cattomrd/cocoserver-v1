@@ -49,7 +49,16 @@ class Playlist(Base):
         viewonly=True,
         backref="playlists"
     )
-
+    
+    # Relación con DevicePlaylist
+    device_playlists = relationship("DevicePlaylist", back_populates="playlist", cascade="all, delete-orphan")
+    
+    # Relación con Device a través de DevicePlaylist
+    devices = relationship(
+        "Device", 
+        secondary="device_playlists",
+        viewonly=True
+    )
 
 class Video(Base):
     __tablename__ = "videos"
@@ -65,6 +74,48 @@ class Video(Base):
     
     # Relación con PlaylistVideo
     playlist_videos = relationship("PlaylistVideo", back_populates="video", cascade="all, delete-orphan")
+    
+    @property
+    def formatted_duration(self):
+        """Devuelve la duración formateada como HH:MM:SS"""
+        if self.duration is None:
+            return "Desconocida"
+        
+        hours, remainder = divmod(self.duration, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{hours:02}:{minutes:02}:{seconds:02}"
+    
+    @property
+    def formatted_file_size(self):
+        """Devuelve el tamaño de archivo en un formato legible"""
+        if self.file_size is None:
+            return "Desconocido"
+        
+        # Convertir bytes a una unidad legible
+        size_bytes = self.file_size
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size_bytes < 1024 or unit == 'GB':
+                return f"{size_bytes:.2f} {unit}"
+            size_bytes /= 1024
+    
+    # Relación con PlaylistVideo
+    playlist_videos = relationship("PlaylistVideo", back_populates="video", cascade="all, delete-orphan")
+class DevicePlaylist(Base):
+    __tablename__ = "device_playlists"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    device_id = Column(String, ForeignKey("devices.device_id", ondelete="CASCADE"), nullable=False)
+    playlist_id = Column(Integer, ForeignKey("playlists.id", ondelete="CASCADE"), nullable=False)
+    assigned_at = Column(DateTime, default=datetime.now)
+    
+    # Relaciones
+    device = relationship("Device", back_populates="device_playlists")
+    playlist = relationship("Playlist", back_populates="device_playlists")
+    
+    # Restricción para asegurar combinaciones únicas de dispositivo-playlist
+    __table_args__ = (
+        UniqueConstraint('device_id', 'playlist_id', name='uix_device_playlist'),
+    )
 
 class Device(Base):
     __tablename__ = "devices"
@@ -88,6 +139,16 @@ class Device(Base):
     last_seen = Column(DateTime, default=func.now(), onupdate=func.now())
     registered_at = Column(DateTime, default=func.now())
     service_logs = Column(String, nullable=True)
+    
+    # Relación con DevicePlaylist
+    device_playlists = relationship("DevicePlaylist", back_populates="device", cascade="all, delete-orphan")
+    
+    # Relación con Playlist a través de DevicePlaylist
+    playlists = relationship(
+        "Playlist", 
+        secondary="device_playlists",
+        viewonly=True
+    )
 
 class DeviceBase(BaseModel):
     device_id: str
@@ -144,17 +205,3 @@ class ServiceActionResponse(BaseModel):
     success: bool
     message: str
     timestamp: datetime = Field(default_factory=datetime.now)
-
-class Device(DeviceBase):
-    id: int
-    is_active: bool
-    cpu_temp: Optional[float] = None
-    memory_usage: Optional[float] = None
-    disk_usage: Optional[float] = None
-    videoloop_status: Optional[str] = None
-    kiosk_status: Optional[str] = None
-    last_seen: datetime
-    registered_at: datetime
-
-    class Config:
-        from_attributes = True

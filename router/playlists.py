@@ -14,7 +14,7 @@ from models.schemas import PlaylistCreate, PlaylistResponse, PlaylistUpdate
 from utils.helpers import is_playlist_active
 
 router = APIRouter(
-    prefix="/playlists",
+    prefix="/api/playlists",
     tags=["playlists"]
 )
 

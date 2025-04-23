@@ -1,39 +1,6 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Plataforma de Gestión de Videos</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <style>
-        body {
-            padding-top: 20px;
-            padding-bottom: 40px;
-        }
-        .video-thumbnail {
-            height: 150px;
-            object-fit: cover;
-        }
-        .nav-pills .nav-link.active {
-            background-color: #007bff;
-        }
-        .playlist-card {
-            transition: transform 0.3s;
-        }
-        .playlist-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        .expiration-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-        }
-        .progress {
-            height: 25px;
-        }
-    </style>
+{% extends "base.html" %}
+
+{% block content %}
 </head>
 <body>
     <div class="container">
@@ -274,19 +241,64 @@
                             </div>
                         </div>
                         
-                        <h6 class="mb-3">Videos en esta lista</h6>
-                        <div class="list-group" id="playlistVideos">
-                            <!-- Videos en la lista -->
-                        </div>
+                        <!-- Pestañas de navegación -->
+                        <ul class="nav nav-tabs mb-3" id="playlistDetailTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="videos-tab" data-bs-toggle="tab" data-bs-target="#videosTab" type="button" role="tab" aria-controls="videosTab" aria-selected="true">
+                                    Videos
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="devices-tab" data-bs-toggle="tab" data-bs-target="#devicesTab" type="button" role="tab" aria-controls="devicesTab" aria-selected="false">
+                                    Dispositivos
+                                </button>
+                            </li>
+                        </ul>
                         
-                        <hr class="my-4" />
-                        
-                        <h6>Agregar videos a esta lista</h6>
-                        <div class="input-group mb-3">
-                            <select class="form-select" id="addVideoSelect">
-                                <option value="">Seleccionar video...</option>
-                            </select>
-                            <button class="btn btn-primary" id="addVideoBtn">Agregar Video</button>
+                        <!-- Contenido de las pestañas -->
+                        <div class="tab-content" id="playlistDetailTabsContent">
+                            <!-- Pestaña de Videos -->
+                            <div class="tab-pane fade show active" id="videosTab" role="tabpanel" aria-labelledby="videos-tab">
+                                <h6 class="mb-3">Videos en esta lista</h6>
+                                <div class="list-group" id="playlistVideos">
+                                    <!-- Videos en la lista -->
+                                </div>
+                                
+                                <hr class="my-4" />
+                                
+                                <h6>Agregar videos a esta lista</h6>
+                                <div class="input-group mb-3">
+                                    <select class="form-select" id="addVideoSelect">
+                                        <option value="">Seleccionar video...</option>
+                                    </select>
+                                    <button class="btn btn-primary" id="addVideoBtn">Agregar Video</button>
+                                </div>
+                            </div>
+                            
+                            <!-- Pestaña de Dispositivos -->
+                            <div class="tab-pane fade" id="devicesTab" role="tabpanel" aria-labelledby="devices-tab">
+                                <h6 class="mb-3">Dispositivos asignados a esta lista</h6>
+                                <div id="assignedDevicesContainer">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Cargando...</span>
+                                    </div>
+                                </div>
+                                
+                                <hr class="my-4" />
+                                
+                                <h6>Asignar más dispositivos a esta lista</h6>
+                                <div class="input-group mb-3">
+                                    <select class="form-select" id="addDeviceSelect">
+                                        <option value="">Seleccionar dispositivo...</option>
+                                    </select>
+                                    <button class="btn btn-primary" id="addDeviceBtn">Asignar Dispositivo</button>
+                                </div>
+                                
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> 
+                                    Los dispositivos asignados reproducirán automáticamente esta lista si está activa.
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -297,44 +309,7 @@
             </div>
         </div>
     </div>
-    
-    <!-- Modal para editar una lista de reproducción -->
-    <div class="modal fade" id="editPlaylistModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Editar Lista de Reproducción</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="editPlaylistForm">
-                        <input type="hidden" id="editPlaylistId">
-                        <div class="mb-3">
-                            <label for="editPlaylistTitle" class="form-label">Título</label>
-                            <input type="text" class="form-control" id="editPlaylistTitle" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editPlaylistDescription" class="form-label">Descripción</label>
-                            <textarea class="form-control" id="editPlaylistDescription" rows="3"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editPlaylistExpiration" class="form-label">Fecha de Expiración (opcional)</label>
-                            <input type="datetime-local" class="form-control" id="editPlaylistExpiration">
-                        </div>
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" id="editPlaylistActive">
-                            <label class="form-check-label" for="editPlaylistActive">Lista Activa</label>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" id="savePlaylistChangesBtn">Guardar Cambios</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
+
     <!-- Modal para editar un video -->
     <div class="modal fade" id="editVideoModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
@@ -367,9 +342,11 @@
             </div>
         </div>
     </div>
-    
+{% endblock %}
+{% block extra_scripts %}
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/main.js"></script>
+{% endblock %}
 </body>
 </html>

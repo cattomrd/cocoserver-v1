@@ -1,0 +1,186 @@
+# router/diagnostics.py - Endpoints para diagnóstico del sistema
+
+import os
+import stat
+import logging
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from sqlalchemy import inspect
+
+from models.database import get_db
+from models.models import Video, Playlist, Device, PlaylistVideo, DevicePlaylist
+
+# Configurar logging
+logger = logging.getLogger(__name__)
+
+router = APIRouter(
+    prefix="/diagnostics",
+    tags=["diagnostics"]
+)
+
+@router.get("/file-permissions")
+def check_file_permissions():
+    """
+    Verifica los permisos de directorios importantes
+    """
+    results = {
+        "success": True,
+        "details": {},
+        "message": "Todos los directorios tienen permisos correctos"
+    }
+    
+    # Directorios a verificar
+    directories = {
+        "uploads": "uploads",
+        "playlists": "playlists",
+        "static": "static"
+    }
+    
+    for name, path in directories.items():
+        try:
+            # Verificar si el directorio existe
+            if not os.path.exists(path):
+                results["details"][name] = {
+                    "exists": False,
+                    "message": f"El directorio {path} no existe"
+                }
+                results["success"] = False
+                continue
+            
+            # Verificar si es un directorio
+            if not os.path.isdir(path):
+                results["details"][name] = {
+                    "exists": True,
+                    "is_dir": False,
+                    "message": f"{path} existe pero no es un directorio"
+                }
+                results["success"] = False
+                continue
+            
+            # Obtener permisos
+            permissions = os.stat(path).st_mode
+            readable = bool(permissions & stat.S_IRUSR)
+            writable = bool(permissions & stat.S_IWUSR)
+            executable = bool(permissions & stat.S_IXUSR)
+            
+            # Verificar permisos
+            results["details"][name] = {
+                "exists": True,
+                "is_dir": True,
+                "readable": readable,
+                "writable": writable,
+                "executable": executable,
+                "permissions": oct(permissions)[-3:]
+            }
+            
+            # Verificar si tiene los permisos mínimos necesarios
+            if not (readable and writable and executable):
+                results["details"][name]["message"] = f"El directorio {path} no tiene permisos suficientes"
+                results["success"] = False
+            
+            # Intentar escribir un archivo de prueba
+            test_file = os.path.join(path, ".test_write_permission")
+            try:
+                with open(test_file, "w") as f:
+                    f.write("test")
+                os.remove(test_file)
+                results["details"][name]["write_test"] = "OK"
+            except Exception as e:
+                results["details"][name]["write_test"] = f"Error: {str(e)}"
+                results["success"] = False
+                
+        except Exception as e:
+            results["details"][name] = {
+                "error": str(e)
+            }
+            results["success"] = False
+    
+    # Actualizar mensaje general
+    if not results["success"]:
+        results["message"] = "Se encontraron problemas con los permisos de directorios"
+    
+    return results
+
+@router.get("/database-structure")
+def check_database_structure(db: Session = Depends(get_db)):
+    """
+    Verifica la estructura de la base de datos
+    """
+    try:
+        results = {
+            "success": True,
+            "details": {},
+            "message": "Estructura de base de datos correcta"
+        }
+        
+        # Obtener estadísticas básicas
+        video_count = db.query(Video).count()
+        playlist_count = db.query(Playlist).count()
+        device_count = db.query(Device).count()
+        playlist_video_count = db.query(PlaylistVideo).count()
+        device_playlist_count = db.query(DevicePlaylist).count()
+        
+        results["details"]["counts"] = {
+            "videos": video_count,
+            "playlists": playlist_count,
+            "devices": device_count,
+            "playlist_videos": playlist_video_count,
+            "device_playlists": device_playlist_count
+        }
+        
+        # Verificar si hay videos con ID pero sin título
+        invalid_videos = db.query(Video).filter(
+            (Video.id != None) & 
+            ((Video.title == None) | (Video.title == ""))
+        ).count()
+        
+        if invalid_videos > 0:
+            results["success"] = False
+            results["details"]["invalid_videos"] = invalid_videos
+            results["message"] = f"Hay {invalid_videos} videos con ID pero sin título"
+        
+        # Verificar si hay videos sin ruta de archivo
+        missing_path_videos = db.query(Video).filter(
+            (Video.id != None) & 
+            ((Video.file_path == None) | (Video.file_path == ""))
+        ).count()
+        
+        if missing_path_videos > 0:
+            results["success"] = False
+            results["details"]["missing_path_videos"] = missing_path_videos
+            results["message"] = f"Hay {missing_path_videos} videos sin ruta de archivo"
+        
+        # Verificar archivos de video inexistentes
+        if video_count > 0:
+            nonexistent_file_count = 0
+            sample_videos = db.query(Video).limit(10).all()
+            
+            for video in sample_videos:
+                if not os.path.exists(video.file_path):
+                    nonexistent_file_count += 1
+            
+            if nonexistent_file_count > 0:
+                results["details"]["nonexistent_files"] = nonexistent_file_count
+                results["message"] = f"Hay archivos de video que no existen físicamente"
+        
+        return results
+        
+    except Exception as e:
+        logger.exception("Error al verificar la estructura de la base de datos")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error al verificar la base de datos: {str(e)}"
+        )
+
+@router.get("/api-status")
+def check_api_status():
+    """
+    Verifica el estado general de la API
+    """
+    return {
+        "status": "online",
+        "version": "1.0.0",
+        "environment": os.environ.get("ENVIRONMENT", "development"),
+        "python_version": os.environ.get("PYTHON_VERSION", "3.x"),
+        "timestamp": datetime.now().isoformat()
+    }

@@ -1,15 +1,14 @@
-# Actualización para models/schemas.py
+# models/schemas.py completo con todas las correcciones
 
-from pydantic import BaseModel,Field
+from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import List, Optional
-from datetime import datetime
+from typing import List, Optional, ForwardRef
 
-# Modelos Pydantic para la API
+# Esquemas para Video
 class VideoBase(BaseModel):
     title: str
     description: Optional[str] = None
-    expiration_date: Optional[datetime] = None  # Nueva propiedad para fecha de expiración
+    expiration_date: Optional[datetime] = None
 
 class VideoCreate(VideoBase):
     pass
@@ -29,12 +28,12 @@ class VideoResponse(VideoBase):
     class Config:
         orm_mode = True
 
+# Esquemas para Playlist
 class PlaylistBase(BaseModel):
     title: str
     description: Optional[str] = None
     expiration_date: Optional[datetime] = None
     is_active: Optional[bool] = True
-    
 
 class PlaylistCreate(PlaylistBase):
     pass
@@ -45,14 +44,19 @@ class PlaylistUpdate(BaseModel):
     expiration_date: Optional[datetime] = None
     is_active: Optional[bool] = None
 
+# Forward refs para resolver referencias circulares
+DeviceInfoRef = ForwardRef('DeviceInfo')
+
 class PlaylistResponse(PlaylistBase):
     id: int
     creation_date: datetime
     videos: List[VideoResponse] = []
+    devices: List[DeviceInfoRef] = []
     
     class Config:
         orm_mode = True
 
+# Esquemas para Device
 class DeviceBase(BaseModel):
     device_id: str
     name: str
@@ -78,6 +82,60 @@ class DeviceUpdate(BaseModel):
     memory_usage: Optional[float] = None
     disk_usage: Optional[float] = None
 
+# Forward refs para resolver referencias circulares
+PlaylistInfoRef = ForwardRef('PlaylistInfo')
+
+class Device(DeviceBase):
+    id: int
+    is_active: bool
+    cpu_temp: Optional[float] = None
+    memory_usage: Optional[float] = None
+    disk_usage: Optional[float] = None
+    videoloop_status: Optional[str] = None
+    kiosk_status: Optional[str] = None
+    last_seen: datetime
+    registered_at: datetime
+    playlists: List[PlaylistInfoRef] = []
+
+    class Config:
+        orm_mode = True
+
+# Esquemas simplificados para evitar recursión infinita
+class DeviceInfo(BaseModel):
+    device_id: str
+    name: str
+    is_active: bool
+    location: Optional[str] = None
+    tienda: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+class PlaylistInfo(BaseModel):
+    id: int
+    title: str
+    is_active: bool
+    expiration_date: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
+
+# Esquemas para DevicePlaylist
+class DevicePlaylistBase(BaseModel):
+    device_id: str
+    playlist_id: int
+
+class DevicePlaylistCreate(DevicePlaylistBase):
+    pass
+
+class DevicePlaylistResponse(DevicePlaylistBase):
+    id: int
+    assigned_at: datetime
+
+    class Config:
+        orm_mode = True
+
+# Estado del dispositivo
 class DeviceStatus(BaseModel):
     device_id: str
     ip_address_lan: Optional[str] = None
@@ -89,6 +147,7 @@ class DeviceStatus(BaseModel):
     kiosk_status: Optional[str] = Field(None, description="Status of kiosk service")
     wlan0_mac: Optional[str] = Field(None, description="MAC address of WiFi interface")
 
+# Servicio
 class ServiceStatus(BaseModel):
     name: str
     status: str
@@ -109,16 +168,6 @@ class ServiceActionResponse(BaseModel):
     message: str
     timestamp: datetime = Field(default_factory=datetime.now)
 
-class Device(DeviceBase):
-    id: int
-    is_active: bool
-    cpu_temp: Optional[float] = None
-    memory_usage: Optional[float] = None
-    disk_usage: Optional[float] = None
-    videoloop_status: Optional[str] = None
-    kiosk_status: Optional[str] = None
-    last_seen: datetime
-    registered_at: datetime
-
-    class Config:
-        from_attributes = True
+# Resolver referencias circulares
+PlaylistResponse.update_forward_refs()
+Device.update_forward_refs()

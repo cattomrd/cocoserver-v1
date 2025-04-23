@@ -4,6 +4,50 @@ let allVideos = [];
 let allPlaylists = [];
 let currentPlaylistId = null;
 
+// Función para probar la conexión a la API
+async function testApiConnection() {
+    try {
+        console.log("Probando conexión a API:", `${API_URL}/videos/`);
+        const response = await fetch(`${API_URL}/videos/`);
+        console.log("Estado de respuesta:", response.status);
+        
+        if (!response.ok) {
+            console.error("La API no responde correctamente:", 
+                        response.status, response.statusText);
+            // Mostrar mensaje de error
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'alert alert-danger alert-dismissible fade show mt-3';
+            errorMessage.innerHTML = `
+                <strong>Error de conexión</strong>
+                <p>No se puede conectar a la API: ${response.status} ${response.statusText}</p>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            document.body.prepend(errorMessage);
+        } else {
+            console.log("Conexión a API exitosa");
+        }
+    } catch (error) {
+        console.error("Error al probar conexión:", error);
+        // Mostrar mensaje de error
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'alert alert-danger alert-dismissible fade show mt-3';
+        errorMessage.innerHTML = `
+            <strong>Error de conexión</strong>
+            <p>No se puede conectar a la API: ${error.message}</p>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        document.body.prepend(errorMessage);
+    }
+}
+
+// Llamar a esta función cuando se carga el documento
+document.addEventListener('DOMContentLoaded', function() {
+    // Otras inicializaciones...
+    
+    // Probar conexión a la API
+    testApiConnection();
+});
+
 // Función para formatear fechas
 function formatDate(dateString) {
     if (!dateString) return 'Sin fecha';
@@ -29,13 +73,33 @@ function isPlaylistActive(playlist) {
 // Función para cargar videos
 async function loadVideos(filter = 'all') {
     try {
-        const response = await fetch(`${API_URL}/videos/`);
-        if (!response.ok) throw new Error('Error al cargar videos');
+        document.getElementById('videosLoading').style.display = 'block';
         
-        allVideos = await response.json();
+        // Añadir logging para depuración
+        console.log("Solicitando videos desde:", `${API_URL}/videos/`);
+        
+        const response = await fetch(`${API_URL}/videos/`);
+        console.log("Respuesta de la API:", response.status, response.statusText);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Error en respuesta:", errorText);
+            throw new Error(`Error de servidor: ${response.status} - ${response.statusText}`);
+        }
+        
+        const responseData = await response.json();
+        console.log("Datos recibidos:", responseData);
+        
+        allVideos = responseData;
         
         const videosList = document.getElementById('videosList');
         videosList.innerHTML = '';
+        
+        // Verificar si tenemos datos válidos
+        if (!Array.isArray(allVideos)) {
+            console.error("Datos recibidos no son un array:", allVideos);
+            throw new Error("Formato de datos inválido");
+        }
         
         // Filtrar videos según el criterio seleccionado
         let filteredVideos = allVideos;
@@ -726,4 +790,305 @@ document.addEventListener('DOMContentLoaded', function() {
             loadRaspberryActivePlaylists();
         }
     }, 60000); // 60 segundos
+});
+
+// Modificaciones a static/js/main.js para manejar la asociación de dispositivos a playlists
+
+// Función para cargar los dispositivos asignados a una playlist
+async function loadPlaylistDevices(playlistId) {
+    try {
+        const response = await fetch(`${API_URL}/device-playlists/playlist/${playlistId}/devices`);
+        if (!response.ok) throw new Error('Error al cargar dispositivos asignados');
+        
+        const assignedDevices = await response.json();
+        
+        // Obtener el contenedor de dispositivos
+        const playlistDevices = document.getElementById('playlistDevices');
+        if (!playlistDevices) return;
+        
+        // Limpiar contenido actual
+        const devicesContainer = document.getElementById('assignedDevicesContainer');
+        if (devicesContainer) {
+            if (assignedDevices.length === 0) {
+                devicesContainer.innerHTML = '<p class="text-center">No hay dispositivos asignados a esta lista</p>';
+                return;
+            }
+            
+            // Crear la lista de dispositivos asignados
+            const devicesList = document.createElement('div');
+            devicesList.className = 'list-group';
+            
+            assignedDevices.forEach(device => {
+                const deviceItem = document.createElement('div');
+                deviceItem.className = `list-group-item list-group-item-action d-flex justify-content-between align-items-center ${device.is_active ? '' : 'list-group-item-warning'}`;
+                deviceItem.innerHTML = `
+                    <div>
+                        <h6 class="mb-1">${device.name} (${device.device_id})</h6>
+                        <small>${device.location || ''} ${device.tienda ? ' - ' + device.tienda : ''}</small>
+                        <div>
+                            <span class="badge ${device.is_active ? 'bg-success' : 'bg-danger'}">
+                                ${device.is_active ? 'Activo' : 'Inactivo'}
+                            </span>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeDeviceFromPlaylist('${device.device_id}', ${playlistId})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                devicesList.appendChild(deviceItem);
+            });
+            
+            devicesContainer.innerHTML = '';
+            devicesContainer.appendChild(devicesList);
+        }
+    } catch (error) {
+        console.error('Error al cargar dispositivos asignados:', error);
+        const devicesContainer = document.getElementById('assignedDevicesContainer');
+        if (devicesContainer) {
+            devicesContainer.innerHTML = `<div class="alert alert-danger">Error al cargar dispositivos: ${error.message}</div>`;
+        }
+    }
+}
+
+
+// Función para cargar dispositivos disponibles para asignar
+async function loadAvailableDevices(playlistId) {
+    try {
+        // Obtener todos los dispositivos
+        const allDevicesResponse = await fetch(`${API_URL}/devices/?active_only=true`);
+        if (!allDevicesResponse.ok) throw new Error('Error al cargar dispositivos');
+        const allDevices = await allDevicesResponse.json();
+        
+        // Obtener dispositivos ya asignados
+        const assignedDevicesResponse = await fetch(`${API_URL}/device-playlists/playlist/${playlistId}/devices`);
+        if (!assignedDevicesResponse.ok) throw new Error('Error al cargar dispositivos asignados');
+        const assignedDevices = await assignedDevicesResponse.json();
+        
+        // Filtrar dispositivos que no están asignados
+        const assignedDeviceIds = new Set(assignedDevices.map(d => d.device_id));
+        const availableDevices = allDevices.filter(device => !assignedDeviceIds.has(device.device_id));
+        
+        // Actualizar el select de dispositivos disponibles
+        const addDeviceSelect = document.getElementById('addDeviceSelect');
+        if (!addDeviceSelect) return;
+        
+        addDeviceSelect.innerHTML = '<option value="">Seleccionar dispositivo...</option>';
+        
+        if (availableDevices.length === 0) {
+            addDeviceSelect.innerHTML += '<option disabled>No hay dispositivos disponibles para asignar</option>';
+        } else {
+            availableDevices.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.device_id;
+                option.textContent = `${device.name} (${device.device_id})`;
+                if (device.location || device.tienda) {
+                    option.textContent += ` - ${device.location || ''} ${device.tienda ? ' - ' + device.tienda : ''}`;
+                }
+                addDeviceSelect.appendChild(option);
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error al cargar dispositivos disponibles:', error);
+        const addDeviceSelect = document.getElementById('addDeviceSelect');
+        if (addDeviceSelect) {
+            addDeviceSelect.innerHTML = '<option value="">Error al cargar dispositivos</option>';
+        }
+    }
+}
+
+
+// Función para asignar un dispositivo a una playlist
+addDeviceToPlaylist
+
+// Función para eliminar un dispositivo de una playlist
+async function removeDeviceFromPlaylist(deviceId, playlistId) {
+    try {
+        const response = await fetch(`${API_URL}/device-playlists/${deviceId}/${playlistId}`, {
+            method: 'DELETE',
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Error al eliminar la asignación');
+        }
+        
+        alert('Dispositivo eliminado de la lista correctamente');
+        
+        // Recargar los dispositivos
+        await loadPlaylistDevices(playlistId);
+        await loadAvailableDevices(playlistId);
+        
+    } catch (error) {
+        console.error('Error al eliminar dispositivo de playlist:', error);
+        alert(`Error al eliminar el dispositivo de la lista: ${error.message}`);
+    }
+}
+
+
+// Modificar la función openPlaylistDetail para incluir la carga de dispositivos
+async function openPlaylistDetail(playlistId) {
+    currentPlaylistId = playlistId;
+    try {
+        const response = await fetch(`${API_URL}/playlists/${playlistId}`);
+        if (!response.ok) throw new Error('Error al cargar detalles de la playlist');
+        
+        const playlist = await response.json();
+        
+        // Código existente para mostrar información de la playlist
+        document.getElementById('playlistDetailTitle').textContent = playlist.title;
+        document.getElementById('playlistDetailDescription').textContent = playlist.description || 'Sin descripción';
+        document.getElementById('playlistDetailDate').textContent = `Creada: ${formatDate(playlist.creation_date)}`;
+        
+        // ... (resto del código existente)
+        
+        // Cargar dispositivos asignados a la playlist
+        await loadPlaylistDevices(playlistId);
+        
+        // Cargar dispositivos disponibles para asignar
+        await loadAvailableDevices(playlistId);
+        
+        // Configurar botón para agregar dispositivo
+        document.getElementById('addDeviceBtn').onclick = () => {
+            const deviceId = document.getElementById('addDeviceSelect').value;
+            if (deviceId) {
+                addDeviceToPlaylist(playlistId, deviceId);
+            } else {
+                alert('Por favor, selecciona un dispositivo para asignar a la lista');
+            }
+        };
+        
+        // Mostrar el modal
+        const modal = new bootstrap.Modal(document.getElementById('playlistDetailModal'));
+        modal.show();
+        
+    } catch (error) {
+        console.error('Error al cargar detalles de la playlist:', error);
+        alert(`Error al cargar los detalles de la lista de reproducción: ${error.message}`);
+    }
+}
+
+ // Asignar playlist a dispositivo
+async function assignPlaylistToDevice(playlistId) {
+    try {
+        const response = await fetch('/api/device-playlists/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                device_id: deviceId,
+                playlist_id: parseInt(playlistId)
+            }),
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `Error al asignar la playlist: ${response.status}`);
+        }
+        
+        // Mostrar mensaje de éxito
+        const alertBox = document.createElement('div');
+        alertBox.className = 'alert alert-success alert-dismissible fade show mt-3';
+        alertBox.innerHTML = `
+            <strong>¡Éxito!</strong> La lista de reproducción ha sido asignada al dispositivo.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        // Insertar el mensaje en la página
+        const modalElement = document.getElementById('assignPlaylistModal');
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        modal.hide();
+        
+        const cardBody = document.querySelector('.card-body');
+        cardBody.insertBefore(alertBox, cardBody.firstChild);
+        
+        // Recargar la lista de playlists asignadas
+        await loadAssignedPlaylists();
+        
+    } catch (error) {
+        console.error('Error al asignar playlist:', error);
+        alert(`Error al asignar la lista de reproducción: ${error.message}`);
+    }
+}
+
+// Eliminar asignación de playlist a dispositivo
+async function removePlaylistFromDevice(deviceId, playlistId) {
+    try {
+        if (!confirm('¿Está seguro que desea eliminar esta asignación? La lista de reproducción ya no se reproducirá en este dispositivo.')) {
+            return;
+        }
+        
+        const response = await fetch(`/api/device-playlists/${deviceId}/${playlistId}`, {
+            method: 'DELETE',
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `Error al eliminar la asignación: ${response.status}`);
+        }
+        
+        // Mostrar mensaje de éxito
+        const alertBox = document.createElement('div');
+        alertBox.className = 'alert alert-success alert-dismissible fade show mt-3';
+        alertBox.innerHTML = `
+            <strong>¡Éxito!</strong> La lista de reproducción ha sido desasignada del dispositivo.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        // Insertar el mensaje en la página
+        const cardBody = document.querySelector('.card-body');
+        cardBody.insertBefore(alertBox, cardBody.firstChild);
+        
+        // Recargar la lista de playlists asignadas
+        await loadAssignedPlaylists();
+        // También recargar las playlists disponibles para el modal
+        await loadAvailablePlaylists();
+        
+    } catch (error) {
+        console.error('Error al eliminar asignación de playlist:', error);
+        alert(`Error al eliminar la asignación: ${error.message}`);
+    }
+}
+
+// Abrir modal con detalles de playlist
+function openPlaylistDetails(playlistId) {
+    // Redirigir a la pestaña de playlists y mostrar los detalles de la playlist seleccionada
+    window.location.href = `/ui/playlists/#${playlistId}`;
+}
+
+// Inicializar componentes
+if (refreshPlaylistsBtn) {
+    refreshPlaylistsBtn.addEventListener('click', loadAssignedPlaylists);
+}
+
+if (showOnlyActivePlaylistsCheck) {
+    showOnlyActivePlaylistsCheck.addEventListener('change', loadAvailablePlaylists);
+}
+
+if (confirmAssignPlaylistBtn) {
+    confirmAssignPlaylistBtn.addEventListener('click', () => {
+        const playlistId = availablePlaylistsSelect.value;
+        if (!playlistId) {
+            alert('Por favor, seleccione una lista de reproducción para asignar');
+            return;
+        }
+        assignPlaylistToDevice(playlistId);
+    });
+}
+
+// Exponer la función para que pueda ser llamada desde HTML
+window.removePlaylistFromDevice = removePlaylistFromDevice;
+
+// Cargar datos iniciales
+loadAssignedPlaylists();
+loadAvailablePlaylists();
+
+
+// Llamar a la inicialización cuando se carga el documento
+document.addEventListener('DOMContentLoaded', function() {
+// Todas las inicializaciones existentes...
+
+// Inicializar la gestión de playlists
+initPlaylistManagement();
 });

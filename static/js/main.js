@@ -940,6 +940,99 @@ async function openPlaylistDetail(playlistId) {
         document.getElementById('playlistDetailDescription').textContent = playlist.description || 'Sin descripción';
         document.getElementById('playlistDetailDate').textContent = `Creada: ${formatDate(playlist.creation_date)}`;
         
+        // Fecha de expiración
+        const expirationBadge = document.getElementById('playlistDetailExpirationDate');
+        if (playlist.expiration_date) {
+            const expired = isExpired(playlist.expiration_date);
+            expirationBadge.className = `badge ${expired ? 'bg-danger' : 'bg-info'}`;
+            expirationBadge.textContent = `${expired ? 'Expiró' : 'Expira'}: ${formatDate(playlist.expiration_date)}`;
+        } else {
+            expirationBadge.className = 'badge bg-secondary';
+            expirationBadge.textContent = 'Sin fecha de expiración';
+        }
+
+        // Estado de la playlist
+        const statusBadge = document.getElementById('playlistDetailStatus');
+        const isActive = isPlaylistActive(playlist);
+        statusBadge.className = `badge ${isActive ? 'bg-success' : 'bg-danger'}`;
+        statusBadge.textContent = isActive ? 'Activa' : 'Inactiva';
+        
+        document.getElementById('playlistDownloadBtn').onclick = () => {
+            window.location.href = `${API_URL}/playlists/${playlistId}/download`;
+        };
+        
+        // Configurar botón de editar
+        document.getElementById('editPlaylistBtn').onclick = () => {
+            preparePlaylistForEditing(playlist);
+        };
+        // Configurar botón para eliminar playlist
+        document.getElementById('deletePlaylistBtn').onclick = () => {
+            if (confirm('¿Estás seguro de que deseas eliminar esta lista de reproducción?')) {
+                deletePlaylist(playlistId);
+            }
+        };
+        // Mostrar videos en la playlist
+        const playlistVideos = document.getElementById('playlistVideos');
+        playlistVideos.innerHTML = '';
+        
+        if (playlist.videos.length === 0) {
+            playlistVideos.innerHTML = '<p class="text-center">No hay videos en esta lista</p>';
+        } else {
+            playlist.videos.forEach(video => {
+                const videoExpired = video.expiration_date && isExpired(video.expiration_date);
+                const videoItem = document.createElement('div');
+                videoItem.className = `list-group-item list-group-item-action d-flex justify-content-between align-items-center ${videoExpired ? 'list-group-item-danger' : ''}`;
+                videoItem.innerHTML = `
+                    <div>
+                        <h6 class="mb-1">${video.title}</h6>
+                        <small>${video.description || 'Sin descripción'}</small>
+                        ${video.expiration_date ? 
+                            `<div>
+                                <span class="badge ${videoExpired ? 'bg-danger' : 'bg-info'}">
+                                    ${videoExpired ? 'Expirado' : 'Expira'}: ${formatDate(video.expiration_date)}
+                                </span>
+                            </div>` : ''}
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeVideoFromPlaylist(${playlistId}, ${video.id})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                playlistVideos.appendChild(videoItem);
+            });
+        }
+        
+        // Cargar videos disponibles para agregar (solo los no expirados)
+        const addVideoSelect = document.getElementById('addVideoSelect');
+        addVideoSelect.innerHTML = '<option value="">Seleccionar video...</option>';
+        
+        // Filtrar videos que no están en la playlist y que no han expirado
+        const playlistVideoIds = new Set(playlist.videos.map(v => v.id));
+        const availableVideos = allVideos.filter(video => 
+            !playlistVideoIds.has(video.id) && 
+            (!video.expiration_date || !isExpired(video.expiration_date))
+        );
+        
+        if (availableVideos.length === 0) {
+            addVideoSelect.innerHTML += '<option disabled>No hay videos disponibles para agregar</option>';
+        } else {
+            availableVideos.forEach(video => {
+                const option = document.createElement('option');
+                option.value = video.id;
+                option.textContent = video.title;
+                addVideoSelect.appendChild(option);
+            });
+        }
+        
+        // Configurar botón para agregar video
+        document.getElementById('addVideoBtn').onclick = () => {
+            const videoId = addVideoSelect.value;
+            if (videoId) {
+                addVideoToPlaylist(playlistId, parseInt(videoId));
+            } else {
+                alert('Por favor, selecciona un video para agregar a la lista');
+            }
+        };
+        
         // ... (resto del código existente)
         
         // Cargar dispositivos asignados a la playlist

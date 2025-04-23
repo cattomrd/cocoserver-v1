@@ -1,0 +1,22 @@
+{
+    "id": 1,
+    "title": "ALL_HBP_GENERICO_HORZ",
+    "description": "ALL_HBP_GENERICO_HORZ",
+    "expiration_date": "2025-04-24T20:29:00",
+    "videos": [
+        {
+            "id": 1,
+            "title": "ALL_HBP_GENERICO_HORZ",
+            "description": "ALL_HBP_GENERICO_HORZ",
+            "file_path": "uploads/9e27efc5-0dfa-42da-af6a-ddbffa216e3b.MP4",
+            "duration": null
+        },
+        {
+            "id": 2,
+            "title": "ALL_HBP_H\u00c5LLBAR_SPOT_HORZ",
+            "description": "ALL_HBP_H\u00c5LLBAR_SPOT_HORZ",
+            "file_path": "uploads/be4a2c68-d676-430d-b77e-6d75e6711a5d.MP4",
+            "duration": null
+        }
+    ]
+}

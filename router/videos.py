@@ -19,7 +19,7 @@ from models.schemas import VideoCreate, VideoResponse, VideoUpdate
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix="/videos",
+    prefix="/api/videos",
     tags=["videos"]
 )
 

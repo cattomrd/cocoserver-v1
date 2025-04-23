@@ -50,13 +50,13 @@ app.mount("/playlists", StaticFiles(directory=PLAYLIST_DIR), name="playlists")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # Incluir los routers
-app.include_router(videos.router, prefix="/api")
+app.include_router(videos.router)
 app.include_router(playlists.router)
 app.include_router(raspberry.router)
 app.include_router(ui.router)
 app.include_router(services.router)
 app.include_router(devices.router)  # Router de dispositivos
-app.include_router(device_playlists.router, prefix="/api")  # Nuevo router
+app.include_router(device_playlists.router)  # Nuevo router
 
 # Ruta raíz
 templates = Jinja2Templates(directory="templates")

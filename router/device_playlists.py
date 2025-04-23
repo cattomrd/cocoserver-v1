@@ -9,7 +9,7 @@ from models import models, schemas
 from utils.helpers import is_playlist_active
 
 router = APIRouter(
-    prefix="/device-playlists",
+    prefix="/api/device-playlists",
     tags=["device-playlists"]
 )
 

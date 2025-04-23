@@ -51,21 +51,38 @@ document.addEventListener('DOMContentLoaded', function() {
 // Función para formatear fechas
 function formatDate(dateString) {
     if (!dateString) return 'Sin fecha';
-    const date = new Date(dateString);
-    return date.toLocaleString();
+    
+    try {
+        const date = new Date(dateString);
+        // Verificar si la fecha es válida
+        if (isNaN(date.getTime())) {
+            return 'Fecha inválida';
+        }
+        return date.toLocaleString();
+    } catch(e) {
+        console.error("Error al formatear fecha:", e);
+        return 'Error de formato';
+    }
 }
 
 // Verificar si una fecha ha expirado
 function isExpired(dateString) {
     if (!dateString) return false;
-    const expirationDate = new Date(dateString);
-    const now = new Date();
-    return expirationDate < now;
+    
+    try {
+        const expirationDate = new Date(dateString);
+        const now = new Date();
+        return expirationDate < now;
+    } catch(e) {
+        console.error("Error al verificar expiración:", e);
+        return false;
+    }
 }
 
 // Verificar si una playlist está activa
 function isPlaylistActive(playlist) {
-    if (!playlist.is_active) return false;
+    if (!playlist) return false;
+    if (playlist.is_active === false) return false;
     if (playlist.expiration_date && isExpired(playlist.expiration_date)) return false;
     return true;
 }
@@ -1647,4 +1664,162 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Inicializar la gestión de playlists
 initPlaylistManagement();
+});
+
+// ===================================================
+// INICIALIZACIÓN Y EVENT LISTENERS
+// ===================================================
+
+// Event listener principal cuando se carga el DOM
+document.addEventListener('DOMContentLoaded', function() {
+console.log("Inicializando aplicación...");
+
+// Probar conexión a la API
+testApiConnection();
+
+// Cargar datos iniciales si los contenedores existen
+const hasVideosTab = document.getElementById('videos') !== null;
+const hasPlaylistsTab = document.getElementById('playlists') !== null;
+
+if (hasVideosTab && document.getElementById('videos').classList.contains('active')) {
+loadVideos();
+}
+
+if (hasPlaylistsTab && document.getElementById('playlists').classList.contains('active')) {
+loadPlaylists();
+}
+
+// Configurar navegación por pestañas
+document.querySelectorAll('a[data-bs-toggle="tab"]').forEach(tab => {
+tab.addEventListener('shown.bs.tab', function(e) {
+const target = e.target.getAttribute('href');
+if (target === '#videos') {
+    loadVideos();
+} else if (target === '#playlists') {
+    loadPlaylists();
+} else if (target === '#raspberry') {
+    loadRaspberryActivePlaylists();
+}
+});
+});
+
+// Configurar filtros de videos
+const videoFilterElement = safeGetElement('videoFilterExpiration');
+if (videoFilterElement) {
+videoFilterElement.addEventListener('change', function() {
+loadVideos(this.value);
+});
+}
+
+// Configurar filtros de playlists
+const playlistFilterElement = safeGetElement('playlistFilterStatus');
+if (playlistFilterElement) {
+playlistFilterElement.addEventListener('change', function() {
+loadPlaylists(this.value);
+});
+}
+
+// Configurar formulario de subida de video
+const videoUploadForm = safeGetElement('videoUploadForm');
+if (videoUploadForm) {
+videoUploadForm.addEventListener('submit', function(e) {
+e.preventDefault();
+const formData = new FormData(this);
+
+// Agregar fecha de expiración si se ha especificado
+const expirationDate = safeGetElement('videoExpiration')?.value;
+if (expirationDate) {
+    formData.append('expiration_date', expirationDate);
+}
+
+uploadVideo(formData);
+});
+}
+
+// Configurar formulario de creación de playlist
+const playlistCreateForm = safeGetElement('playlistCreateForm');
+if (playlistCreateForm) {
+playlistCreateForm.addEventListener('submit', function(e) {
+e.preventDefault();
+
+const playlistData = {
+    title: safeGetElement('playlistTitle')?.value,
+    description: safeGetElement('playlistDescription')?.value || null,
+    expiration_date: safeGetElement('playlistExpiration')?.value || null,
+    is_active: safeGetElement('playlistActive')?.checked || false
+};
+
+createPlaylist(playlistData);
+});
+}
+
+// Configurar botones para edición de playlists
+const savePlaylistChangesBtn = safeGetElement('savePlaylistChangesBtn');
+if (savePlaylistChangesBtn) {
+savePlaylistChangesBtn.addEventListener('click', savePlaylistChanges);
+}
+
+// Configurar botones para edición de videos
+const saveVideoChangesBtn = safeGetElement('saveVideoChangesBtn');
+if (saveVideoChangesBtn) {
+saveVideoChangesBtn.addEventListener('click', saveVideoChanges);
+}
+
+// Configurar botón para añadir dispositivo (si existe)
+const addDeviceBtn = safeGetElement('addDeviceBtn');
+if (addDeviceBtn) {
+addDeviceBtn.addEventListener('click', function() {
+const deviceId = safeGetElement('addDeviceSelect')?.value;
+const playlistId = currentPlaylistId;
+
+if (!deviceId) {
+    alert('Por favor, selecciona un dispositivo para asignar a la lista');
+    return;
+}
+
+if (!playlistId) {
+    alert('Error: No se pudo identificar la lista de reproducción');
+    return;
+}
+
+addDeviceToPlaylist(playlistId, deviceId);
+});
+}
+
+// Añadir event listener para botones de edición de videos (respaldo)
+document.addEventListener('click', function(event) {
+const editButton = event.target.closest('[data-action="edit-video"]');
+if (editButton) {
+const videoId = parseInt(editButton.getAttribute('data-video-id'));
+if (videoId) {
+    console.log("Botón editar video clickeado usando el manejador alternativo, ID:", videoId);
+    editVideo(videoId);
+}
+}
+});
+
+// Verificar actualizaciones automáticamente
+setInterval(() => {
+// No refrescar si hay modales abiertos
+const openModals = document.querySelectorAll('.modal.show');
+if (openModals.length > 0) {
+return;
+}
+
+const activeTabElement = document.querySelector('.nav-link.active');
+if (!activeTabElement) return;
+
+const activeTab = activeTabElement.getAttribute('href');
+if (activeTab === '#playlists') {
+const filterValue = safeGetElement('playlistFilterStatus')?.value || 'all';
+loadPlaylists(filterValue);
+} else if (activeTab === '#videos') {
+const filterValue = safeGetElement('videoFilterExpiration')?.value || 'all';
+loadVideos(filterValue);
+} else if (activeTab === '#raspberry') {
+loadRaspberryActivePlaylists();
+}
+}, 60000); // 1 minuto
+
+console.log("Código de gestión de videos, playlists y dispositivos cargado correctamente");
 });

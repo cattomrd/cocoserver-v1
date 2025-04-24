@@ -4,6 +4,403 @@ let allVideos = [];
 let allPlaylists = [];
 let currentPlaylistId = null;
 
+// Estructura recomendada
+class VideoManager {
+constructor() {
+    this.API_URL = '/api';
+    this.allVideos = [];
+    this.allPlaylists = [];
+    this.currentPlaylistId = null;
+}
+
+// Métodos relacionados con videos
+async loadVideos(filter = 'all') { /* ... */ }
+async uploadVideo(formData) { /* ... */ }
+async editVideo(videoId) { /* ... */ }
+async deleteVideo(videoId) { /* ... */ }
+
+// Métodos relacionados con playlists
+async loadPlaylists(filter = 'all') { /* ... */ }
+async createPlaylist(playlistData) { /* ... */ }
+async openPlaylistDetail(playlistId) { /* ... */ }
+
+// Resto de métodos organizados por funcionalidad
+}
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', () => {
+const videoManager = new VideoManager();
+// Configurar event listeners
+});
+
+// Crear una clase de error personalizada
+class ApiError extends Error {
+constructor(message, status, details) {
+    super(message);
+    this.status = status;
+    this.details = details;
+}
+}
+
+// Función wrapper para llamadas API
+async function apiCall(url, options = {}) {
+try {
+    const response = await fetch(url, options);
+    
+    if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new ApiError(
+        errorData.detail || response.statusText,
+        response.status,
+        errorData
+    );
+    }
+    
+    return await response.json();
+} catch (error) {
+    console.error(`API call failed to ${url}:`, error);
+    throw error;
+}
+}
+
+// Uso en las funciones
+async function loadVideos(filter = 'all') {
+try {
+    const videos = await apiCall(`${API_URL}/videos/`);
+    // Procesar videos...
+} catch (error) {
+    showErrorToast('Error al cargar videos', error.message);
+    throw error;
+}
+}
+
+// Cache de elementos DOM
+const domCache = {
+    elements: {},
+    
+    get(id) {
+    if (!this.elements[id]) {
+        this.elements[id] = document.getElementById(id);
+    }
+    return this.elements[id];
+    },
+    
+    clear() {
+    this.elements = {};
+    }
+};
+
+
+// Función helper para crear elementos
+function createElement(tag, attributes = {}, children = []) {
+    const element = document.createElement(tag);
+
+    Object.entries(attributes).forEach(([key, value]) => {
+        if (key === 'class') {
+        element.className = value;
+        } else if (key === 'text') {
+        element.textContent = value;
+        } else {
+        element.setAttribute(key, value);
+        }
+    });
+
+    children.forEach(child => {
+        if (typeof child === 'string') {
+        element.appendChild(document.createTextNode(child));
+        } else {
+        element.appendChild(child);
+        }
+    });
+
+    return element;
+    }
+
+    // Ejemplo de uso
+    function createVideoCard(video) {
+    const isExpired = video.expiration_date && isExpired(video.expiration_date);
+
+    return createElement('div', { class: 'col-md-4 mb-4' }, [
+        createElement('div', { class: `card h-100 ${isExpired ? 'border-danger' : ''}` }, [
+        createVideoCardBody(video),
+        createVideoCardFooter(video)
+        ])
+    ]);
+}
+
+// Patrón de estado centralizado
+    const appState = {
+    videos: [],
+    playlists: [],
+    currentPlaylist: null,
+    filters: {
+        videos: 'all',
+        playlists: 'all'
+    },
+
+    getActiveVideos() {
+        return this.videos.filter(v => !v.expiration_date || !isExpired(v.expiration_date));
+    },
+
+    getExpiredVideos() {
+        return this.videos.filter(v => v.expiration_date && isExpired(v.expiration_date));
+    }
+    };
+
+    // Actualización reactiva del UI
+    function updateUI() {
+    renderVideos();
+    renderPlaylists();
+    updateActiveTab();
+    }
+
+    // Ejemplo de cómo actualizar el estado
+    async function fetchVideos() {
+    try {
+        appState.videos = await apiCall(`${API_URL}/videos/`);
+        updateUI();
+    } catch (error) {
+        showError(error);
+    }
+    }
+
+    // Sistema de gestión de eventos centralizado
+    const EventManager = {
+    handlers: {},
+
+    on(event, selector, handler) {
+        if (!this.handlers[event]) {
+        this.handlers[event] = [];
+        document.addEventListener(event, this.handleEvent.bind(this));
+        }
+        this.handlers[event].push({ selector, handler });
+    },
+
+    handleEvent(event) {
+        const handlers = this.handlers[event.type] || [];
+        
+        handlers.forEach(({ selector, handler }) => {
+        if (event.target.matches(selector)) {
+            handler(event);
+        }
+        });
+    }
+    };
+
+    // Uso
+    EventManager.on('click', '[data-action="edit-video"]', (e) => {
+    const videoId = e.target.dataset.videoId;
+    editVideo(videoId);
+    });
+
+    EventManager.on('change', '#videoFilterExpiration', (e) => {
+    loadVideos(e.target.value);
+    });
+
+    class PlaylistManager {
+    constructor() {
+        this.currentPlaylistId = null;
+    }
+
+    async load(filter = 'all') {
+        try {
+        const playlists = await apiCall(`${API_URL}/playlists/`);
+        // Filtrar según el filtro
+        return playlists;
+        } catch (error) {
+        throw error;
+        }
+    }
+
+    async getDetails(playlistId) {
+        return apiCall(`${API_URL}/playlists/${playlistId}`);
+    }
+
+    async addVideo(playlistId, videoId) {
+        return apiCall(`${API_URL}/playlists/${playlistId}/videos/${videoId}`, {
+        method: 'POST'
+        });
+    }
+
+    // Resto de métodos...
+    }
+
+    // Uso
+    const playlistManager = new PlaylistManager();
+
+    async function openPlaylistDetail(playlistId) {
+    try {
+        const playlist = await playlistManager.getDetails(playlistId);
+        // Mostrar detalles...
+    } catch (error) {
+        showError(error);
+    }
+    }  
+
+    /**
+     * Carga los videos desde la API y los muestra en la interfaz
+     * @param {string} filter - Filtro para los videos ('all', 'active', 'expired')
+     * @returns {Promise<void>}
+     * @throws {ApiError} Cuando falla la llamada a la API
+     */
+    async function loadVideos(filter = 'all') {
+    // Validar el filtro
+    const validFilters = ['all', 'active', 'expired'];
+    if (!validFilters.includes(filter)) {
+        throw new Error(`Filtro inválido: ${filter}. Use uno de: ${validFilters.join(', ')}`);
+    }
+
+    // Resto de la implementación...
+    }
+
+    // Sistema de caché simple
+    const apiCache = {
+    data: {},
+    ttl: 60000, // 1 minuto
+
+    get(key) {
+        const item = this.data[key];
+        if (item && Date.now() - item.timestamp < this.ttl) {
+        return item.data;
+        }
+        return null;
+    },
+
+    set(key, data) {
+        this.data[key] = {
+        data,
+        timestamp: Date.now()
+        };
+    },
+
+    clear(key) {
+        if (key) {
+        delete this.data[key];
+        } else {
+        this.data = {};
+        }
+    }
+    };
+
+    // Uso en las funciones
+    async function loadVideos(filter = 'all') {
+    const cacheKey = `videos-${filter}`;
+    const cached = apiCache.get(cacheKey);
+
+    if (cached) {
+        return cached;
+    }
+
+    const videos = await apiCall(`${API_URL}/videos/`);
+    apiCache.set(cacheKey, videos);
+    return videos;
+    }
+
+    function createAccessibleButton(text, onClick, options = {}) {
+    const button = document.createElement('button');
+    button.textContent = text;
+    button.addEventListener('click', onClick);
+
+    // Atributos ARIA por defecto
+    button.setAttribute('role', 'button');
+    button.setAttribute('aria-label', options.ariaLabel || text);
+
+    if (options.disabled) {
+        button.setAttribute('aria-disabled', 'true');
+        button.disabled = true;
+    }
+
+    // Añadir clases adicionales
+    if (options.classes) {
+        button.classList.add(...options.classes.split(' '));
+    }
+
+    return button;
+    }
+
+    // Uso
+    const deleteButton = createAccessibleButton(
+    'Eliminar', 
+    () => deleteVideo(videoId), 
+    { 
+        ariaLabel: `Eliminar video ${videoTitle}`,
+        classes: 'btn btn-danger'
+    }
+    );
+
+    // Clase principal que gestiona la aplicación
+    class VideoPlaylistApp {
+    constructor() {
+        this.API_URL = '/api';
+        this.state = {
+        videos: [],
+        playlists: [],
+        currentPlaylist: null,
+        filters: {
+            videos: 'all',
+            playlists: 'all'
+        },
+        isLoading: false
+        };
+        
+        this.cache = new CacheManager();
+        this.api = new ApiService(this.API_URL);
+        this.ui = new UIManager();
+        this.eventManager = new EventManager();
+        
+        this.init();
+    }
+
+    init() {
+        this.setupEventListeners();
+        this.testApiConnection();
+        this.loadInitialData();
+    }
+
+    setupEventListeners() {
+        this.eventManager.on('click', '[data-action="edit-video"]', (e) => {
+        this.editVideo(e.target.dataset.videoId);
+        });
+        
+        // Resto de event listeners...
+    }
+
+    async loadInitialData() {
+        try {
+        this.ui.showLoading(true);
+        
+        const [videos, playlists] = await Promise.all([
+            this.api.getVideos(),
+            this.api.getPlaylists()
+        ]);
+        
+        this.state.videos = videos;
+        this.state.playlists = playlists;
+        
+        this.ui.renderVideos(this.state.videos);
+        this.ui.renderPlaylists(this.state.playlists);
+        } catch (error) {
+        this.ui.showError('Error al cargar datos iniciales', error);
+        } finally {
+        this.ui.showLoading(false);
+        }
+    }
+
+    // Resto de métodos...
+    }
+
+    // Inicialización cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', () => {
+    const app = new VideoPlaylistApp();
+    }); 
+//#########
+// Ejemplo de uso
+function showLoadingIndicator(show = true) {
+    const loadingElement = domCache.get('loadingIndicator');
+    if (loadingElement) {
+    loadingElement.style.display = show ? 'block' : 'none';
+    }
+}
 // Función para probar la conexión a la API
 async function testApiConnection() {
     try {
@@ -339,7 +736,7 @@ async function loadPlaylists(filter = 'all') {
             </div>
         `;
     } finally {
-        document.getElementById('playlistsLoading').style.display = 'none';
+        document.getElementById('playlistsLoading').style.display = 'true';
     }
 }
 
@@ -1319,25 +1716,26 @@ async function loadAvailableDevices(playlistId) {
 // Función para asignar un dispositivo a una playlist
 async function addDeviceToPlaylist(playlistId, deviceId) {
     try {
-        const response = await fetch(`${API_URL}/device-playlists/`, {
+        const response = await fetch('/api/device-playlists/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
                 device_id: deviceId,
-                playlist_id: playlistId
+                playlist_id: parseInt(playlistId)
             }),
         });
         
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.detail || 'Error al asignar el dispositivo');
+            throw new Error(errorData.detail || `Error al asignar el dispositivo: ${response.status}`);
         }
         
-        alert('Dispositivo asignado a la lista correctamente');
+        // Éxito - mostrar mensaje y recargar los dispositivos asignados
+        alert('Dispositivo asignado correctamente a la lista');
         
-        // Recargar los dispositivos
+        // Recargar los dispositivos asignados y disponibles
         await loadPlaylistDevices(playlistId);
         await loadAvailableDevices(playlistId);
         
@@ -1632,7 +2030,7 @@ function openPlaylistDetails(playlistId) {
 
 // Inicializar componentes
 if (refreshPlaylistsBtn) {
-    refreshPlaylistsBtn.addEventListener('click', loadAssignedPlaylists);
+    refreshPlaylistsBtn.addEventListener('change', loadAssignedPlaylists);
 }
 
 if (showOnlyActivePlaylistsCheck) {
@@ -1640,7 +2038,7 @@ if (showOnlyActivePlaylistsCheck) {
 }
 
 if (confirmAssignPlaylistBtn) {
-    confirmAssignPlaylistBtn.addEventListener('click', () => {
+    confirmAssignPlaylistBtn.addEventListener('change', () => {
         const playlistId = availablePlaylistsSelect.value;
         if (!playlistId) {
             alert('Por favor, seleccione una lista de reproducción para asignar');

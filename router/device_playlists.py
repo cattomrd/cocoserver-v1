@@ -1,7 +1,8 @@
-# Nuevo archivo: router/device_playlists.py
+# Corrección para router/device_playlists.py
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from typing import List
 
 from models.database import get_db
@@ -49,6 +50,19 @@ def assign_playlist_to_device(
         db.commit()
         db.refresh(db_assignment)
         return db_assignment
+    except IntegrityError as e:
+        db.rollback()
+        # En caso de que ocurra una race condition (otro proceso creó la asignación mientras verificábamos)
+        # Intentamos obtener la asignación existente de nuevo
+        existing = db.query(models.DevicePlaylist).filter(
+            models.DevicePlaylist.device_id == assignment.device_id,
+            models.DevicePlaylist.playlist_id == assignment.playlist_id
+        ).first()
+        
+        if existing:
+            return existing
+        else:
+            raise HTTPException(status_code=500, detail=f"No se pudo crear la asignación: {str(e)}")
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"No se pudo crear la asignación: {str(e)}")

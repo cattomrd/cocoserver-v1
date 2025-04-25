@@ -97,7 +97,7 @@ async def validate_ssh_credentials(device_id):
                 # Intentar conectar con clave SSH primero
                 if os.path.exists(SSH_KEY_PATH):
                     key = paramiko.RSAKey.from_private_key_file(SSH_KEY_PATH)
-                    ssh.connect(ip_address, port=SSH_PORT, username=SSH_USER, pkey=key, timeout=5)
+                    ssh.connect(ip_address, port=SSH_PORT,username=SSH_USER, pkey=key, timeout=5)
                 else:
                     # Si no hay clave, usar contraseña
                     ssh.connect(ip_address, port=SSH_PORT, username=SSH_USER, password=SSH_PASSWORD, timeout=5)

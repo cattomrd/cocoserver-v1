@@ -30,15 +30,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-ssh_user = os.environ.get('SSH_USER')
-ssh_password = os.environ.get('SSH_PASS')
-print(ssh_user, ssh_password)
+# ssh_user = os.environ.get('SSH_USER')
+# ssh_password = 'Ikea1234' #os.environ.get('SSH_PASS', 'Ikea1234')
+# print(ssh_user, ssh_password)
 # Verificar si las variables críticas están definidas
 
-if not ssh_user:
-    logger.warning("La variable SSH_USER no está definida en el archivo .env")
-if not ssh_password:
-    logger.warning("La variable SSH_PASSWORD no está definida en el archivo .env")
+# if not ssh_user:
+#     logger.warning("La variable SSH_USER no está definida en el archivo .env")
+# if not ssh_password:
+#     logger.warning("La variable SSH_PASSWORD no está definida en el archivo .env")
 
 # Crear la aplicación FastAPI
 app = FastAPI(

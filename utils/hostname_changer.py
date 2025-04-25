@@ -24,7 +24,7 @@ load_dotenv()
 # Configuración SSH mejorada
 # Usar variables de entorno con valores predeterminados como respaldo
 SSH_USER = os.environ.get('SSH_USER')
-SSH_PASSWORD = os.environ.get('SSH_PASS')
+SSH_PASSWORD = os.environ.get('SSH_PASSWORD')
 SSH_KEY_PATH = os.environ.get('SSH_KEY_PATH', '/path/to/ssh/key')  # Ruta a la clave SSH privada
 SSH_PORT = int(os.environ.get('SSH_PORT', 22))  # Puerto SSH predeterminado
 

@@ -28,7 +28,7 @@
                         <div class="card">
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <h5 class="mb-0">Subir Nuevo Video</h5>
-                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#uploadForm">
+                                <button type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#uploadForm">
                                     <i class="fas fa-plus"></i> Mostrar/Ocultar
                                 </button>
                             </div>
@@ -52,11 +52,11 @@
                                             <input type="file" class="form-control" id="videoFile" name="file" accept="video/*" required>
                                         </div>
                                         <div class="mb-3">
-                                            <div class="progress d-none" id="uploadProgress">
-                                                <div class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                                            <div class="progress d-none" id="uploadProgress" style="height: 25px;">
+                                                <div class="progress-bar" role="progressbar" style="width: 0%; font-size: 1rem;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
                                             </div>
                                         </div>
-                                        <button type="submit" class="btn btn-primary">Subir Video</button>
+                                        <button type="submit" class="btn btn-primary btn-lg">Subir Video</button>
                                     </form>
                                 </div>
                             </div>
@@ -64,11 +64,19 @@
                     </div>
                 </div>
                 
+                <!-- Buscador para videos -->
                 <div class="row mb-3">
-                    <div class="col-md-12">
+                    <div class="col-md-8">
+                        <div class="input-group input-group-lg">
+                            <input type="text" id="videoSearchInput" class="form-control" placeholder="Buscar videos por título, descripción o lista...">
+                            <button class="btn btn-outline-secondary" type="button" id="videoSearchBtn">
+                                <i class="fas fa-search"></i> Buscar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
                         <div class="form-group">
-                            <label for="videoFilterExpiration" class="form-label">Filtrar por estado:</label>
-                            <select class="form-select" id="videoFilterExpiration">
+                            <select class="form-select form-select-lg" id="videoFilterExpiration" style="font-size: 1rem;">
                                 <option value="all">Todos los videos</option>
                                 <option value="active">Videos activos</option>
                                 <option value="expired">Videos expirados</option>
@@ -84,14 +92,32 @@
                                 <h5 class="mb-0">Biblioteca de Videos</h5>
                             </div>
                             <div class="card-body">
-                                <div class="row" id="videosList">
-                                    <!-- Los videos se cargarán aquí dinámicamente -->
-                                    <div class="col-12 text-center py-5" id="videosLoading">
-                                        <div class="spinner-border text-primary" role="status">
-                                            <span class="visually-hidden">Cargando...</span>
-                                        </div>
-                                        <p class="mt-2">Cargando videos...</p>
-                                    </div>
+                                <!-- Vista de tabla para videos -->
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover" id="videosTable">
+                                <thead>
+                                            <tr>
+                                                <th>Título</th>
+                                                <th>Descripción</th>
+                                                <th>Listas asignadas</th>
+                                                <th>Fecha de Subida</th>
+                                                <th>Expiración</th>
+                                                <th>Estado</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="videosList">
+                                            <!-- Los videos se cargarán aquí dinámicamente -->
+                                            <tr>
+                                                <td colspan="7" class="text-center py-3" id="videosLoading">
+                                                    <div class="spinner-border text-primary" role="status">
+                                                        <span class="visually-hidden">Cargando...</span>
+                                                    </div>
+                                                    <p class="mt-2">Cargando videos...</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -106,7 +132,7 @@
                         <div class="card">
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <h5 class="mb-0">Crear Nueva Lista de Reproducción</h5>
-                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#playlistForm">
+                                <button type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#playlistForm">
                                     <i class="fas fa-plus"></i> Mostrar/Ocultar
                                 </button>
                             </div>
@@ -129,7 +155,7 @@
                                             <input type="checkbox" class="form-check-input" id="playlistActive" name="is_active" checked>
                                             <label class="form-check-label" for="playlistActive">Lista Activa</label>
                                         </div>
-                                        <button type="submit" class="btn btn-primary">Crear Lista de Reproducción</button>
+                                        <button type="submit" class="btn btn-primary btn-lg">Crear Lista de Reproducción</button>
                                     </form>
                                 </div>
                             </div>
@@ -137,11 +163,19 @@
                     </div>
                 </div>
                 
+                <!-- Buscador para playlists -->
                 <div class="row mb-3">
-                    <div class="col-md-12">
+                    <div class="col-md-8">
+                        <div class="input-group input-group-lg">
+                            <input type="text" id="playlistSearchInput" class="form-control" placeholder="Buscar listas por título o descripción...">
+                            <button class="btn btn-outline-secondary" type="button" id="playlistSearchBtn">
+                                <i class="fas fa-search"></i> Buscar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
                         <div class="form-group">
-                            <label for="playlistFilterStatus" class="form-label">Filtrar por estado:</label>
-                            <select class="form-select" id="playlistFilterStatus">
+                            <select class="form-select form-select-lg" id="playlistFilterStatus" style="font-size: 1rem;">
                                 <option value="all">Todas las listas</option>
                                 <option value="active">Listas activas</option>
                                 <option value="inactive">Listas inactivas</option>
@@ -157,14 +191,31 @@
                                 <h5 class="mb-0">Listas de Reproducción</h5>
                             </div>
                             <div class="card-body">
-                                <div class="row" id="playlistsList">
-                                    <!-- Las listas se cargarán aquí dinámicamente -->
-                                    <div class="col-12 text-center py-5" id="playlistsLoading">
-                                        <div class="spinner-border text-primary" role="status">
-                                            <span class="visually-hidden">Cargando...</span>
-                                        </div>
-                                        <p class="mt-2">Cargando listas de reproducción...</p>
-                                    </div>
+                                <!-- Vista de tabla para playlists -->
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover" id="playlistsTable">
+                                <thead>
+                                        <tr>
+                                            <th>Título</th>
+                                            <th>Descripción</th>
+                                            <th>Videos</th>
+                                            <th>Expiración</th>
+                                            <th>Estado</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                        <tbody id="playlistsList">
+                                            <!-- Las listas se cargarán aquí dinámicamente -->
+                                            <tr>
+                                                <td colspan="7" class="text-center py-3" id="playlistsLoading">
+                                                    <div class="spinner-border text-primary" role="status">
+                                                        <span class="visually-hidden">Cargando...</span>
+                                                    </div>
+                                                    <p class="mt-2">Cargando listas de reproducción...</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -232,10 +283,10 @@
                                 <span class="badge" id="playlistDetailExpirationDate"></span>
                             </div>
                             <div>
-                                <button class="btn btn-sm btn-outline-primary" id="editPlaylistBtn">
+                                <button class="btn btn-outline-primary" id="editPlaylistBtn">
                                     <i class="fas fa-edit"></i> Editar
                                 </button>
-                                <button class="btn btn-sm btn-success" id="playlistDownloadBtn">
+                                <button class="btn btn-success" id="playlistDownloadBtn">
                                     <i class="fas fa-download"></i> Descargar Lista
                                 </button>
                             </div>
@@ -260,14 +311,27 @@
                             <!-- Pestaña de Videos -->
                             <div class="tab-pane fade show active" id="videosTab" role="tabpanel" aria-labelledby="videos-tab">
                                 <h6 class="mb-3">Videos en esta lista</h6>
-                                <div class="list-group" id="playlistVideos">
-                                    <!-- Videos en la lista -->
+                                <!-- Tabla de videos en lugar de lista -->
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Título</th>
+                                                <th>Descripción</th>
+                                                <th>Expiración</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="playlistVideos">
+                                            <!-- Videos en la lista -->
+                                        </tbody>
+                                    </table>
                                 </div>
                                 
                                 <hr class="my-4" />
                                 
                                 <h6>Agregar videos a esta lista</h6>
-                                <div class="input-group mb-3">
+                                <div class="input-group input-group-lg mb-3">
                                     <select class="form-select" id="addVideoSelect">
                                         <option value="">Seleccionar video...</option>
                                     </select>
@@ -287,7 +351,7 @@
                                 <hr class="my-4" />
                                 
                                 <h6>Asignar más dispositivos a esta lista</h6>
-                                <div class="input-group mb-3">
+                                <div class="input-group input-group-lg mb-3">
                                     <select class="form-select" id="addDeviceSelect">
                                         <option value="">Seleccionar dispositivo...</option>
                                     </select>
@@ -303,8 +367,8 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                    <button type="button" class="btn btn-danger" id="deletePlaylistBtn">Eliminar Lista</button>
+                    <button type="button" class="btn btn-secondary btn-lg" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-danger btn-lg" id="deletePlaylistBtn">Eliminar Lista</button>
                 </div>
             </div>
         </div>
@@ -336,54 +400,564 @@
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" id="saveVideoChangesBtn">Guardar Cambios</button>
+                    <button type="button" class="btn btn-secondary btn-lg" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary btn-lg" id="saveVideoChangesBtn">Guardar Cambios</button>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Modal para editar playlist -->
-<div class="modal fade" id="editPlaylistModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Editar Lista de Reproducción</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="editPlaylistForm">
-                    <input type="hidden" id="editPlaylistId">
-                    <div class="mb-3">
-                        <label for="editPlaylistTitle" class="form-label">Título</label>
-                        <input type="text" class="form-control" id="editPlaylistTitle" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editPlaylistDescription" class="form-label">Descripción</label>
-                        <textarea class="form-control" id="editPlaylistDescription" rows="3"></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editPlaylistExpiration" class="form-label">Fecha de Expiración (opcional)</label>
-                        <input type="datetime-local" class="form-control" id="editPlaylistExpiration">
-                    </div>
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="editPlaylistActive">
-                        <label class="form-check-label" for="editPlaylistActive">Lista Activa</label>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" id="savePlaylistChangesBtn">Guardar Cambios</button>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 {% block extra_scripts %}
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/main.js"></script>
+    <!-- Script para modificar la carga de videos en formato tabla -->
+    <script>
+    // Sobrescribir la función loadVideos para usar formato de tabla
+    window.originalLoadVideos = window.loadVideos;
+    window.loadVideos = async function(filter = 'all', searchTerm = '') {
+        try {
+            document.getElementById('videosLoading').style.display = 'block';
+            
+            console.log("Solicitando videos desde:", `${API_URL}/videos/`);
+            
+            const response = await fetch(`${API_URL}/videos/`);
+            console.log("Respuesta de la API:", response.status, response.statusText);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("Error en respuesta:", errorText);
+                throw new Error(`Error de servidor: ${response.status} - ${response.statusText}`);
+            }
+            
+            const responseData = await response.json();
+            console.log("Datos recibidos:", responseData);
+            
+            allVideos = responseData;
+            
+            const videosList = document.getElementById('videosList');
+            videosList.innerHTML = '';
+            
+            if (!Array.isArray(allVideos)) {
+                console.error("Datos recibidos no son un array:", allVideos);
+                throw new Error("Formato de datos inválido");
+            }
+            
+            // Cargar también las playlists para poder mostrar las asignaciones
+            let allPlaylistsData = [];
+            try {
+                const playlistsResponse = await fetch(`${API_URL}/playlists/`);
+                if (playlistsResponse.ok) {
+                    allPlaylistsData = await playlistsResponse.json();
+                }
+            } catch (e) {
+                console.error("Error al cargar playlists para asignaciones:", e);
+            }
+            
+            // Crear un mapeo de video a playlists
+            const videoPlaylistMap = {};
+            
+            // Construir el mapeo de videos a playlists
+            allPlaylistsData.forEach(playlist => {
+                if (playlist.videos && Array.isArray(playlist.videos)) {
+                    playlist.videos.forEach(video => {
+                        if (!videoPlaylistMap[video.id]) {
+                            videoPlaylistMap[video.id] = [];
+                        }
+                        videoPlaylistMap[video.id].push({
+                            id: playlist.id,
+                            title: playlist.title,
+                            is_active: isPlaylistActive(playlist)
+                        });
+                    });
+                }
+            });
+            
+            // Filtrar videos según el criterio seleccionado
+            let filteredVideos = allVideos;
+            if (filter === 'active') {
+                filteredVideos = allVideos.filter(video => !video.expiration_date || !isExpired(video.expiration_date));
+            } else if (filter === 'expired') {
+                filteredVideos = allVideos.filter(video => video.expiration_date && isExpired(video.expiration_date));
+            }
+            
+            // Aplicar búsqueda si hay un término
+            if (searchTerm) {
+                const searchLower = searchTerm.toLowerCase();
+                filteredVideos = filteredVideos.filter(video => {
+                    // Buscar en título y descripción
+                    const titleMatch = video.title && video.title.toLowerCase().includes(searchLower);
+                    const descMatch = video.description && video.description.toLowerCase().includes(searchLower);
+                    
+                    // Buscar en listas asignadas
+                    let playlistMatch = false;
+                    if (videoPlaylistMap[video.id]) {
+                        playlistMatch = videoPlaylistMap[video.id].some(pl => 
+                            pl.title.toLowerCase().includes(searchLower)
+                        );
+                    }
+                    
+                    return titleMatch || descMatch || playlistMatch;
+                });
+            }
+            
+            if (filteredVideos.length === 0) {
+                videosList.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center py-5">
+                            <p>No hay videos disponibles. ¡Sube tu primer video!</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            filteredVideos.forEach(video => {
+                const isVideoExpired = video.expiration_date && isExpired(video.expiration_date);
+                const row = document.createElement('tr');
+                row.className = isVideoExpired ? 'table-danger' : '';
+                
+                // Obtener las playlists asignadas a este video
+                const assignedPlaylists = videoPlaylistMap[video.id] || [];
+                let playlistsHtml = '';
+                
+                if (assignedPlaylists.length === 0) {
+                    playlistsHtml = '<span class="text-muted">Sin asignar</span>';
+                } else {
+                    playlistsHtml = assignedPlaylists.map(pl => 
+                        `<span class="badge ${pl.is_active ? 'bg-success' : 'bg-secondary'} me-1">${pl.title}</span>`
+                    ).join(' ');
+                }
+                
+                row.innerHTML = `
+                    <td>${video.title}</td>
+                    <td>${video.description || '<span class="text-muted">Sin descripción</span>'}</td>
+                    <td>${playlistsHtml}</td>
+                    <td>${formatDate(video.upload_date)}</td>
+                    <td>
+                        ${video.expiration_date ? 
+                            `<span class="badge ${isVideoExpired ? 'bg-danger' : 'bg-info'}">
+                                ${isVideoExpired ? 'Expirado' : 'Expira'}: ${formatDate(video.expiration_date)}
+                            </span>` : 
+                            '<span class="text-muted">Sin expiración</span>'}
+                    </td>
+                    <td>
+                        <span class="badge ${isVideoExpired ? 'bg-danger' : 'bg-success'}">
+                            ${isVideoExpired ? 'Expirado' : 'Activo'}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <a href="${API_URL}/videos/${video.id}/download" class="btn btn-outline-primary">
+                                <i class="fas fa-download"></i> Descargar
+                            </a>
+                            <button class="btn btn-outline-secondary" onclick="editVideo(${video.id})">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deleteVideo(${video.id})">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
+                        </div>
+                    </td>
+                `;
+                videosList.appendChild(row);
+            });
+        } catch (error) {
+            console.error('Error al cargar videos:', error);
+            document.getElementById('videosList').innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center py-5">
+                        <div class="alert alert-danger">Error al cargar videos: ${error.message}</div>
+                    </td>
+                </tr>
+            `;
+        } finally {
+            document.getElementById('videosLoading').style.display = 'none';
+        }
+    };
+
+    // Sobrescribir la función para cargar listas de reproducción en formato tabla
+    window.originalLoadPlaylists = window.loadPlaylists;
+    window.loadPlaylists = async function(filter = 'all') {
+        try {
+            const response = await fetch(`${API_URL}/playlists/`);
+            if (!response.ok) throw new Error('Error al cargar playlists');
+            
+            allPlaylists = await response.json();
+            
+            const playlistsList = document.getElementById('playlistsList');
+            playlistsList.innerHTML = '';
+            
+            // Filtrar playlists según el criterio seleccionado
+            let filteredPlaylists = allPlaylists;
+            if (filter === 'active') {
+                filteredPlaylists = allPlaylists.filter(playlist => isPlaylistActive(playlist));
+            } else if (filter === 'inactive') {
+                filteredPlaylists = allPlaylists.filter(playlist => !isPlaylistActive(playlist));
+            }
+            
+            if (filteredPlaylists.length === 0) {
+                playlistsList.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center py-5">
+                            <p>No hay listas de reproducción disponibles. ¡Crea tu primera lista!</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            filteredPlaylists.forEach(playlist => {
+                const active = isPlaylistActive(playlist);
+                const expirationText = playlist.expiration_date 
+                    ? `${isExpired(playlist.expiration_date) ? 'Expiró' : 'Expira'}: ${formatDate(playlist.expiration_date)}`
+                    : 'Sin fecha de expiración';
+                    
+                const row = document.createElement('tr');
+                row.className = active ? '' : 'table-danger';
+                
+                row.innerHTML = `
+                    <td>${playlist.title}</td>
+                    <td>${playlist.description || '<span class="text-muted">Sin descripción</span>'}</td>
+                    <td>
+                        <span class="badge bg-secondary">${playlist.videos.length} videos</span>
+                    </td>
+                    <td>
+                        <span class="badge bg-info">${expirationText}</span>
+                    </td>
+                    <td>
+                        <span class="badge ${active ? 'bg-success' : 'bg-danger'}">
+                            ${active ? 'Activa' : 'Inactiva'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-primary" onclick="openPlaylistDetail(${playlist.id})">
+                            <i class="fas fa-eye"></i> Ver Detalles
+                        </button>
+                    </td>
+                `;
+                playlistsList.appendChild(row);
+            });
+        } catch (error) {
+            console.error('Error al cargar playlists:', error);
+            document.getElementById('playlistsList').innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center py-5">
+                        <div class="alert alert-danger">Error al cargar listas de reproducción: ${error.message}</div>
+                    </td>
+                </tr>
+            `;
+        } finally {
+            document.getElementById('playlistsLoading').style.display = 'none';
+        }
+    };
+
+    // Modificar la función openPlaylistDetail para mostrar videos en tabla
+    window.originalOpenPlaylistDetail = window.openPlaylistDetail;
+    window.openPlaylistDetail = async function(playlistId) {
+        currentPlaylistId = playlistId;
+        try {
+            const response = await fetch(`${API_URL}/playlists/${playlistId}`);
+            if (!response.ok) throw new Error('Error al cargar detalles de la playlist');
+            
+            const playlist = await response.json();
+            
+            // Código existente para mostrar información de la playlist...
+            document.getElementById('playlistDetailTitle').textContent = playlist.title;
+            document.getElementById('playlistDetailDescription').textContent = playlist.description || 'Sin descripción';
+            document.getElementById('playlistDetailDate').textContent = `Creada: ${formatDate(playlist.creation_date)}`;
+            
+            // Fecha de expiración
+            const expirationBadge = document.getElementById('playlistDetailExpirationDate');
+            if (playlist.expiration_date) {
+                const expired = isExpired(playlist.expiration_date);
+                expirationBadge.className = `badge ${expired ? 'bg-danger' : 'bg-info'}`;
+                expirationBadge.textContent = `${expired ? 'Expiró' : 'Expira'}: ${formatDate(playlist.expiration_date)}`;
+            } else {
+                expirationBadge.className = 'badge bg-secondary';
+                expirationBadge.textContent = 'Sin fecha de expiración';
+            }
+            
+            // Estado de la playlist
+            const statusBadge = document.getElementById('playlistDetailStatus');
+            const isActive = isPlaylistActive(playlist);
+            statusBadge.className = `badge ${isActive ? 'bg-success' : 'bg-danger'}`;
+            statusBadge.textContent = isActive ? 'Activa' : 'Inactiva';
+            
+            // Configurar botones
+            document.getElementById('playlistDownloadBtn').onclick = () => {
+                window.location.href = `${API_URL}/playlists/${playlistId}/download`;
+            };
+            
+            // Configurar botón de editar
+            document.getElementById('editPlaylistBtn').onclick = () => {
+                preparePlaylistForEditing(playlist);
+            };
+            
+            // Configurar botón para eliminar playlist
+            document.getElementById('deletePlaylistBtn').onclick = () => {
+                if (confirm('¿Estás seguro de que deseas eliminar esta lista de reproducción?')) {
+                    deletePlaylist(playlistId);
+                }
+            };
+            
+            // Mostrar videos en la playlist (formato tabla)
+            const playlistVideos = document.getElementById('playlistVideos');
+            playlistVideos.innerHTML = '';
+            
+            if (playlist.videos.length === 0) {
+                playlistVideos.innerHTML = '<tr><td colspan="4" class="text-center">No hay videos en esta lista</td></tr>';
+            } else {
+                playlist.videos.forEach(video => {
+                    const videoExpired = video.expiration_date && isExpired(video.expiration_date);
+                    const videoRow = document.createElement('tr');
+                    videoRow.className = videoExpired ? 'table-danger' : '';
+                    
+                    videoRow.innerHTML = `
+                        <td>${video.title}</td>
+                        <td>${video.description || '<span class="text-muted">Sin descripción</span>'}</td>
+                        <td>
+                            ${video.expiration_date ? 
+                                `<span class="badge ${videoExpired ? 'bg-danger' : 'bg-info'}">
+                                    ${videoExpired ? 'Expirado' : 'Expira'}: ${formatDate(video.expiration_date)}
+                                </span>` : 
+                                '<span class="text-muted">Sin expiración</span>'}
+                        </td>
+                        <td>
+                            <button class="btn btn-outline-danger" onclick="removeVideoFromPlaylist(${playlistId}, ${video.id})">
+                                <i class="fas fa-times"></i> Eliminar
+                            </button>
+                        </td>
+                    `;
+                    playlistVideos.appendChild(videoRow);
+                });
+            }
+            
+            // Cargar videos disponibles para agregar (solo los no expirados)
+            const addVideoSelect = document.getElementById('addVideoSelect');
+            addVideoSelect.innerHTML = '<option value="">Seleccionar video...</option>';
+            
+            // Filtrar videos que no están en la playlist y que no han expirado
+            const playlistVideoIds = new Set(playlist.videos.map(v => v.id));
+            const availableVideos = allVideos.filter(video => 
+                !playlistVideoIds.has(video.id) && 
+                (!video.expiration_date || !isExpired(video.expiration_date))
+            );
+            
+            if (availableVideos.length === 0) {
+                addVideoSelect.innerHTML += '<option disabled>No hay videos disponibles para agregar</option>';
+            } else {
+                availableVideos.forEach(video => {
+                    const option = document.createElement('option');
+                    option.value = video.id;
+                    option.textContent = video.title;
+                    addVideoSelect.appendChild(option);
+                });
+            }
+            
+            // Configurar botón para agregar video
+            document.getElementById('addVideoBtn').onclick = () => {
+                const videoId = addVideoSelect.value;
+                if (videoId) {
+                    addVideoToPlaylist(playlistId, parseInt(videoId));
+                } else {
+                    alert('Por favor, selecciona un video para agregar a la lista');
+                }
+            };
+            
+            // Mostrar y configurar sección de dispositivos
+            await loadPlaylistDevices(playlistId);
+            await loadAvailableDevices(playlistId);
+            
+            // Configurar botón para agregar dispositivo
+            document.getElementById('addDeviceBtn').onclick = () => {
+                const deviceId = document.getElementById('addDeviceSelect').value;
+                if (deviceId) {
+                    addDeviceToPlaylist(playlistId, deviceId);
+                } else {
+                    alert('Por favor, selecciona un dispositivo para asignar a la lista');
+                }
+            };
+            
+            // Mostrar el modal
+            const modal = new bootstrap.Modal(document.getElementById('playlistDetailModal'));
+            modal.show();
+            
+        } catch (error) {
+            console.error('Error al cargar detalles de la playlist:', error);
+            alert(`Error al cargar los detalles de la lista de reproducción: ${error.message}`);
+        }
+    };
+
+    // Modificar la función loadPlaylistDevices para mostrar dispositivos en tabla
+    window.originalLoadPlaylistDevices = window.loadPlaylistDevices;
+    window.loadPlaylistDevices = async function(playlistId) {
+        try {
+            const response = await fetch(`${API_URL}/device-playlists/playlist/${playlistId}/devices`);
+            if (!response.ok) throw new Error('Error al cargar dispositivos asignados');
+            
+            const assignedDevices = await response.json();
+            
+            // Obtener el contenedor de dispositivos
+            const devicesContainer = document.getElementById('assignedDevicesContainer');
+            if (!devicesContainer) return;
+            
+            // Limpiar contenido actual
+            if (assignedDevices.length === 0) {
+                devicesContainer.innerHTML = '<p class="text-center">No hay dispositivos asignados a esta lista</p>';
+                return;
+            }
+            
+            // Crear la tabla de dispositivos asignados
+            const table = document.createElement('table');
+            table.className = 'table table-sm table-hover';
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Ubicación</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            `;
+            
+            const tbody = table.querySelector('tbody');
+            
+            assignedDevices.forEach(device => {
+                const deviceRow = document.createElement('tr');
+                deviceRow.className = device.is_active ? '' : 'table-warning';
+                
+                deviceRow.innerHTML = `
+                    <td>${device.device_id}</td>
+                    <td>${device.name}</td>
+                    <td>${device.location || ''} ${device.tienda ? ' - ' + device.tienda : ''}</td>
+                    <td>
+                        <span class="badge ${device.is_active ? 'bg-success' : 'bg-danger'}">
+                            ${device.is_active ? 'Activo' : 'Inactivo'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-danger" onclick="removeDeviceFromPlaylist('${device.device_id}', ${playlistId})">
+                            <i class="fas fa-times"></i> Eliminar
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(deviceRow);
+            });
+            
+            devicesContainer.innerHTML = '';
+            devicesContainer.appendChild(table);
+            
+        } catch (error) {
+            console.error('Error al cargar dispositivos asignados:', error);
+            const devicesContainer = document.getElementById('assignedDevicesContainer');
+            if (devicesContainer) {
+                devicesContainer.innerHTML = `<div class="alert alert-danger">Error al cargar dispositivos: ${error.message}</div>`;
+            }
+        }
+    };
+
+    // Modificar la función loadRaspberryActivePlaylists para usar tablas
+    window.originalLoadRaspberryActivePlaylists = window.loadRaspberryActivePlaylists;
+    window.loadRaspberryActivePlaylists = async function() {
+        try {
+            const response = await fetch(`${API_URL}/raspberry/playlists/active`);
+            if (!response.ok) throw new Error('Error al cargar playlists activas');
+            
+            const activePlaylists = await response.json();
+            
+            const raspberryActiveList = document.getElementById('raspberryActiveList');
+            raspberryActiveList.innerHTML = '';
+            
+            if (activePlaylists.length === 0) {
+                raspberryActiveList.innerHTML = `
+                    <div class="alert alert-warning">
+                        No hay listas de reproducción activas para dispositivos Raspberry Pi
+                    </div>
+                `;
+                return;
+            }
+            
+            const table = document.createElement('table');
+            table.className = 'table table-striped';
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Título</th>
+                        <th>Expiración</th>
+                        <th>Videos</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            `;
+            
+            const tbody = table.querySelector('tbody');
+            
+            activePlaylists.forEach(playlist => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${playlist.id}</td>
+                    <td>${playlist.title}</td>
+                    <td>${playlist.expiration_date ? formatDate(playlist.expiration_date) : 'Sin expiración'}</td>
+                    <td>${playlist.videos.length} videos</td>
+                    <td>
+                        <button class="btn btn-primary" onclick="openPlaylistDetail(${playlist.id})">
+                            <i class="fas fa-eye"></i> Ver
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            raspberryActiveList.appendChild(table);
+            
+        } catch (error) {
+            console.error('Error al cargar playlists activas para Raspberry Pi:', error);
+            document.getElementById('raspberryActiveList').innerHTML = `
+                <div class="alert alert-danger">
+                    Error al cargar listas de reproducción activas: ${error.message}
+                </div>
+            `;
+        }
+    };
+
+    // Ajustar la función addDeviceToPlaylist que parece estar incompleta en el código original
+    window.addDeviceToPlaylist = async function(playlistId, deviceId) {
+        try {
+            const response = await fetch(`${API_URL}/device-playlists/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    device_id: deviceId,
+                    playlist_id: parseInt(playlistId)
+                }),
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Error al añadir el dispositivo');
+            }
+            
+            alert('Dispositivo añadido a la lista correctamente');
+            
+            // Recargar dispositivos
+            await loadPlaylistDevices(playlistId);
+            await loadAvailableDevices(playlistId);
+            
+        } catch (error) {
+            console.error('Error al añadir dispositivo a playlist:', error);
+            alert(`Error al añadir el dispositivo a la lista: ${error.message}`);
+        }
+    };
+    </script>
 {% endblock %}
 </body>
 </html>

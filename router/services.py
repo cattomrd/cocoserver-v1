@@ -38,8 +38,8 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 SSH_KEY_PATH = os.environ.get('SSH_KEY_PATH')  # Ruta a la clave SSH privada
 SSH_USER = os.environ.get('SSH_USER')  # Usuario SSH
 SSH_PORT = int(os.environ.get('SSH_PORT', 22))  # Puerto SSH predeterminado
-SSH_PASSWORD = os.environ.get('SSH_PASS')  # Contraseña SSH (si no usas clave)
-
+SSH_PASSWORD = os.environ.get('SSH_PASSWORD')  # Contraseña SSH (si no usas clave)
+print(SSH_KEY_PATH, SSH_USER, SSH_PORT, SSH_PASSWORD)
 # Lista de servicios permitidos para gestionar
 ALLOWED_SERVICES = ['kiosk', 'videoloop']
 logger = logging.getLogger(__name__)

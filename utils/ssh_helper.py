@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # Obtener variables de entorno para las credenciales SSH
 SSH_USERNAME = os.environ.get('SSH_USER')
-SSH_PASSWORD = os.environ.get('SSH_PASS')
+SSH_PASSWORD = os.environ.get('SSH_PASSWORD')
 SSH_KEY_PATH = os.environ.get('SSH_KEY_PATH')  # Ruta a la clave privada (opcional)
 SSH_PORT = int(os.environ.get('SSH_PORT', '22'))
 SSH_TIMEOUT = int(os.environ.get('SSH_TIMEOUT', '10'))  # 10 segundos de timeout por defecto

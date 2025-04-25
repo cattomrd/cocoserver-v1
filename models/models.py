@@ -1,12 +1,10 @@
-# En tu archivo models.py
+# models/models.py (reemplaza COMPLETAMENTE el archivo actual)
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint, Table, Float, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint, Float, func
 from sqlalchemy.orm import relationship
-from pydantic import BaseModel, Field
 
 from datetime import datetime
-from typing import Optional, List
-from .database import Base  # Asumiendo que tienes Base definido en database.py
+from .database import Base
 
 # Tabla de relación entre Playlist y Video (modelo asociativo)
 class PlaylistVideo(Base):
@@ -97,9 +95,7 @@ class Video(Base):
             if size_bytes < 1024 or unit == 'GB':
                 return f"{size_bytes:.2f} {unit}"
             size_bytes /= 1024
-    
-    # Relación con PlaylistVideo
-    playlist_videos = relationship("PlaylistVideo", back_populates="video", cascade="all, delete-orphan")
+
 class DevicePlaylist(Base):
     __tablename__ = "device_playlists"
     
@@ -149,59 +145,3 @@ class Device(Base):
         secondary="device_playlists",
         viewonly=True
     )
-
-class DeviceBase(BaseModel):
-    device_id: str
-    name: str
-    model: str
-    ip_address_lan: Optional[str] = None
-    ip_address_wifi: Optional[str] = None
-    mac_address: str  # MAC principal (eth0)
-    wlan0_mac: Optional[str] = None  # MAC WiFi (opcional)
-    location: Optional[str] = None
-    tienda: Optional[str] = None
-
-class DeviceCreate(DeviceBase):
-    pass
-
-class DeviceUpdate(BaseModel):
-    name: Optional[str] = None
-    ip_address_lan: Optional[str] = None
-    ip_address_wifi: Optional[str] = None
-    location: Optional[str] = None
-    tienda: Optional[str] = None
-    is_active: Optional[bool] = None
-    cpu_temp: Optional[float] = None
-    memory_usage: Optional[float] = None
-    disk_usage: Optional[float] = None
-
-class DeviceStatus(BaseModel):
-    device_id: str
-    ip_address_lan: Optional[str] = None
-    ip_address_wifi: Optional[str] = None
-    cpu_temp: float = Field(..., description="CPU temperature in Celsius")
-    memory_usage: float = Field(..., description="Memory usage percentage")
-    disk_usage: float = Field(..., description="Disk usage percentage")
-    videoloop_status: Optional[str] = Field(None, description="Status of videoloop service")
-    kiosk_status: Optional[str] = Field(None, description="Status of kiosk service")
-    wlan0_mac: Optional[str] = Field(None, description="MAC address of WiFi interface")
-
-class ServiceStatus(BaseModel):
-    name: str
-    status: str
-    active: bool
-    enabled: bool
-    runtime: Optional[str] = None
-    description: Optional[str] = None
-
-class ServiceAction(BaseModel):
-    action: str = Field(..., description="Action to perform: start, stop, restart, status")
-    service: str = Field(..., description="Service name: videoloop or kiosk")
-
-class ServiceActionResponse(BaseModel):
-    device_id: str
-    action: str
-    service: str
-    success: bool
-    message: str
-    timestamp: datetime = Field(default_factory=datetime.now)

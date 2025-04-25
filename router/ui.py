@@ -8,7 +8,8 @@ from typing import Optional
 import httpx
 import sys
 import os
-
+from datetime import datetime
+current_timestamp = datetime.now().timestamp()
 # Añadir la ruta del directorio padre al path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -36,23 +37,84 @@ async def get_dashboard(request: Request):
 async def get_devices_page(
     request: Request, 
     active_only: bool = False,
+    search: Optional[str] = None,
+    search_field: Optional[str] = "all",
     db: Session = Depends(get_db)
 ):
     """
     Página que muestra la lista de dispositivos registrados
     """
-    query = db.query(models.Device)
+    # Consulta base con join a las playlists
+    query = db.query(models.Device).outerjoin(
+        models.DevicePlaylist,
+        models.DevicePlaylist.device_id == models.Device.device_id
+    ).outerjoin(
+        models.Playlist,
+        models.Playlist.id == models.DevicePlaylist.playlist_id
+    )
+    
+    # Filtros adicionales
     if active_only:
         query = query.filter(models.Device.is_active == True)
     
-    devices = query.all()
+    if search and search.strip():
+        search_term = f"%{search.strip()}%"
+        if search_field == 'name':
+            query = query.filter(models.Device.name.ilike(search_term))
+        elif search_field == 'location':
+            query = query.filter(models.Device.location.ilike(search_term))
+        elif search_field == 'tienda':
+            query = query.filter(models.Device.tienda.ilike(search_term))
+        elif search_field == 'model':
+            query = query.filter(models.Device.model.ilike(search_term))
+        elif search_field == 'ip':
+            query = query.filter(
+                or_(
+                    models.Device.ip_address_lan.ilike(search_term),
+                    models.Device.ip_address_wifi.ilike(search_term)
+                )
+            )
+        else:  # 'all'
+            query = query.filter(
+                or_(
+                    models.Device.device_id.ilike(search_term),
+                    models.Device.name.ilike(search_term),
+                    models.Device.location.ilike(search_term),
+                    models.Device.tienda.ilike(search_term),
+                    models.Device.model.ilike(search_term),
+                    models.Device.ip_address_lan.ilike(search_term),
+                    models.Device.ip_address_wifi.ilike(search_term),
+                    models.Playlist.title.ilike(search_term)
+                )
+            )
+    
+    # Es importante usar distinct() para evitar duplicados si un dispositivo tiene múltiples playlists
+    devices = query.distinct().all()
+    
+    # Cargar explícitamente las playlists para cada dispositivo
+    for device in devices:
+        # SQLAlchemy debería haber cargado las playlists automáticamente,
+        # pero podemos forzar la carga si es necesario
+        if hasattr(device, 'playlists') and device.playlists is None:
+            device_playlists = db.query(models.Playlist).join(
+                models.DevicePlaylist,
+                models.DevicePlaylist.playlist_id == models.Playlist.id
+            ).filter(
+                models.DevicePlaylist.device_id == device.device_id
+            ).all()
+            
+            # Asignar manualmente las playlists al dispositivo
+            device.playlists = device_playlists
+    
     return templates.TemplateResponse(
         "devices.html", 
         {
             "request": request, 
             "title": "Dispositivos Registrados", 
             "devices": devices,
-            "active_only": active_only
+            "active_only": active_only,
+            "search_term": search,
+            "search_field": search_field
         }
     )
 
@@ -95,53 +157,55 @@ async def get_device_detail(
             "service_status": service_status
         }
     )
-
-@router.post("/devices/{device_id}/service", response_class=HTMLResponse)
-async def control_device_service(
-    request: Request,
+@router.get("/devices/{device_id}", response_class=HTMLResponse)
+async def get_device_detail(
+    request: Request, 
     device_id: str,
-    action: str = Form(...),
     db: Session = Depends(get_db)
 ):
     """
-    Realizar una acción sobre el servicio videoloop (iniciar, detener, reiniciar)
+    Página de detalle de un dispositivo específico
     """
+    # Realizar el query con join para cargar las playlists asociadas
     device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
     if device is None:
         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
     
-    result = {"success": False, "message": "No se pudo conectar con el dispositivo"}
+    # Cargar explícitamente las playlists del dispositivo
+    device_playlists = db.query(models.Playlist).join(
+        models.DevicePlaylist,
+        models.DevicePlaylist.playlist_id == models.Playlist.id
+    ).filter(
+        models.DevicePlaylist.device_id == device_id
+    ).all()
     
-    # Validar acción
-    if action not in ["start", "stop", "restart", "status"]:
-        result = {"success": False, "message": f"Acción no válida: {action}"}
-    else:
-        # Intentar realizar la acción en el dispositivo remoto
+    # Asignar las playlists al dispositivo
+    device.playlists = device_playlists
+    
+    # Obtener fecha actual para comparaciones en la plantilla
+    from datetime import datetime
+    now = datetime.now()
+    
+    # Intentar obtener el estado del servicio videoloop
+    service_status = None
+    if device.is_active:
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(
-                    f"http://{device.ip_address_lan}:8000/service/videoloop/{action}"
-                )
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(f"http://{device.ip_address_lan or device.ip_address_wifi}:8000/service/videoloop/status")
                 if response.status_code == 200:
-                    result = response.json()
-                    # Actualizar el estado del servicio en la base de datos
-                    if "status" in result:
-                        device.videoloop_status = result["status"]
-                        db.commit()
-                else:
-                    result = {"success": False, "message": f"Error: {response.text}"}
-        except Exception as e:
-            result = {"success": False, "message": f"Error de conexión: {str(e)}"}
+                    service_status = response.json()
+        except:
+            # Si no se puede conectar, establecer estado como desconocido
+            service_status = {"status": "unknown", "active": False, "enabled": False}
     
-    # Redirigir a la página de detalle con un mensaje
     return templates.TemplateResponse(
-        "service_control.html", 
+        "device_detail.html", 
         {
-            "request": request,
-            "title": f"Control de Servicio: {device.name}",
+            "request": request, 
+            "title": f"Dispositivo: {device.name}",
             "device": device,
-            "action": action,
-            "result": result
+            "service_status": service_status,
+            "now": now  # Pasar la fecha actual a la plantilla
         }
     )
 

@@ -9,24 +9,32 @@ import time
 # Configuración del logger
 logger = logging.getLogger(__name__)
 
-# Constantes para la conexión SSH
-SSH_USERNAME = os.environ.get('SSH_USERNAME', 'pi')  # Usuario predeterminado para Raspberry Pi
-SSH_PASSWORD = os.environ.get('SSH_PASSWORD', 'raspberry')  # Contraseña predeterminada
-SSH_KEY_PATH = os.environ.get('SSH_KEY_PATH', None)  # Ruta a la clave privada (opcional)
+# Obtener variables de entorno para las credenciales SSH
+SSH_USERNAME = os.environ.get('SSH_USER')
+SSH_PASSWORD = os.environ.get('SSH_PASS')
+SSH_KEY_PATH = os.environ.get('SSH_KEY_PATH')  # Ruta a la clave privada (opcional)
 SSH_PORT = int(os.environ.get('SSH_PORT', '22'))
-SSH_TIMEOUT = int(os.environ.get('SSH_TIMEOUT', '10'))  # 10 segundos de timeout
+SSH_TIMEOUT = int(os.environ.get('SSH_TIMEOUT', '10'))  # 10 segundos de timeout por defecto
 
-def get_ssh_connection(host, port=SSH_PORT, username=SSH_USERNAME, password=SSH_PASSWORD, key_path=SSH_KEY_PATH, timeout=SSH_TIMEOUT):
+# Verificar si las variables críticas están definidas
+if not SSH_USERNAME:
+    logger.warning("SSH_USER no está definido en las variables de entorno.")
+    SSH_USERNAME = 'pi'  # Default para Raspberry Pi
+    
+if not SSH_PASSWORD:
+    logger.warning("SSH_PASSWORD no está definido en las variables de entorno.")
+
+def get_ssh_connection(host, port=None, username=None, password=None, key_path=None, timeout=None):
     """
     Establece una conexión SSH con el dispositivo especificado.
     
     Args:
         host (str): Dirección IP o hostname del dispositivo
-        port (int, optional): Puerto SSH. Por defecto es 22.
-        username (str, optional): Nombre de usuario para SSH. Por defecto es 'pi'.
-        password (str, optional): Contraseña para SSH. Por defecto es 'raspberry'.
-        key_path (str, optional): Ruta a la clave privada SSH. Por defecto es None.
-        timeout (int, optional): Tiempo de espera para la conexión en segundos. Por defecto es 10.
+        port (int, optional): Puerto SSH. Por defecto usa SSH_PORT.
+        username (str, optional): Nombre de usuario para SSH. Por defecto usa SSH_USERNAME.
+        password (str, optional): Contraseña para SSH. Por defecto usa SSH_PASSWORD.
+        key_path (str, optional): Ruta a la clave privada SSH. Por defecto usa SSH_KEY_PATH.
+        timeout (int, optional): Tiempo de espera para la conexión en segundos. Por defecto usa SSH_TIMEOUT.
     
     Returns:
         paramiko.SSHClient: Cliente SSH conectado
@@ -37,6 +45,13 @@ def get_ssh_connection(host, port=SSH_PORT, username=SSH_USERNAME, password=SSH_
         socket.error: Si hay un error de conexión de socket
     """
     try:
+        # Usar valores predeterminados si no se proporcionan específicos
+        port = port or SSH_PORT
+        username = username or SSH_USERNAME
+        password = password or SSH_PASSWORD
+        key_path = key_path or SSH_KEY_PATH
+        timeout = timeout or SSH_TIMEOUT
+        
         # Crear cliente SSH
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -53,9 +68,12 @@ def get_ssh_connection(host, port=SSH_PORT, username=SSH_USERNAME, password=SSH_
         if key_path and os.path.exists(key_path):
             connect_kwargs['key_filename'] = key_path
             logger.info(f"Conectando por SSH a {host} usando clave privada en {key_path}")
-        else:
+        elif password:
             connect_kwargs['password'] = password
             logger.info(f"Conectando por SSH a {host} usando contraseña")
+        else:
+            logger.error("No se proporcionó contraseña ni clave SSH para la conexión")
+            raise ValueError("Se requiere contraseña o clave SSH para la conexión")
         
         # Intentar conectar
         client.connect(**connect_kwargs)

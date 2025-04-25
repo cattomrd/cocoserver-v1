@@ -151,10 +151,6 @@
                                     <td>{{ device.tienda if device.tienda else 'No especificada' }}</td>
                                 </tr>
                                 <tr>
-                                    <th>Lista:</th>
-                                    <td>{{ device.tienda if device.tienda else 'No especificada' }}</td>
-                                </tr>
-                                <tr>
                                     <th>Registrado:</th>
                                     <td>{{ device.registered_at.strftime('%Y-%m-%d %H:%M') }}</td>
                                 </tr>
@@ -302,7 +298,147 @@
         </div>
     </div>
     
-    <!-- 4. Logs del Dispositivo -->
+<!-- 4. Listas Asignadas -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Listas de Reproducción Asignadas</h5>
+                <button class="btn btn-sm btn-light" id="btnShowAssignPlaylist" data-bs-toggle="modal" data-bs-target="#assignPlaylistModal">
+                    <i class="bi bi-plus-circle"></i> Asignar Lista
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="playlistsContainer">
+                    {% if device.playlists %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Título</th>
+                                        <th>Estado</th>
+                                        <th>Expiración</th>
+                                        <th>Videos</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for playlist in device.playlists %}
+                                    <tr>
+                                        <td>{{ playlist.title }}</td>
+                                        <td>
+                                            {% if playlist.is_active %}
+                                                <span class="badge bg-success">Activa</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Inactiva</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if playlist.expiration_date %}
+                                            {% if playlist.expiration_date < playlist.expiration_date.now() %}
+                                                <span class="badge bg-danger">Expirada: {{ playlist.expiration_date.strftime('%Y-%m-%d') }}</span>
+                                            {% else %}
+                                                <span class="badge bg-info">{{ playlist.expiration_date.strftime('%Y-%m-%d') }}</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary">Sin expiración</span>
+                                        {% endif %}
+                                        </td>
+                                        <td>{{ playlist.videos|length }}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-info" onclick="viewPlaylistDetails({{ playlist.id }})">
+                                                    <i class="bi bi-eye"></i> Ver
+                                                </button>
+                                                <button class="btn btn-outline-danger" onclick="confirmRemovePlaylist('{{ device.device_id }}', {{ playlist.id }}, '{{ playlist.title }}')">
+                                                    <i class="bi bi-x-circle"></i> Quitar
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> Este dispositivo no tiene listas de reproducción asignadas.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para asignar playlists -->
+<div class="modal fade" id="assignPlaylistModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Asignar Lista de Reproducción</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="showOnlyActivePlaylistsCheck" checked>
+                    <label class="form-check-label" for="showOnlyActivePlaylistsCheck">Mostrar solo listas activas</label>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="availablePlaylistsSelect" class="form-label">Seleccione una lista:</label>
+                    <select class="form-select" id="availablePlaylistsSelect">
+                        <option value="">Cargando listas...</option>
+                    </select>
+                </div>
+                
+                <div id="playlistPreview" class="d-none">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0" id="previewPlaylistTitle">Información de la Lista</h6>
+                        </div>
+                        <div class="card-body">
+                            <p id="previewPlaylistDescription"></p>
+                            <div class="mb-2">
+                                <span class="badge" id="previewPlaylistStatus"></span>
+                                <span class="badge" id="previewPlaylistExpiration"></span>
+                            </div>
+                            <div>
+                                <span class="badge bg-secondary" id="previewPlaylistVideos"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="confirmAssignPlaylistBtn">Asignar Lista</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación para quitar playlist -->
+<div class="modal fade" id="removePlaylistModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="removePlaylistMessage">¿Está seguro que desea quitar esta lista de reproducción del dispositivo?</p>
+                <input type="hidden" id="removePlaylistId">
+                <input type="hidden" id="removeDeviceId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmRemovePlaylistBtn">Eliminar</button>
+            </div>
+        </div>
+    </div>
+</div>
+    <!-- 5. Logs del Dispositivo -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
@@ -1125,6 +1261,382 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+});
+
+// Variables globales
+const deviceId = '{{ device.device_id }}';
+const now = new Date();
+let allPlaylists = [];
+
+// Función para cargar playlists asignadas
+async function loadAssignedPlaylists() {
+    try {
+        const playlistsContainer = document.getElementById('playlistsContainer');
+        if (!playlistsContainer) return;
+        
+        playlistsContainer.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div><p>Cargando listas...</p></div>';
+        
+        const response = await fetch(`/api/device-playlists/device/${deviceId}/playlists`);
+        if (!response.ok) {
+            throw new Error(`${response.status} ${response.statusText}`);
+        }
+        
+        const playlists = await response.json();
+        
+        if (playlists.length === 0) {
+            playlistsContainer.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> Este dispositivo no tiene listas de reproducción asignadas.
+                </div>
+            `;
+            return;
+        }
+        
+        // Crear la tabla de playlists
+        let html = `
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Título</th>
+                            <th>Estado</th>
+                            <th>Expiración</th>
+                            <th>Videos</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        playlists.forEach(playlist => {
+            const isActive = playlist.is_active && (!playlist.expiration_date || new Date(playlist.expiration_date) > now);
+            const hasExpired = playlist.expiration_date && new Date(playlist.expiration_date) < now;
+            
+            html += `
+                <tr>
+                    <td>${playlist.title}</td>
+                    <td>
+                        <span class="badge ${isActive ? 'bg-success' : 'bg-danger'}">
+                            ${isActive ? 'Activa' : 'Inactiva'}
+                        </span>
+                    </td>
+                    <td>
+                        ${playlist.expiration_date 
+                            ? (hasExpired 
+                                ? `<span class="badge bg-danger">Expirada: ${new Date(playlist.expiration_date).toLocaleDateString()}</span>` 
+                                : `<span class="badge bg-info">${new Date(playlist.expiration_date).toLocaleDateString()}</span>`)
+                            : '<span class="badge bg-secondary">Sin expiración</span>'
+                        }
+                    </td>
+                    <td>${playlist.videos ? playlist.videos.length : 0}</td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-info" onclick="viewPlaylistDetails(${playlist.id})">
+                                <i class="bi bi-eye"></i> Ver
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="confirmRemovePlaylist('${deviceId}', ${playlist.id}, '${playlist.title}')">
+                                <i class="bi bi-x-circle"></i> Quitar
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        playlistsContainer.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error al cargar playlists asignadas:', error);
+        const playlistsContainer = document.getElementById('playlistsContainer');
+        if (playlistsContainer) {
+            playlistsContainer.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> Error al cargar listas: ${error.message}
+                </div>
+            `;
+        }
+    }
+}
+
+// Función para cargar playlists disponibles para asignar
+// Función para cargar playlists disponibles para asignar
+async function loadAvailablePlaylists() {
+    try {
+        const showOnlyActive = document.getElementById('showOnlyActivePlaylistsCheck').checked;
+        const selectElement = document.getElementById('availablePlaylistsSelect');
+        
+        if (!selectElement) return;
+        
+        selectElement.innerHTML = '<option value="">Cargando listas...</option>';
+        
+        // Primero, obtener todas las playlists
+        const allPlaylistsResponse = await fetch(`/api/playlists/${showOnlyActive ? '?active_only=true' : ''}`);
+        if (!allPlaylistsResponse.ok) {
+            throw new Error(`Error al cargar listas: ${allPlaylistsResponse.status}`);
+        }
+        
+        allPlaylists = await allPlaylistsResponse.json();
+        
+        // Luego, obtener las playlists ya asignadas
+        const assignedPlaylistsResponse = await fetch(`/api/device-playlists/device/${deviceId}/playlists`);
+        if (!assignedPlaylistsResponse.ok) {
+            throw new Error(`Error al cargar listas asignadas: ${assignedPlaylistsResponse.status}`);
+        }
+        
+        const assignedPlaylists = await assignedPlaylistsResponse.json();
+        
+        // Filtrar para obtener solo las playlists no asignadas
+        const assignedPlaylistIds = assignedPlaylists.map(p => p.id);
+        const availablePlaylists = allPlaylists.filter(p => !assignedPlaylistIds.includes(p.id));
+        
+        if (availablePlaylists.length === 0) {
+            selectElement.innerHTML = '<option value="">No hay listas disponibles</option>';
+            return;
+        }
+        
+        selectElement.innerHTML = '<option value="">Seleccione una lista...</option>';
+        
+        // Añadir cada playlist al select
+        availablePlaylists.forEach(playlist => {
+            const option = document.createElement('option');
+            option.value = playlist.id;
+            
+            // Mostrar el título y estado
+            const isExpired = playlist.expiration_date && new Date(playlist.expiration_date) < now;
+            const statusText = !playlist.is_active ? '(Inactiva)' : 
+                              isExpired ? '(Expirada)' : '';
+            
+            option.textContent = `${playlist.title} ${statusText}`;
+            
+            // Añadir atributos data para poder usarlos después
+            option.dataset.title = playlist.title;
+            option.dataset.description = playlist.description || 'Sin descripción';
+            option.dataset.active = playlist.is_active;
+            option.dataset.expiration = playlist.expiration_date || '';
+            option.dataset.videoCount = playlist.videos ? playlist.videos.length : 0;
+            
+            selectElement.appendChild(option);
+        });
+        
+    } catch (error) {
+        console.error('Error al cargar listas disponibles:', error);
+        const selectElement = document.getElementById('availablePlaylistsSelect');
+        if (selectElement) {
+            selectElement.innerHTML = `<option value="">Error: ${error.message}</option>`;
+        }
+    }
+}
+
+// Función para mostrar detalles de la playlist seleccionada
+function showPlaylistPreview() {
+    const selectElement = document.getElementById('availablePlaylistsSelect');
+    const playlistPreview = document.getElementById('playlistPreview');
+    
+    if (!selectElement || !playlistPreview) return;
+    
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    
+    if (!selectedOption || !selectedOption.value) {
+        playlistPreview.classList.add('d-none');
+        return;
+    }
+    
+    // Obtener datos del option seleccionado
+    const title = selectedOption.dataset.title;
+    const description = selectedOption.dataset.description;
+    const isActive = selectedOption.dataset.active === 'true';
+    const expiration = selectedOption.dataset.expiration;
+    const videoCount = selectedOption.dataset.videoCount;
+    
+    // Actualizar elementos del preview
+    document.getElementById('previewPlaylistTitle').textContent = title;
+    document.getElementById('previewPlaylistDescription').textContent = description;
+    
+    const statusBadge = document.getElementById('previewPlaylistStatus');
+    statusBadge.className = `badge ${isActive ? 'bg-success' : 'bg-danger'}`;
+    statusBadge.textContent = isActive ? 'Activa' : 'Inactiva';
+    
+    const expirationBadge = document.getElementById('previewPlaylistExpiration');
+    if (expiration) {
+        const expirationDate = new Date(expiration);
+        const hasExpired = expirationDate < now;
+        
+        expirationBadge.className = `badge ${hasExpired ? 'bg-danger' : 'bg-info'}`;
+        expirationBadge.textContent = hasExpired ? 
+            `Expirada: ${expirationDate.toLocaleDateString()}` : 
+            `Expira: ${expirationDate.toLocaleDateString()}`;
+    } else {
+        expirationBadge.className = 'badge bg-secondary';
+        expirationBadge.textContent = 'Sin expiración';
+    }
+    
+    const videoBadge = document.getElementById('previewPlaylistVideos');
+    videoBadge.textContent = `${videoCount} video${videoCount !== 1 ? 's' : ''}`;
+    
+    // Mostrar el preview
+    playlistPreview.classList.remove('d-none');
+}
+
+// Asignar playlist a dispositivo
+async function assignPlaylistToDevice() {
+    const selectElement = document.getElementById('availablePlaylistsSelect');
+    const playlistId = selectElement.value;
+    
+    if (!playlistId) {
+        alert('Por favor, seleccione una lista de reproducción para asignar');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/device-playlists/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                device_id: deviceId,
+                playlist_id: parseInt(playlistId)
+            }),
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `Error al asignar la playlist: ${response.status}`);
+        }
+        
+        // Mostrar mensaje de éxito
+        const alertBox = document.createElement('div');
+        alertBox.className = 'alert alert-success alert-dismissible fade show mt-3';
+        alertBox.innerHTML = `
+            <strong>¡Éxito!</strong> La lista de reproducción ha sido asignada al dispositivo.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        // Insertar el mensaje en la página
+        const modalElement = document.getElementById('assignPlaylistModal');
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        modal.hide();
+        
+        const cardBody = document.querySelector('.card-body');
+        cardBody.insertBefore(alertBox, cardBody.firstChild);
+        
+        // Recargar la lista de playlists asignadas
+        await loadAssignedPlaylists();
+        
+    } catch (error) {
+        console.error('Error al asignar playlist:', error);
+        alert(`Error al asignar la lista de reproducción: ${error.message}`);
+    }
+}
+
+// Confirmar la eliminación de una playlist
+function confirmRemovePlaylist(deviceId, playlistId, playlistTitle) {
+    const removePlaylistMessage = document.getElementById('removePlaylistMessage');
+    const removePlaylistId = document.getElementById('removePlaylistId');
+    const removeDeviceId = document.getElementById('removeDeviceId');
+    
+    if (!removePlaylistMessage || !removePlaylistId || !removeDeviceId) return;
+    
+    // Actualizar mensaje de confirmación
+    removePlaylistMessage.textContent = `¿Está seguro que desea quitar la lista "${playlistTitle}" de este dispositivo?`;
+    
+    // Guardar los IDs para la eliminación
+    removePlaylistId.value = playlistId;
+    removeDeviceId.value = deviceId;
+    
+    // Mostrar el modal
+    const modal = new bootstrap.Modal(document.getElementById('removePlaylistModal'));
+    modal.show();
+}
+
+// Eliminar asignación de playlist a dispositivo
+async function removePlaylistFromDevice() {
+    const playlistId = document.getElementById('removePlaylistId').value;
+    const deviceId = document.getElementById('removeDeviceId').value;
+    
+    try {
+        if (!confirm('¿Está seguro que desea eliminar esta asignación? La lista de reproducción ya no se reproducirá en este dispositivo.')) {
+            return;
+        }
+        
+        const response = await fetch(`/api/device-playlists/${deviceId}/${playlistId}`, {
+            method: 'DELETE',
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `Error al eliminar la asignación: ${response.status}`);
+        }
+        
+        // Mostrar mensaje de éxito
+        const alertBox = document.createElement('div');
+        alertBox.className = 'alert alert-success alert-dismissible fade show mt-3';
+        alertBox.innerHTML = `
+            <strong>¡Éxito!</strong> La lista de reproducción ha sido desasignada del dispositivo.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        // Insertar el mensaje en la página
+        const cardBody = document.querySelector('.card-body');
+        cardBody.insertBefore(alertBox, cardBody.firstChild);
+        
+        // Recargar la lista de playlists asignadas
+        await loadAssignedPlaylists();
+        // También recargar las playlists disponibles para el modal
+        await loadAvailablePlaylists();
+        
+    } catch (error) {
+        console.error('Error al eliminar asignación de playlist:', error);
+        alert(`Error al eliminar la asignación: ${error.message}`);
+    }
+}
+
+// Abrir modal con detalles de playlist
+function viewPlaylistDetails(playlistId) {
+    // Redirigir a la pestaña de playlists y mostrar los detalles de la playlist seleccionada
+    window.location.href = `/ui/videos#playlists-${playlistId}`;
+}
+
+// Inicializar componentes
+document.addEventListener('DOMContentLoaded', function() {
+    // Referencias a elementos del DOM
+    const availablePlaylistsSelect = document.getElementById('availablePlaylistsSelect');
+    const showOnlyActivePlaylistsCheck = document.getElementById('showOnlyActivePlaylistsCheck');
+    const confirmAssignPlaylistBtn = document.getElementById('confirmAssignPlaylistBtn');
+    const confirmRemovePlaylistBtn = document.getElementById('confirmRemovePlaylistBtn');
+    const refreshPlaylistsBtn = document.getElementById('refreshPlaylistsBtn');
+    
+    // Manejar cambio en el select de playlists disponibles
+    if (availablePlaylistsSelect) {
+        availablePlaylistsSelect.addEventListener('change', showPlaylistPreview);
+    }
+    
+    // Inicializar componentes
+    if (refreshPlaylistsBtn) {
+        refreshPlaylistsBtn.addEventListener('click', loadAssignedPlaylists);
+    }
+    
+    if (showOnlyActivePlaylistsCheck) {
+        showOnlyActivePlaylistsCheck.addEventListener('change', loadAvailablePlaylists);
+    }
+    
+    if (confirmAssignPlaylistBtn) {
+        confirmAssignPlaylistBtn.addEventListener('click', assignPlaylistToDevice);
+    }
+    
+    if (confirmRemovePlaylistBtn) {
+        confirmRemovePlaylistBtn.addEventListener('click', removePlaylistFromDevice);
+    }
+    
+    // Cargar datos iniciales
+    loadAssignedPlaylists();
+    loadAvailablePlaylists();
 });
 </script>   
 {% endblock %}

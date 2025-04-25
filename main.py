@@ -4,10 +4,15 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
+from dotenv import load_dotenv
+import logging
+load_dotenv()
+
 import os
 import uvicorn
 # Importar los modelos para crear las tablas
 from models import models
+
 from models.database import engine
 
 # Importar los routers
@@ -15,6 +20,25 @@ from router import videos, playlists, raspberry, ui, services, devices, device_p
 
 # Crear las tablas en la base de datos
 models.Base.metadata.create_all(bind=engine)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()  # Enviar logs a la consola
+    ]
+)
+logger = logging.getLogger(__name__)
+
+ssh_user = os.environ.get('SSH_USER')
+ssh_password = os.environ.get('SSH_PASS')
+print(ssh_user, ssh_password)
+# Verificar si las variables críticas están definidas
+
+if not ssh_user:
+    logger.warning("La variable SSH_USER no está definida en el archivo .env")
+if not ssh_password:
+    logger.warning("La variable SSH_PASSWORD no está definida en el archivo .env")
 
 # Crear la aplicación FastAPI
 app = FastAPI(

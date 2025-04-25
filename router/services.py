@@ -32,13 +32,26 @@ STATICFILES_DIRS = [
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # Configuración SSH
-SSH_KEY_PATH = os.environ.get('SSH_KEY_PATH', '/path/to/ssh/key')  # Ruta a la clave SSH privada
-SSH_USER = os.environ.get('SSH_USER', 'jlr')  # Usuario SSH predeterminado
+# Actualización parcial de router/services.py
+
+# Configuración SSH con variables de entorno
+SSH_KEY_PATH = os.environ.get('SSH_KEY_PATH')  # Ruta a la clave SSH privada
+SSH_USER = os.environ.get('SSH_USER')  # Usuario SSH
 SSH_PORT = int(os.environ.get('SSH_PORT', 22))  # Puerto SSH predeterminado
-SSH_PASSWORD = os.environ.get('SSH_PASSWORD', '!@Erod800')  # Contraseña SSH (si no usas clave)
+SSH_PASSWORD = os.environ.get('SSH_PASS')  # Contraseña SSH (si no usas clave)
 
 # Lista de servicios permitidos para gestionar
 ALLOWED_SERVICES = ['kiosk', 'videoloop']
+logger = logging.getLogger(__name__)
+
+# Verificar si las variables críticas están definidas
+if not SSH_USER:
+    logger.warning("SSH_USER no está definido en las variables de entorno. Se usará un valor predeterminado.")
+    SSH_USER = 'pi'  # Valor predeterminado para Raspberry Pi
+    
+if not SSH_PASSWORD:
+    logger.warning("SSH_PASSWORD no está definido en las variables de entorno.")
+    
 logger = logging.getLogger(__name__)
 
 async def validate_ssh_credentials(device_id):

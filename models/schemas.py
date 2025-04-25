@@ -1,4 +1,4 @@
-# models/schemas.py completo con todas las correcciones
+# models/schemas.py (reemplaza COMPLETAMENTE el archivo actual si ya existe)
 
 from pydantic import BaseModel, Field
 from datetime import datetime
@@ -63,8 +63,8 @@ class DeviceBase(BaseModel):
     model: str
     ip_address_lan: Optional[str] = None
     ip_address_wifi: Optional[str] = None
-    mac_address: str  # MAC principal (eth0)
-    wlan0_mac: Optional[str] = None  # MAC WiFi (opcional)
+    mac_address: str
+    wlan0_mac: Optional[str] = None
     location: Optional[str] = None
     tienda: Optional[str] = None
 

@@ -362,3 +362,55 @@ async def list_devices(
             "search_field": search_field
         }
     )
+
+@router.get("/devices/{device_id}", response_class=HTMLResponse)
+async def get_device_detail(
+    request: Request, 
+    device_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Página de detalle de un dispositivo específico
+    """
+    # Realizar el query con join para cargar las playlists asociadas
+    device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
+    if device is None:
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
+    
+    # Cargar explícitamente las playlists del dispositivo
+    device_playlists = db.query(models.Playlist).join(
+        models.DevicePlaylist,
+        models.DevicePlaylist.playlist_id == models.Playlist.id
+    ).filter(
+        models.DevicePlaylist.device_id == device_id
+    ).all()
+    
+    # Asignar las playlists al dispositivo
+    device.playlists = device_playlists
+    
+    # Obtener fecha actual para comparaciones en la plantilla
+    from datetime import datetime
+    now = datetime.now()
+    
+    # Intentar obtener el estado del servicio videoloop
+    service_status = None
+    if device.is_active:
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(f"http://{device.ip_address_lan or device.ip_address_wifi}:8000/service/videoloop/status")
+                if response.status_code == 200:
+                    service_status = response.json()
+        except:
+            # Si no se puede conectar, establecer estado como desconocido
+            service_status = {"status": "unknown", "active": False, "enabled": False}
+    
+    return templates.TemplateResponse(
+        "device_detail.html", 
+        {
+            "request": request, 
+            "title": f"Dispositivo: {device.name}",
+            "device": device,
+            "service_status": service_status,
+            "now": now  # Pasar la fecha actual a la plantilla
+        }
+    )

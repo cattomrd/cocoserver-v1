@@ -1,4 +1,4 @@
-<!-- Archivo app/templates/devices.html -->
+<!-- Archivo app/templates/devices.html con columna Lista añadida -->
 {% extends "base.html" %}
 
 {% block content %}
@@ -31,6 +31,7 @@
                             <option value="tienda" {% if search_field == 'tienda' %}selected{% endif %}>Tienda</option>
                             <option value="model" {% if search_field == 'model' %}selected{% endif %}>Modelo</option>
                             <option value="ip" {% if search_field == 'ip' %}selected{% endif %}>Dirección IP</option>
+                            <option value="lista" {% if search_field == 'lista' %}selected{% endif %}>Lista</option>
                         </select>
                     </div>
                     
@@ -64,6 +65,7 @@
                         <th>IP LAN</th>
                         <th>IP WLAN</th>
                         <th>Estado</th>
+                        <th>Lista</th>
                         <th>Última Actividad</th>
                         <th>Acciones</th>
                     </tr>
@@ -83,6 +85,16 @@
                             <span class="badge bg-success">Activo</span>
                             {% else %}
                             <span class="badge bg-danger">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if device.playlists %}
+                                {% for playlist in device.playlists %}
+                                    <span class="badge bg-info">{{ playlist.title }}</span>
+                                    {% if not loop.last %}<br>{% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <span class="badge bg-secondary">Sin lista</span>
                             {% endif %}
                         </td>
                         <td>{{ device.last_seen.strftime('%Y-%m-%d %H:%M') }}</td>
@@ -126,6 +138,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const ipLan = row.cells[5].textContent.toLowerCase();
             const ipWlan = row.cells[6].textContent.toLowerCase();
             const isActive = row.cells[7].textContent.includes('Activo');
+            const playlist = row.cells[8].textContent.toLowerCase();
             
             // Verificar filtro de actividad
             if (showActiveOnly && !isActive) {
@@ -158,6 +171,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 case 'ip':
                     match = ipLan.includes(searchTerm) || ipWlan.includes(searchTerm);
                     break;
+                    case 'lista':	
+                    match = playlist.includes(searchTerm);
+                    break;
                 default: // 'all'
                     match = id.includes(searchTerm) || 
                             name.includes(searchTerm) || 
@@ -165,7 +181,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             tienda.includes(searchTerm) || 
                             model.includes(searchTerm) || 
                             ipLan.includes(searchTerm) || 
-                            ipWlan.includes(searchTerm);
+                            ipWlan.includes(searchTerm) ||
+                            playlist.includes(searchTerm);
             }
             
             // Mostrar u ocultar según el resultado

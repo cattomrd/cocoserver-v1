@@ -1,9 +1,10 @@
-<!-- Fragmento corregido para device_detail.html -->
-
 {% extends "base.html" %}
 
 {% block content %}
 <div class="container-fluid">
+    <!-- Campo oculto para el ID del dispositivo -->
+    <input type="hidden" id="device-id" value="{{ device.device_id }}">
+
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Dispositivo {{device.name}}</h1>
         <a href="/ui/devices" class="btn btn-outline-secondary">Volver a la lista</a>
@@ -198,30 +199,18 @@
                                         {% if device.is_active %}
                                             <div class="btn-group btn-group-sm" id="videoloop-actions">
                                                 {% if device.videoloop_status == 'running' %}
-                                                    <button type="button" class="btn btn-sm btn-danger service-action" 
-                                                            data-service="videoloop" 
-                                                            data-action="stop" 
-                                                            data-device-id="{{ device.device_id }}">
+                                                    <button type="button" class="btn btn-sm btn-danger service-action" data-service="videoloop" data-action="stop">
                                                         <i class="bi bi-stop-fill me-1"></i>Detener
                                                     </button>
-                                                    <button type="button" class="btn btn-sm btn-warning service-action" 
-                                                            data-service="videoloop" 
-                                                            data-action="restart" 
-                                                            data-device-id="{{ device.device_id }}">
+                                                    <button type="button" class="btn btn-sm btn-warning service-action" data-service="videoloop" data-action="restart">
                                                         <i class="bi bi-arrow-repeat me-1"></i>Reiniciar
                                                     </button>
                                                 {% elif device.videoloop_status == 'stopped' %}
-                                                    <button type="button" class="btn btn-sm btn-success service-action" 
-                                                            data-service="videoloop" 
-                                                            data-action="start" 
-                                                            data-device-id="{{ device.device_id }}">
+                                                    <button type="button" class="btn btn-sm btn-success service-action" data-service="videoloop" data-action="start">
                                                         <i class="bi bi-play-fill me-1"></i>Iniciar
                                                     </button>
                                                 {% else %}
-                                                    <button type="button" class="btn btn-sm btn-info service-action" 
-                                                            data-service="videoloop" 
-                                                            data-action="status" 
-                                                            data-device-id="{{ device.device_id }}">
+                                                    <button type="button" class="btn btn-sm btn-info service-action" data-service="videoloop" data-action="status">
                                                         <i class="bi bi-info-circle me-1"></i>Verificar
                                                     </button>
                                                 {% endif %}
@@ -236,7 +225,6 @@
                                                 <input class="form-check-input service-enable-toggle" type="checkbox" 
                                                         id="videoloop-enabled" 
                                                         data-service="videoloop" 
-                                                        data-device-id="{{ device.device_id }}" 
                                                         {% if device.videoloop_enabled %}checked{% endif %}>
                                                 <label class="form-check-label" for="videoloop-enabled">
                                                     {% if device.videoloop_enabled %}Habilitado{% else %}Deshabilitado{% endif %}
@@ -260,30 +248,18 @@
                                         {% if device.is_active %}
                                             <div class="btn-group btn-group-sm" id="kiosk-actions">
                                                 {% if device.kiosk_status == 'running' %}
-                                                    <button type="button" class="btn btn-sm btn-danger service-action" 
-                                                            data-service="kiosk" 
-                                                            data-action="stop" 
-                                                            data-device-id="{{ device.device_id }}">
+                                                    <button type="button" class="btn btn-sm btn-danger service-action" data-service="kiosk" data-action="stop">
                                                         <i class="bi bi-stop-fill me-1"></i>Detener
                                                     </button>
-                                                    <button type="button" class="btn btn-sm btn-warning service-action" 
-                                                            data-service="kiosk" 
-                                                            data-action="restart" 
-                                                            data-device-id="{{ device.device_id }}">
+                                                    <button type="button" class="btn btn-sm btn-warning service-action" data-service="kiosk" data-action="restart">
                                                         <i class="bi bi-arrow-repeat me-1"></i>Reiniciar
                                                     </button>
                                                 {% elif device.kiosk_status == 'stopped' %}
-                                                    <button type="button" class="btn btn-sm btn-success service-action" 
-                                                            data-service="kiosk" 
-                                                            data-action="start" 
-                                                            data-device-id="{{ device.device_id }}">
+                                                    <button type="button" class="btn btn-sm btn-success service-action" data-service="kiosk" data-action="start">
                                                         <i class="bi bi-play-fill me-1"></i>Iniciar
                                                     </button>
                                                 {% else %}
-                                                    <button type="button" class="btn btn-sm btn-info service-action" 
-                                                            data-service="kiosk" 
-                                                            data-action="status" 
-                                                            data-device-id="{{ device.device_id }}">
+                                                    <button type="button" class="btn btn-sm btn-info service-action" data-service="kiosk" data-action="status">
                                                         <i class="bi bi-info-circle me-1"></i>Verificar
                                                     </button>
                                                 {% endif %}
@@ -298,7 +274,6 @@
                                                 <input class="form-check-input service-enable-toggle" type="checkbox" 
                                                         id="kiosk-enabled" 
                                                         data-service="kiosk" 
-                                                        data-device-id="{{ device.device_id }}" 
                                                         {% if device.kiosk_enabled %}checked{% endif %}>
                                                 <label class="form-check-label" for="kiosk-enabled">
                                                     {% if device.kiosk_enabled %}Habilitado{% else %}Deshabilitado{% endif %}
@@ -324,73 +299,63 @@
             </div>
         </div>
     </div>
+    
     <!-- 4. Listas Asignadas -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">Listas de Reproducción Asignadas</h5>
-                <button class="btn btn-sm btn-light" id="btnShowAssignPlaylist" data-bs-toggle="modal" data-bs-target="#assignPlaylistModal">
-                    <i class="bi bi-plus-circle"></i> Asignar Lista
-                </button>
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Listas de Reproducción Asignadas</h5>
+                    <button class="btn btn-sm btn-light" id="btnShowAssignPlaylist" data-bs-toggle="modal" data-bs-target="#assignPlaylistModal">
+                        <i class="bi bi-plus-circle"></i> Asignar Lista
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="playlistsContainer">
+                        <!-- Contenido dinámico cargado con JavaScript -->
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                            <p class="mt-2">Cargando listas de reproducción...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <div id="playlistsContainer">
-                    {% if device.playlists %}
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>LISTA</th>
-                                        <th>ESTADO</th>
-                                        <th>ESPERIXION</th>
-                                        <th>VIDEOS</th>
-                                        <th>ACCIONES</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for playlist in device.playlists %}
-                                    <tr>
-                                        <td>{{ playlist.title }}</td>
-                                        <td>
-                                            {% if playlist.is_active %}
-                                                <span class="badge bg-success">Activa</span>
-                                            {% else %}
-                                                <span class="badge bg-danger">Inactiva</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if playlist.expiration_date %}
-                                                {% if playlist.expiration_date  %}
-                                                    <span class="badge bg-danger">Expirada: {{ playlist.expiration_date.strftime('%Y-%m-%d') }}</span>
-                                                {% else %}
-                                                    <span class="badge bg-info">{{ playlist.expiration_date.strftime('%Y-%m-%d') }}</span>
-                                                {% endif %}
-                                            {% else %}
-                                                <span class="badge bg-secondary">Sin expiración</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ playlist.videos|length }}</td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <button class="btn btn-outline-info" onclick="viewPlaylistDetails({{ playlist.id }})">
-                                                    <i class="bi bi-eye"></i> Ver
-                                                </button>
-                                                <button class="btn btn-outline-danger" onclick="confirmRemovePlaylist('{{ device.device_id }}', {{ playlist.id }}, '{{ playlist.title }}')">
-                                                    <i class="bi bi-x-circle"></i> Quitar
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+        </div>
+    </div>
+    
+    <!-- 5. Logs del Dispositivo -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Logs del Dispositivo</h5>
+                    <div>
+                        <button class="btn btn-sm btn-outline-light" id="refreshLogsBtn" title="Actualizar logs">
+                            <i class="bi bi-arrow-clockwise"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="log-container" style="max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 12px; background-color: #1e1e1e; color: #f0f0f0;">
+                        <pre id="deviceLogContent" class="m-0 p-3">Cargando logs...</pre>
+                    </div>
+                </div>
+                <div class="card-footer bg-light d-flex justify-content-between">
+                    <span class="small text-muted">Última actualización: <span id="lastLogUpdate">-</span></span>
+                    <div>
+                        <div class="form-check form-switch d-inline-block me-3">
+                            <input class="form-check-input" type="checkbox" id="autoRefreshLogs">
+                            <label class="form-check-label small" for="autoRefreshLogs">Auto-actualizar</label>
                         </div>
-                    {% else %}
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle"></i> Este dispositivo no tiene listas de reproducción asignadas.
-                        </div>
-                    {% endif %}
+                        <select id="logLinesCount" class="form-select form-select-sm d-inline-block" style="width: auto;">
+                            <option value="100">100 líneas</option>
+                            <option value="300" selected>300 líneas</option>
+                            <option value="500">500 líneas</option>
+                            <option value="1000">1000 líneas</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -465,43 +430,6 @@
     </div>
 </div>
 
-    <!-- 5. Logs del Dispositivo -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">Logs del Dispositivo</h5>
-                    <div>
-                        <button class="btn btn-sm btn-outline-light" id="refreshLogsBtn" title="Actualizar logs">
-                            <i class="bi bi-arrow-clockwise"></i> Actualizar
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <div class="log-container" style="max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 12px; background-color: #1e1e1e; color: #f0f0f0;">
-                        <pre id="deviceLogContent" class="m-0 p-3">Cargando logs...</pre>
-                    </div>
-                </div>
-                <div class="card-footer bg-light d-flex justify-content-between">
-                    <span class="small text-muted">Última actualización: <span id="lastLogUpdate">-</span></span>
-                    <div>
-                        <div class="form-check form-switch d-inline-block me-3">
-                            <input class="form-check-input" type="checkbox" id="autoRefreshLogs">
-                            <label class="form-check-label small" for="autoRefreshLogs">Auto-actualizar</label>
-                        </div>
-                        <select id="logLinesCount" class="form-select form-select-sm d-inline-block" style="width: auto;">
-                            <option value="100">100 líneas</option>
-                            <option value="300" selected>300 líneas</option>
-                            <option value="500">500 líneas</option>
-                            <option value="1000">1000 líneas</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Modal de confirmación de acción de servicio -->
 <div class="modal fade" id="serviceActionModal" tabindex="-1" aria-labelledby="serviceActionModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -551,8 +479,8 @@
                     <div class="tab-pane fade show active" id="basic" role="tabpanel" aria-labelledby="basic-tab">
                         <form id="basicInfoForm" action="/ui/devices/{{ device.device_id }}/update" method="post">
                             <div class="mb-3">
-                                <label for="name" class="form-label">Tienda</label>
-                                <input type="text" class="form-control" id="tienda" name="tienda" value="{{ device.tienda }}">
+                                <label for="tienda" class="form-label">Tienda</label>
+                                <input type="text" class="form-control" id="tienda" name="tienda" value="{{ device.tienda or '' }}">
                             </div>
                             <div class="mb-3">
                                 <label for="location" class="form-label">Ubicación</label>
@@ -650,6 +578,25 @@
                 <img id="screenshotImage" class="img-fluid d-none" alt="Captura de pantalla del dispositivo">
                 <div id="screenshotError" class="alert alert-danger d-none">
                     No se pudo obtener la captura de pantalla.
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-outline-info" id="manualScreenshotBtn">
+                            <i class="bi bi-tools"></i> Intentar método alternativo
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Formulario para método alternativo de captura -->
+                <div id="manualScreenshotForm" class="mt-3 d-none">
+                    <div class="alert alert-info">
+                        <p><strong>Método alternativo de captura</strong></p>
+                        <p>Introduce la URL directa del endpoint de captura de pantalla:</p>
+                    </div>
+                    <div class="input-group mb-3">
+                        <span class="input-group-text">URL</span>
+                        <input type="text" class="form-control" id="manualScreenshotUrl" 
+                                value="http://{{ device.ip_address_lan or device.ip_address_wifi }}:8000/api/screenshot">
+                        <button class="btn btn-primary" type="button" id="tryManualScreenshotBtn">Probar</button>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -665,11 +612,8 @@
     </div>
 </div>
 {% endblock %}
+
 {% block extra_scripts %}
-    <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/js/main.js"></script>
-    <!-- Script para modificar la carga de videos en formato tabla -->
-    <script>
-</script>   
+<!-- Cargar nuestro archivo JavaScript separado -->
+<script src="/static/js/detail.js"></script>
 {% endblock %}

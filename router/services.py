@@ -484,7 +484,7 @@ async def get_device_screenshot_as_file(device_id: str, db: Session = Depends(ge
             )
         
         # URL del endpoint de captura de pantalla en el cliente
-        screenshot_url = f"http://{device_ip}:8000/api/screenshot"
+        screenshot_url = f"http://{device_ip}:8000/api/screenshot/"
         
         # Realizar la solicitud al cliente
         try:

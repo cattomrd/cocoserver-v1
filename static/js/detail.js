@@ -577,361 +577,74 @@ function initServiceManagement() {
 function initScreenshotFunctionality() {
     const screenshotButton = document.getElementById('screenshotButton');
     const screenshotModal = document.getElementById('screenshotModal');
+    const screenshotImage = document.getElementById('screenshotImage');
+    const screenshotSpinner = document.getElementById('screenshotSpinner');
+    const screenshotError = document.getElementById('screenshotError');
+    const downloadScreenshotBtn = document.getElementById('downloadScreenshotBtn');
+    const refreshScreenshotBtn = document.getElementById('refreshScreenshotBtn');
     
     if (!screenshotButton || !screenshotModal) return;
     
     // Inicializar el modal de Bootstrap
     const modal = new bootstrap.Modal(screenshotModal);
     
-    // Referencias a elementos del DOM
-    const elements = {
-        image: document.getElementById('screenshotImage'),
-        spinner: document.getElementById('screenshotSpinner'),
-        error: document.getElementById('screenshotError'),
-        downloadBtn: document.getElementById('downloadScreenshotBtn'),
-        refreshBtn: document.getElementById('refreshScreenshotBtn'),
-        manualBtn: document.getElementById('manualScreenshotBtn'),
-        manualForm: document.getElementById('manualScreenshotForm'),
-        manualUrl: document.getElementById('manualScreenshotUrl'),
-        tryManualBtn: document.getElementById('tryManualScreenshotBtn')
-    };
-    
-    // Registro de intentos realizados
-    const screenshotAttempts = [];
-    
-    // URLs alternativas para probar automáticamente
-    const altPaths = [
-        '/api/screenshot/',
-        'screenshot',
-        'api/capture',
-        'api/screen',
-        'capture'
-    ];
-    
-    // Índice de ruta actual para intentos secuenciales
-    let currentPathIndex = 0;
-    
-    // Función para obtener la captura con el endpoint mejorado
-    async function getEnhancedScreenshot() {
-        // Reiniciar interfaz
-        resetScreenshotUI();
-        
-        // Construir URL con opciones de debug
-        const debugMode = false; // Cambiar a true para ver información detallada
-        const url = `/services/devices/${deviceId}/screenshot?debug=${debugMode}`;
-        
+    // Función para obtener y mostrar la captura de pantalla
+    async function getScreenshot() {
         try {
-            console.log('Intentando obtener captura mejorada desde:', url);
+            // Mostrar spinner y ocultar elementos previos
+            screenshotSpinner.classList.remove('d-none');
+            screenshotImage.classList.add('d-none');
+            screenshotError.classList.add('d-none');
+            downloadScreenshotBtn.classList.add('d-none');
             
-            const response = await fetch(url);
-            
-            // Registrar el intento
-            screenshotAttempts.push({
-                timestamp: new Date().toISOString(),
-                url: url,
-                success: response.ok,
-                status: response.status,
-                statusText: response.statusText
-            });
-            
-            if (!response.ok) {
-                // Si tenemos respuesta pero no es exitosa
-                const errorText = await response.text();
-                console.error('Error en respuesta:', response.status, errorText);
-                throw new Error(`Error del servidor: ${response.status} ${response.statusText}`);
-            }
-            
-            // Verificar contenido de la respuesta
-            const contentType = response.headers.get('content-type');
-            
-            // Si estamos en modo debug, mostrar la información en la consola
-            if (debugMode && contentType && contentType.includes('application/json')) {
-                const debugInfo = await response.json();
-                console.log('Información de diagnóstico:', debugInfo);
-                showDebugInfo(debugInfo);
-                return;
-            }
-            
-            if (!contentType || !contentType.includes('image/')) {
-                throw new Error(`Respuesta no contiene una imagen (${contentType})`);
-            }
-            
-            // Procesar la imagen
-            const imageBlob = await response.blob();
-            displayScreenshotImage(imageBlob);
-            
-        } catch (error) {
-            console.error('Error con endpoint mejorado:', error);
-            showError(`Error al obtener la captura: ${error.message}`);
-            
-            // Mostrar botones para acciones alternativas
-            if (elements.manualBtn) {
-                elements.manualBtn.style.display = 'inline-block';
-            }
-        }
-    }
-    
-    // Función para intentar rutas alternativas de forma secuencial
-    async function tryNextPath() {
-        if (currentPathIndex >= altPaths.length) {
-            // Si ya probamos todas las rutas, mostrar formulario manual
-            showError("Se probaron todas las rutas automáticas sin éxito");
-            if (elements.manualForm) {
-                elements.manualForm.classList.remove('d-none');
-            }
-            return;
-        }
-        
-        // Reiniciar interfaz
-        resetScreenshotUI();
-        
-        const path = altPaths[currentPathIndex];
-        currentPathIndex++;
-        
-        // Obtener IP del dispositivo del campo de entrada manual (que tiene la IP predefinida)
-        const baseUrl = elements.manualUrl.value.split('/').slice(0, 3).join('/');
-        const url = `${baseUrl}/${path}`;
-        
-        try {
-            console.log(`Intento #${currentPathIndex}: Probando ruta: ${url}`);
-            
-            const response = await fetch(url, { 
-                mode: 'cors',
-                cache: 'no-cache',
-                headers: {
-                    'Accept': 'image/*, */*'
-                }
-            });
-            
-            // Registrar el intento
-            screenshotAttempts.push({
-                timestamp: new Date().toISOString(),
-                url: url,
-                success: response.ok,
-                status: response.status
-            });
-            
-            if (!response.ok) {
-                console.log(`Ruta ${path} falló con estado ${response.status}`);
-                // Continuar con la siguiente ruta
-                setTimeout(tryNextPath, 500); // Pequeña pausa entre intentos
-                return;
-            }
-            
-            // Verificar que sea una imagen válida
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('image/')) {
-                console.log(`Ruta ${path} devolvió contenido no válido: ${contentType}`);
-                setTimeout(tryNextPath, 500);
-                return;
-            }
-            
-            // Procesar la imagen si llegamos aquí
-            const imageBlob = await response.blob();
-            displayScreenshotImage(imageBlob);
-            
-            // Actualizar la URL en el campo manual con la que funcionó
-            if (elements.manualUrl) {
-                elements.manualUrl.value = url;
-            }
-            
-            console.log(`Éxito con ruta: ${path}`);
-            
-        } catch (error) {
-            console.error(`Error al probar ruta ${path}:`, error);
-            // Continuar con la siguiente ruta
-            setTimeout(tryNextPath, 500);
-        }
-    }
-    
-    // Función para intentar con URL manual
-    async function tryManualUrl() {
-        // Reiniciar interfaz
-        resetScreenshotUI();
-        
-        const url = elements.manualUrl.value.trim();
-        
-        try {
-            if (!url || !url.startsWith('http')) {
-                throw new Error('URL no válida. Debe comenzar con http:// o https://');
-            }
-            
-            console.log('Probando URL manual:', url);
-            
-            const response = await fetch(url, { 
-                mode: 'cors',
-                cache: 'no-cache',
-                headers: {
-                    'Accept': 'image/*, */*'
-                }
-            });
-            
-            // Registrar el intento
-            screenshotAttempts.push({
-                timestamp: new Date().toISOString(),
-                url: url,
-                success: response.ok,
-                status: response.status,
-                manual: true
-            });
+            // Realizar la petición a la API
+            const response = await fetch(`/services/devices/${deviceId}/screenshot`);
             
             if (!response.ok) {
                 throw new Error(`Error al obtener la captura: ${response.status} ${response.statusText}`);
             }
             
-            // Verificar que sea una imagen válida
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('image/')) {
-                console.error('Respuesta no es una imagen:', contentType);
-                throw new Error(`La respuesta no contiene una imagen válida (${contentType})`);
-            }
-            
-            // Procesar la imagen
+            // Obtener la imagen como blob
             const imageBlob = await response.blob();
-            displayScreenshotImage(imageBlob);
             
-            // Ocultar formulario manual ya que tuvimos éxito
-            if (elements.manualForm) {
-                elements.manualForm.classList.add('d-none');
-            }
+            // Crear URL para la imagen
+            const imageUrl = URL.createObjectURL(imageBlob);
             
-            console.log('Captura manual exitosa');
+            // Mostrar la imagen
+            screenshotImage.src = imageUrl;
+            screenshotImage.classList.remove('d-none');
+            
+            // Configurar botón de descarga
+            downloadScreenshotBtn.href = imageUrl;
+            downloadScreenshotBtn.download = `screenshot-${deviceId}-${new Date().toISOString().replace(/:/g, '-')}.png`;
+            downloadScreenshotBtn.classList.remove('d-none');
             
         } catch (error) {
-            console.error('Error con URL manual:', error);
-            showError(`Error: ${error.message}`);
+            console.error('Error:', error);
+            screenshotError.textContent = `Error al obtener la captura: ${error.message}`;
+            screenshotError.classList.remove('d-none');
+        } finally {
+            // Ocultar spinner
+            screenshotSpinner.classList.add('d-none');
         }
     }
     
-    // Función para mostrar la imagen capturada
-    function displayScreenshotImage(imageBlob) {
-        // Crear URL para la imagen
-        const imageUrl = URL.createObjectURL(imageBlob);
-        
-        // Mostrar la imagen
-        elements.image.src = imageUrl;
-        elements.image.classList.remove('d-none');
-        
-        // Configurar botón de descarga
-        elements.downloadBtn.href = imageUrl;
-        elements.downloadBtn.download = `screenshot-${deviceId}-${new Date().toISOString().replace(/:/g, '-')}.png`;
-        elements.downloadBtn.classList.remove('d-none');
-        
-        // Ocultar spinner
-        elements.spinner.classList.add('d-none');
-    }
-    
-    // Función para mostrar información de depuración
-    function showDebugInfo(debugInfo) {
-        // Crear un elemento para mostrar la información
-        const debugElement = document.createElement('div');
-        debugElement.className = 'alert alert-info mt-3';
-        debugElement.innerHTML = `
-            <h5>Información de diagnóstico</h5>
-            <p>Dispositivo: ${debugInfo.device_id} (${debugInfo.device_ip})</p>
-            <p>Estado: ${debugInfo.success ? 'Éxito' : 'Error'}</p>
-            ${debugInfo.final_url ? `<p>URL exitosa: ${debugInfo.final_url}</p>` : ''}
-            <details>
-                <summary>Ver detalles completos</summary>
-                <pre>${JSON.stringify(debugInfo.results, null, 2)}</pre>
-            </details>
-        `;
-        
-        // Añadir después de la imagen
-        const modalBody = elements.image.parentElement;
-        modalBody.appendChild(debugElement);
-        
-        // Ocultar spinner
-        elements.spinner.classList.add('d-none');
-    }
-    
-    // Función para mostrar mensajes de error
-    function showError(message) {
-        elements.error.textContent = message;
-        elements.error.classList.remove('d-none');
-        elements.spinner.classList.add('d-none');
-    }
-    
-    // Función para reiniciar la interfaz
-    function resetScreenshotUI() {
-        elements.spinner.classList.remove('d-none');
-        elements.image.classList.add('d-none');
-        elements.error.classList.add('d-none');
-        elements.downloadBtn.classList.add('d-none');
-        if (elements.manualForm) {
-            elements.manualForm.classList.add('d-none');
-        }
-    }
-    
-    // Configurar event listeners
-    
-    // Botón principal de captura
+    // Event listener para el botón de captura
     screenshotButton.addEventListener('click', function() {
-        // Reiniciar el índice de paths para intentos nuevos
-        currentPathIndex = 0;
-        // Mostrar el modal
         modal.show();
-        // Intentar con el endpoint mejorado primero
-        getEnhancedScreenshot();
+        getScreenshot();
     });
-}
-    // Botón de actualizar
-    if (elements.refreshBtn) {
-        elements.refreshBtn.addEventListener('click', function() {
-            // Reiniciar y usar el endpoint mejorado de nuevo
-            currentPathIndex = 0;
-            getEnhancedScreenshot();
-        });
-    }
     
-    // Botón para método manual
-    if (elements.manualBtn) {
-        elements.manualBtn.addEventListener('click', function() {
-            if (elements.manualForm) {
-                elements.manualForm.classList.remove('d-none');
-            }
-        });
-    }
-    
-    // Botón para iniciar secuencia de intentos alternativos
-    if (elements.error) {
-        // Añadir un botón para intentar rutas alternativas
-        const autoTryBtn = document.createElement('button');
-        autoTryBtn.className = 'btn btn-warning ms-2';
-        autoTryBtn.innerHTML = '<i class="bi bi-lightning"></i> Intentar rutas alternativas';
-        autoTryBtn.onclick = function() {
-            currentPathIndex = 0; // Reiniciar índice
-            tryNextPath();
-        };
-        
-        // Añadir al mensaje de error
-        const btnContainer = elements.error.querySelector('div.mt-3');
-        if (btnContainer) {
-            btnContainer.appendChild(autoTryBtn);
-        }
-    }
-    
-    // Botón para probar URL manual
-    if (elements.tryManualBtn) {
-        elements.tryManualBtn.addEventListener('click', tryManualUrl);
-    }
+    // Event listener para el botón de actualizar
+    refreshScreenshotBtn.addEventListener('click', getScreenshot);
     
     // Limpiar recursos cuando se cierra el modal
     screenshotModal.addEventListener('hidden.bs.modal', function() {
-        if (elements.image.src) {
-            URL.revokeObjectURL(elements.image.src);
-        }
-        
-        // Ocultar formulario manual al cerrar
-        if (elements.manualForm) {
-            elements.manualForm.classList.add('d-none');
-        }
-        
-        // Mostrar informe de intentos en consola
-        if (screenshotAttempts.length > 0) {
-            console.log('Resumen de intentos de captura:', screenshotAttempts);
+        if (screenshotImage.src) {
+            URL.revokeObjectURL(screenshotImage.src);
         }
     });
+}
 
 // ===== MÓDULO: GESTIÓN DE PLAYLISTS =====
 async function loadAssignedPlaylists() {

@@ -1,6 +1,6 @@
 # models/models.py (reemplaza COMPLETAMENTE el archivo actual)
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint, Float, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint, Float, func, or_
 from sqlalchemy.orm import relationship
 
 from datetime import datetime
@@ -132,6 +132,9 @@ class Device(Base):
     disk_usage = Column(Float, nullable=True)
     videoloop_status = Column(String, nullable=True)
     kiosk_status = Column(String, nullable=True)
+    # Nuevos campos para control de autoarranque
+    videoloop_enabled = Column(Boolean, default=True)  # Indica si el servicio está habilitado para iniciar con el sistema
+    kiosk_enabled = Column(Boolean, default=False)  # Indica si el servicio está habilitado para iniciar con el sistema
     last_seen = Column(DateTime, default=func.now(), onupdate=func.now())
     registered_at = Column(DateTime, default=func.now())
     service_logs = Column(String, nullable=True)
@@ -145,3 +148,55 @@ class Device(Base):
         secondary="device_playlists",
         viewonly=True
     )
+
+# Scripts de migración para añadir nuevos campos
+migration_scripts = {
+    'sqlite': '''
+-- Script de migración para SQLite
+ALTER TABLE devices ADD COLUMN videoloop_enabled BOOLEAN DEFAULT 1;
+ALTER TABLE devices ADD COLUMN kiosk_enabled BOOLEAN DEFAULT 0;
+''',
+    'postgresql': '''
+-- Script de migración para PostgreSQL
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS videoloop_enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS kiosk_enabled BOOLEAN DEFAULT FALSE;
+'''
+}
+
+
+# Código para aplicar la migración
+def apply_migration(engine):
+    """
+    Aplica la migración para añadir los campos de habilitación de servicios
+    
+    Args:
+        engine: Instancia del motor SQLAlchemy
+    """
+    from sqlalchemy import inspect
+    
+    # Detectar el dialecto de la base de datos
+    dialect = engine.dialect.name
+    
+    # Obtener el script de migración adecuado
+    if dialect not in migration_scripts:
+        raise ValueError(f"No hay script de migración para el dialecto {dialect}")
+    
+    script = migration_scripts[dialect]
+    
+    # Verificar si los campos ya existen
+    inspector = inspect(engine)
+    existing_columns = [col['name'] for col in inspector.get_columns('devices')]
+    
+    if 'videoloop_enabled' in existing_columns and 'kiosk_enabled' in existing_columns:
+        print("Los campos de habilitación de servicios ya existen. No se requiere migración.")
+        return
+    
+    # Aplicar el script de migración
+    with engine.begin() as conn:
+        conn.execute(script)
+    
+    print("Migración aplicada correctamente.")
+
+# Ejemplo de uso:
+# from models.database import engine
+# apply_migration(engine)

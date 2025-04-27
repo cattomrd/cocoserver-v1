@@ -1,60 +1,120 @@
-from fastapi import APIRouter, Request, Depends, HTTPException, Response, BackgroundTasks  # Añadido BackgroundTask
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
-from fastapi.templating import Jinja2Templates
-from pathlib import Path
+# router/services_enhanced.py
+from fastapi import APIRouter, Request, Depends, HTTPException, Response, BackgroundTasks
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
-from typing import Optional
-import requests
-import tempfile
-import sys
+from typing import Optional, Dict, Any, Union, List
+import httpx
+import asyncio
 import os
 import paramiko
-import logging  # Asegúrate de tener paramiko instalado
+import logging
+from datetime import datetime
+
 from utils import ssh_helper
-
 from models import models
 from models.database import SessionLocal, get_db
 
-from models import models
-from models.database import SessionLocal, get_db
 router = APIRouter(
-    prefix="/api/services",
+    prefix="/services",
     tags=["services"]
 )
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Configuración SSH (usado como fallback si la API falla)
+SSH_KEY_PATH = os.environ.get('SSH_KEY_PATH', '/path/to/ssh/key')
+SSH_USER = os.environ.get('SSH_USER', 'jlr')
+SSH_PORT = int(os.environ.get('SSH_PORT', 22))
+SSH_PASSWORD = os.environ.get('SSH_PASSWORD', '!@Erod800')
 
-STATIC_URL = '/static/'
-
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'my_static_files'),
-]
-
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-# Configuración SSH
-# Actualización parcial de router/services.py
-
-# Configuración SSH con variables de entorno
-SSH_KEY_PATH = os.environ.get('SSH_KEY_PATH')  # Ruta a la clave SSH privada
-SSH_USER = os.environ.get('SSH_USER')  # Usuario SSH
-SSH_PORT = int(os.environ.get('SSH_PORT', 22))  # Puerto SSH predeterminado
-SSH_PASSWORD = os.environ.get('SSH_PASSWORD')  # Contraseña SSH (si no usas clave)
-print(SSH_KEY_PATH, SSH_USER, SSH_PORT, SSH_PASSWORD)
 # Lista de servicios permitidos para gestionar
 ALLOWED_SERVICES = ['kiosk', 'videoloop']
 logger = logging.getLogger(__name__)
 
-# Verificar si las variables críticas están definidas
-if not SSH_USER:
-    logger.warning("SSH_USER no está definido en las variables de entorno. Se usará un valor predeterminado.")
-    SSH_USER = 'pi'  # Valor predeterminado para Raspberry Pi
-    
-if not SSH_PASSWORD:
-    logger.warning("SSH_PASSWORD no está definido en las variables de entorno.")
-    
-logger = logging.getLogger(__name__)
+# Tiempo de espera para API y SSH en segundos
+API_TIMEOUT = 5.0
+SSH_TIMEOUT = 10.0
 
-async def validate_ssh_credentials(device_id):
+async def manage_service_via_api(ip_address: str, service_name: str, action: str) -> Dict[str, Any]:
+    """
+    Gestiona un servicio en el dispositivo remoto usando su API.
+    
+    Args:
+        ip_address (str): Dirección IP del dispositivo
+        service_name (str): Nombre del servicio a gestionar
+        action (str): Acción a realizar: start, stop, restart, status
+    
+    Returns:
+        dict: Resultado de la operación
+    """
+    if service_name not in ALLOWED_SERVICES:
+        return {
+            'success': False, 
+            'message': f'Servicio no permitido: {service_name}. Los servicios permitidos son: {", ".join(ALLOWED_SERVICES)}'
+        }
+    
+    valid_actions = ['start', 'stop', 'restart', 'status']
+    if action not in valid_actions:
+        return {
+            'success': False, 
+            'message': f'Acción no válida: {action}. Las acciones permitidas son: {", ".join(valid_actions)}'
+        }
+    
+    try:
+        # Construir URL para la API del cliente
+        api_url = f"http://{ip_address}:8000/{service_name}/{action}"
+        logger.info(f"Intentando manejar servicio {service_name} ({action}) vía API: {api_url}")
+        
+        async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
+            response = await client.get(api_url)
+            
+            if response.status_code != 200:
+                return {
+                    'success': False,
+                    'message': f'Error de API: Status code {response.status_code}',
+                    'details': response.text
+                }
+            
+            result_text = response.text.strip()
+            
+            # Interpretar la respuesta
+            if result_text == "success":
+                # Determinar estado basado en la acción
+                state = None
+                if action == 'start' or action == 'restart':
+                    state = 'running'
+                elif action == 'stop':
+                    state = 'stopped'
+                
+                return {
+                    'success': True,
+                    'message': f'Servicio {service_name} {action} completado exitosamente',
+                    'status': state,
+                    'method': 'api'
+                }
+            else:
+                # Si la respuesta contiene "error:", es un mensaje de error
+                return {
+                    'success': False,
+                    'message': f'Error al {action} servicio {service_name}',
+                    'details': result_text,
+                    'method': 'api'
+                }
+    
+    except (httpx.ConnectError, httpx.ConnectTimeout) as e:
+        logger.warning(f"No se pudo conectar a la API del dispositivo: {str(e)}")
+        return {
+            'success': False,
+            'message': f'No se pudo conectar a la API: {str(e)}',
+            'error_type': 'connection'
+        }
+    except Exception as e:
+        logger.error(f"Error al manejar servicio vía API: {str(e)}")
+        return {
+            'success': False,
+            'message': f'Error al llamar a la API: {str(e)}',
+            'error_type': 'general'
+        }
+
+async def validate_ssh_credentials(device_id: str) -> Dict[str, Any]:
     """
     Verifica que se tienen las credenciales SSH necesarias para un dispositivo
     Intenta primero con WiFi, si falla intenta con LAN
@@ -97,10 +157,10 @@ async def validate_ssh_credentials(device_id):
                 # Intentar conectar con clave SSH primero
                 if os.path.exists(SSH_KEY_PATH):
                     key = paramiko.RSAKey.from_private_key_file(SSH_KEY_PATH)
-                    ssh.connect(ip_address, port=SSH_PORT,username=SSH_USER, pkey=key, timeout=5)
+                    ssh.connect(ip_address, port=SSH_PORT, username=SSH_USER, pkey=key, timeout=SSH_TIMEOUT)
                 else:
                     # Si no hay clave, usar contraseña
-                    ssh.connect(ip_address, port=SSH_PORT, username=SSH_USER, password=SSH_PASSWORD, timeout=5)
+                    ssh.connect(ip_address, port=SSH_PORT, username=SSH_USER, password=SSH_PASSWORD, timeout=SSH_TIMEOUT)
                 
                 # Si llegamos aquí, la conexión fue exitosa
                 logger.info(f"Conexión SSH exitosa a {connection_type} ({ip_address})")
@@ -141,9 +201,9 @@ async def validate_ssh_credentials(device_id):
     finally:
         db.close()
 
-async def manage_service(device_id, service_name, action):
+async def manage_service_via_ssh(device_id: str, service_name: str, action: str) -> Dict[str, Any]:
     """
-    Gestiona un servicio en el dispositivo remoto usando SSH.
+    Gestiona un servicio en el dispositivo remoto usando SSH (método de fallback).
     
     Args:
         device_id (str): ID del dispositivo
@@ -155,12 +215,18 @@ async def manage_service(device_id, service_name, action):
     """
     # Validar que el servicio está en la lista de permitidos
     if service_name.lower() not in ALLOWED_SERVICES:
-        return {'success': False, 'message': f'Servicio no permitido. Los servicios permitidos son: {", ".join(ALLOWED_SERVICES)}'}
+        return {
+            'success': False, 
+            'message': f'Servicio no permitido. Los servicios permitidos son: {", ".join(ALLOWED_SERVICES)}'
+        }
     
     # Validar la acción
     valid_actions = ['start', 'stop', 'restart', 'enable', 'disable', 'status']
     if action.lower() not in valid_actions:
-        return {'success': False, 'message': f'Acción no válida. Las acciones permitidas son: {", ".join(valid_actions)}'}
+        return {
+            'success': False, 
+            'message': f'Acción no válida. Las acciones permitidas son: {", ".join(valid_actions)}'
+        }
     
     db = SessionLocal()
     try:
@@ -175,13 +241,16 @@ async def manage_service(device_id, service_name, action):
         # Primero validar credenciales para determinar la mejor interfaz para conectar
         ssh_validation = await validate_ssh_credentials(device_id)
         if not ssh_validation['success']:
-            return {'success': False, 'message': f'Error de validación SSH: {ssh_validation["message"]}'}
+            return {
+                'success': False, 
+                'message': f'Error de validación SSH: {ssh_validation["message"]}'
+            }
         
         # Usar la interfaz que funcionó en la validación
         connection_type = ssh_validation.get('connection_type', 'LAN')
         ip_address = ssh_validation.get('ip_address', device.ip_address_lan or device.ip_address_wifi)
         
-        logger.info(f"Gestionando servicio {service_name} ({action}) vía {connection_type} ({ip_address})")
+        logger.info(f"Gestionando servicio {service_name} ({action}) vía SSH {connection_type} ({ip_address})")
         
         # Conectar al dispositivo vía SSH
         ssh = paramiko.SSHClient()
@@ -191,10 +260,10 @@ async def manage_service(device_id, service_name, action):
             # Usar la misma conexión que funcionó en la validación
             if os.path.exists(SSH_KEY_PATH):
                 key = paramiko.RSAKey.from_private_key_file(SSH_KEY_PATH)
-                ssh.connect(ip_address, port=SSH_PORT, username=SSH_USER, pkey=key, timeout=10)
+                ssh.connect(ip_address, port=SSH_PORT, username=SSH_USER, pkey=key, timeout=SSH_TIMEOUT)
             else:
                 # Si no hay clave, usar contraseña
-                ssh.connect(ip_address, port=SSH_PORT, username=SSH_USER, password=SSH_PASSWORD, timeout=10)
+                ssh.connect(ip_address, port=SSH_PORT, username=SSH_USER, password=SSH_PASSWORD, timeout=SSH_TIMEOUT)
             
             # Ejecutar el comando según la acción solicitada
             if action == 'status':
@@ -209,7 +278,11 @@ async def manage_service(device_id, service_name, action):
             
             # Verificar el resultado
             if error and 'sudo' in error.lower():
-                return {'success': False, 'message': f'Error de permisos sudo: {error}'}
+                return {
+                    'success': False, 
+                    'message': f'Error de permisos sudo: {error}',
+                    'method': 'ssh'
+                }
             
             # Para las acciones de inicio/parada/reinicio, verificar el estado después
             if action in ['start', 'stop', 'restart']:
@@ -228,8 +301,9 @@ async def manage_service(device_id, service_name, action):
                 result = {
                     'success': success,
                     'message': f'Servicio {service_name} {action} completado. Estado actual: {status}',
-                    'status': status,
-                    'details': details
+                    'status': 'running' if status == 'active' else 'stopped',
+                    'details': details,
+                    'method': 'ssh'
                 }
             elif action in ['enable', 'disable']:
                 # Verificar si el servicio está habilitado/deshabilitado
@@ -243,116 +317,80 @@ async def manage_service(device_id, service_name, action):
                 result = {
                     'success': success,
                     'message': f'Servicio {service_name} {action} completado. Estado: {status}',
-                    'enabled': status
+                    'enabled': status,
+                    'method': 'ssh'
                 }
             else:  # status
                 result = {
                     'success': True,
                     'message': f'Estado del servicio {service_name}',
-                    'output': output
+                    'output': output,
+                    'method': 'ssh'
                 }
             
             # Cerrar conexión SSH
             ssh.close()
-            
-            # Actualizar el estado del servicio en la base de datos si corresponde
-            if action in ['start', 'stop', 'restart'] and service_name == 'videoloop':
-                device.videoloop_status = 'running' if result['status'] == 'active' else 'stopped'
-                db.commit()
-            elif action in ['start', 'stop', 'restart'] and service_name == 'kiosk':
-                device.kiosk_status = 'running' if result['status'] == 'active' else 'stopped'
-                db.commit()
-            
-            # Devolver resultado
             return result
             
         except Exception as e:
             logger.error(f"Error al gestionar servicio {service_name} ({action}): {str(e)}")
-            return {'success': False, 'message': f'Error al ejecutar comando: {str(e)}'}
+            return {
+                'success': False, 
+                'message': f'Error al ejecutar comando SSH: {str(e)}',
+                'method': 'ssh'
+            }
         
     finally:
         db.close()
 
-async def restart_service(device_id, service_name):
+async def manage_service(device_id: str, service_name: str, action: str) -> Dict[str, Any]:
     """
-    Reinicia un servicio en el dispositivo remoto.
-    Es un wrapper alrededor de manage_service para mantener compatibilidad.
+    Gestiona un servicio en el dispositivo remoto.
+    Primero intenta vía API, y si falla, usa SSH como fallback.
     
     Args:
         device_id (str): ID del dispositivo
-        service_name (str): Nombre del servicio a reiniciar
+        service_name (str): Nombre del servicio a gestionar
+        action (str): Acción a realizar: start, stop, restart, status
     
     Returns:
         dict: Resultado de la operación
     """
-    return await manage_service(device_id, service_name, 'restart')
-
-async def stop_service(device_id, service_name):
-    """
-    Detiene un servicio en el dispositivo remoto.
-    
-    Args:
-        device_id (str): ID del dispositivo
-        service_name (str): Nombre del servicio a detener
-    
-    Returns:
-        dict: Resultado de la operación
-    """
-    return await manage_service(device_id, service_name, 'stop')
-
-async def start_service(device_id, service_name):
-    """
-    Inicia un servicio en el dispositivo remoto.
-    
-    Args:
-        device_id (str): ID del dispositivo
-        service_name (str): Nombre del servicio a iniciar
-    
-    Returns:
-        dict: Resultado de la operación
-    """
-    return await manage_service(device_id, service_name, 'start')
-
-async def enable_service(device_id, service_name):
-    """
-    Habilita un servicio para que se inicie con el sistema.
-    
-    Args:
-        device_id (str): ID del dispositivo
-        service_name (str): Nombre del servicio a habilitar
-    
-    Returns:
-        dict: Resultado de la operación
-    """
-    return await manage_service(device_id, service_name, 'enable')
-
-async def disable_service(device_id, service_name):
-    """
-    Deshabilita un servicio para que no se inicie con el sistema.
-    
-    Args:
-        device_id (str): ID del dispositivo
-        service_name (str): Nombre del servicio a deshabilitar
-    
-    Returns:
-        dict: Resultado de la operación
-    """
-    return await manage_service(device_id, service_name, 'disable')
-
-async def get_service_status(device_id, service_name):
-    """
-    Obtiene el estado de un servicio.
-    
-    Args:
-        device_id (str): ID del dispositivo
-        service_name (str): Nombre del servicio a consultar
-    
-    Returns:
-        dict: Resultado de la operación con el estado del servicio
-    """
-    return await manage_service(device_id, service_name, 'status')
-
-# Endpoints para la API
+    # Buscar el dispositivo en la base de datos
+    db = SessionLocal()
+    try:
+        device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
+        if not device:
+            return {'success': False, 'message': 'Dispositivo no encontrado'}
+        
+        if not device.is_active:
+            return {'success': False, 'message': 'El dispositivo no está activo'}
+        
+        # Obtener IPs del dispositivo
+        ip_address = device.ip_address_lan or device.ip_address_wifi
+        if not ip_address:
+            return {'success': False, 'message': 'No hay direcciones IP disponibles para conectar'}
+        
+        # Primer intento: usar API
+        result = await manage_service_via_api(ip_address, service_name, action)
+        
+        # Si la API falló por problema de conexión, intentar con SSH como fallback
+        if not result['success'] and result.get('error_type') == 'connection':
+            logger.info(f"API falló, intentando vía SSH como fallback para {service_name} ({action})")
+            result = await manage_service_via_ssh(device_id, service_name, action)
+        
+        # Actualizar el estado del servicio en la base de datos si corresponde
+        if result['success'] and action in ['start', 'stop', 'restart'] and 'status' in result:
+            if service_name == 'videoloop':
+                device.videoloop_status = result['status']
+            elif service_name == 'kiosk':
+                device.kiosk_status = result['status']
+            db.commit()
+        
+        return result
+        
+    finally:
+        db.close()
 
 @router.post("/{device_id}/service/{service_name}/{action}")
 async def manage_device_service(
@@ -374,18 +412,34 @@ async def manage_device_service(
     """
     # Validar que el servicio está permitido
     if service_name.lower() not in ALLOWED_SERVICES:
-        raise HTTPException(status_code=400, detail=f"Servicio no permitido. Servicios válidos: {', '.join(ALLOWED_SERVICES)}")
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Servicio no permitido. Servicios válidos: {', '.join(ALLOWED_SERVICES)}"
+        )
     
     # Validar que la acción está permitida
     valid_actions = ['start', 'stop', 'restart', 'enable', 'disable', 'status']
     if action.lower() not in valid_actions:
-        raise HTTPException(status_code=400, detail=f"Acción no válida. Acciones válidas: {', '.join(valid_actions)}")
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Acción no válida. Acciones válidas: {', '.join(valid_actions)}"
+        )
+    
+    # Buscar el dispositivo
+    device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
+    if device is None:
+        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
     
     # Ejecutar la acción
     result = await manage_service(device_id, service_name, action)
     
     if not result['success']:
-        raise HTTPException(status_code=500, detail=result['message'])
+        if 'No se pudo conectar' in result['message']:
+            # Error de conexión (400 Bad Request)
+            raise HTTPException(status_code=400, detail=result['message'])
+        else:
+            # Error al ejecutar la acción (500 Internal Server Error)
+            raise HTTPException(status_code=500, detail=result['message'])
     
     return result
 
@@ -424,28 +478,26 @@ async def get_device_screenshot(device_id: str, db: Session = Depends(get_db)):
         # Realizar la solicitud al cliente
         try:
             # Configurar timeout para evitar esperas largas
-            response = requests.get(screenshot_url, timeout=10)
-            
-            if response.status_code != 200:
-                logger.error(f"Error al obtener captura desde el cliente: {response.status_code}")
-                raise HTTPException(
-                    status_code=500, 
-                    detail=f"Error al obtener captura desde el cliente: {response.status_code}"
-                )
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(screenshot_url)
                 
-            # Obtener el contenido de la imagen
-            image_content = response.content
+                if response.status_code != 200:
+                    logger.error(f"Error al obtener captura desde el cliente: {response.status_code}")
+                    raise HTTPException(
+                        status_code=500, 
+                        detail=f"Error al obtener captura desde el cliente: {response.status_code}"
+                    )
+                    
+                # Devolver la imagen directamente
+                return Response(
+                    content=response.content,
+                    media_type="image/png",
+                    headers={
+                        "Content-Disposition": f"inline; filename=screenshot-{device.name}.png"
+                    }
+                )
             
-            # Método directo: devolver la imagen directamente
-            return Response(
-                content=image_content,
-                media_type="image/png",
-                headers={
-                    "Content-Disposition": f"inline; filename=screenshot-{device.name}.png"
-                }
-            )
-            
-        except requests.RequestException as e:
+        except httpx.RequestError as e:
             logger.error(f"Error de conexión con el cliente: {str(e)}")
             raise HTTPException(
                 status_code=500, 
@@ -454,73 +506,6 @@ async def get_device_screenshot(device_id: str, db: Session = Depends(get_db)):
             
     except HTTPException:
         # Re-lanzar excepciones HTTPException
-        raise
-    except Exception as e:
-        logger.exception(f"Error al procesar la solicitud de captura: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
-
-@router.get("/devices/{device_id}/screenshot/file")
-async def get_device_screenshot_as_file(device_id: str, db: Session = Depends(get_db)):
-    """
-    Obtiene una captura de pantalla del dispositivo remoto y la devuelve como un archivo descargable.
-    Este método utiliza archivos temporales.
-    """
-    try:
-        # Buscar el dispositivo en la base de datos
-        device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
-        if device is None:
-            raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
-        
-        # Verificar si el dispositivo está activo
-        if not device.is_active:
-            raise HTTPException(status_code=400, detail="El dispositivo no está activo")
-        
-        # Obtener dirección IP del dispositivo
-        device_ip = device.ip_address_lan or device.ip_address_wifi
-        if not device_ip:
-            raise HTTPException(
-                status_code=400, 
-                detail="No se encontró una dirección IP válida para el dispositivo"
-            )
-        
-        # URL del endpoint de captura de pantalla en el cliente
-        screenshot_url = f"http://{device_ip}:8000/api/screenshot"
-        
-        # Realizar la solicitud al cliente
-        try:
-            response = requests.get(screenshot_url, timeout=10)
-            
-            if response.status_code != 200:
-                raise HTTPException(
-                    status_code=500, 
-                    detail=f"Error al obtener captura desde el cliente: {response.status_code}"
-                )
-            
-            # Crear un archivo temporal para la imagen
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as temp_file:
-                temp_file.write(response.content)
-                temp_path = temp_file.name
-            
-            # Función para eliminar el archivo temporal después de enviarlo
-            def cleanup():
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
-            
-            # Devolver el archivo
-            return FileResponse(
-                path=temp_path,
-                filename=f"screenshot-{device.name}.png",
-                media_type="image/png",
-                background=BackgroundTasks(cleanup)  # Usar la función de limpieza
-            )
-            
-        except requests.RequestException as e:
-            raise HTTPException(
-                status_code=500, 
-                detail=f"Error al conectar con el dispositivo: {str(e)}"
-            )
-            
-    except HTTPException:
         raise
     except Exception as e:
         logger.exception(f"Error al procesar la solicitud de captura: {str(e)}")

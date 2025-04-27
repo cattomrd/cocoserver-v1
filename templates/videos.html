@@ -957,7 +957,137 @@
             alert(`Error al añadir el dispositivo a la lista: ${error.message}`);
         }
     };
-    </script>
+    document.addEventListener('DOMContentLoaded', function() {
+    // Botones de acción de servicio
+    const serviceActionButtons = document.querySelectorAll('.service-action');
+    
+    // Toggles de habilitación de servicio
+    const serviceEnableToggles = document.querySelectorAll('.service-enable-toggle');
+    
+    // Función para manejar toggles de habilitación/deshabilitación
+    async function handleServiceToggle(event) {
+        const toggle = event.currentTarget;
+        const service = toggle.dataset.service;
+        const deviceId = toggle.dataset.deviceId;
+        const action = toggle.checked ? 'enable' : 'disable';
+        
+        console.log(`Enviando petición para ${action} servicio ${service} del dispositivo ${deviceId}`);
+        
+        try {
+            // Desactivar el toggle mientras se procesa
+            toggle.disabled = true;
+            
+            // Mostrar un indicador de carga
+            const label = toggle.nextElementSibling;
+            if (label) {
+                label.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Procesando...`;
+            }
+            
+            // Realizar la petición a la API
+            const url = `/services/${deviceId}/service/${service}/${action}`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Error del servidor: ${response.status} ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            console.log("Resultado:", result);
+            
+            // Actualizar la interfaz de usuario
+            if (result.success) {
+                // Actualizar etiqueta
+                if (label) {
+                    label.textContent = toggle.checked ? 'Habilitado' : 'Deshabilitado';
+                }
+                
+                // Mostrar notificación de éxito
+                showNotification(
+                    'success',
+                    `Servicio ${service} ${toggle.checked ? 'habilitado' : 'deshabilitado'} correctamente`,
+                    result.message
+                );
+            } else {
+                // Revertir el toggle porque hubo un error
+                toggle.checked = !toggle.checked;
+                
+                if (label) {
+                    label.textContent = toggle.checked ? 'Habilitado' : 'Deshabilitado';
+                }
+                
+                // Mostrar notificación de error
+                showNotification(
+                    'error',
+                    `Error al ${action} servicio ${service}`,
+                    result.message
+                );
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            
+            // Revertir el toggle porque hubo un error
+            toggle.checked = !toggle.checked;
+            
+            const label = toggle.nextElementSibling;
+            if (label) {
+                label.textContent = toggle.checked ? 'Habilitado' : 'Deshabilitado';
+            }
+            
+            // Mostrar notificación de error
+            showNotification(
+                'error',
+                `Error al ${action} servicio ${service}`,
+                error.message
+            );
+        } finally {
+            // Reactivar el toggle
+            toggle.disabled = false;
+        }
+    }
+    
+    // Función auxiliar para mostrar notificaciones
+    function showNotification(type, title, message) {
+        const alertContainer = document.getElementById('alert-container');
+        if (!alertContainer) {
+            // Si no existe un contenedor de alertas, crear uno
+            const container = document.createElement('div');
+            container.id = 'alert-container';
+            container.className = 'position-fixed top-0 end-0 p-3';
+            container.style.zIndex = '9999';
+            document.body.appendChild(container);
+        }
+        
+        // Crear la alerta
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type === 'error' ? 'danger' : 'success'} alert-dismissible fade show`;
+        alert.innerHTML = `
+            <strong>${title}</strong>
+            <p>${message}</p>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        // Añadir al contenedor
+        document.getElementById('alert-container').appendChild(alert);
+        
+        // Eliminar automáticamente después de 5 segundos
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.remove();
+            }
+        }, 5000);
+    }
+    
+    // Agregar listeners a los toggles
+    serviceEnableToggles.forEach(toggle => {
+        toggle.addEventListener('change', handleServiceToggle);
+    });
+});
+</script>
 {% endblock %}
 </body>
 </html>

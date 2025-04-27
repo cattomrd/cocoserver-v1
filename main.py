@@ -16,7 +16,7 @@ from models import models
 from models.database import engine
 
 # Importar los routers
-from router import videos, playlists, raspberry, ui, services, devices, device_playlists
+from router import videos, playlists, raspberry, ui, devices, device_playlists, services_enhanced as services
 
 # Crear las tablas en la base de datos
 models.Base.metadata.create_all(bind=engine)

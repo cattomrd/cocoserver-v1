@@ -1,6 +1,8 @@
 # app/routers/devices.py
+from tempfile import template
 from fastapi import APIRouter, HTTPException, Depends, status, Form, Request, Query, Body # type: ignore
-from fastapi.responses import PlainTextResponse, HTMLResponse, JSONResponse # type: ignore
+from fastapi.responses import PlainTextResponse, HTMLResponse, JSONResponse  # type: ignore
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session # type: ignore
 from typing import List, Optional
 from datetime import datetime
@@ -14,11 +16,13 @@ from fastapi.logger import logger # type: ignore
 import requests
 # Configuración del logger
 logging.basicConfig(level=logging.INFO) 
-
 router = APIRouter(
     prefix="/api/devices",
     tags=["devices"]
 )
+
+templates = Jinja2Templates(directory="templates")
+
 
 @router.post("/", response_model=schemas.Device, status_code=status.HTTP_201_CREATED)
 def register_device(device: schemas.DeviceCreate, db: Session = Depends(get_db)):

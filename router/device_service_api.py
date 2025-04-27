@@ -109,11 +109,15 @@ async def manage_service_via_api(device_id: str, service_name: str, action: str,
                     status_result = status_response.text.strip()
                     is_running = status_result == "running" or "active" in status_result
                     
-                    # Actualizar en la base de datos
+                    # Actualizar en la base de datos SOLO el servicio específico que estamos modificando
                     if service_name == "videoloop":
+                        logger.info(f"Actualizando estado de videoloop a: {'running' if is_running else 'stopped'}")
                         device.videoloop_status = "running" if is_running else "stopped"
                     elif service_name == "kiosk":
+                        logger.info(f"Actualizando estado de kiosk a: {'running' if is_running else 'stopped'}")
                         device.kiosk_status = "running" if is_running else "stopped"
+                    else:
+                        logger.warning(f"Servicio desconocido: {service_name}, no se actualizó en la base de datos")
                     
                     db.commit()
                     logger.info(f"Estado de {service_name} actualizado a: {'running' if is_running else 'stopped'}")
@@ -139,11 +143,12 @@ async def manage_service_via_api(device_id: str, service_name: str, action: str,
             "details": result if result != "success" else f"El servicio {service_name} ha sido {action}ado correctamente",
             "service": service_name,
             "action": action,
-            "status": "running" if device.videoloop_status == "running" else "stopped" if service_name == "videoloop" else 
-                    "running" if device.kiosk_status == "running" else "stopped",
+            # Usar el estado correcto para cada servicio
+            "status": "running" if service_name == "videoloop" and device.videoloop_status == "running" else 
+                    "running" if service_name == "kiosk" and device.kiosk_status == "running" else "stopped",
             "enabled": enabled_status,
             "timestamp": datetime.now().isoformat()
-        }
+    }
         
         return response_data
         

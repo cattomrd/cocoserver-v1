@@ -376,3 +376,55 @@ window.ServiceManager = {
     checkStatus: checkServicesStatus,
     showNotification: showServiceNotification
 };
+
+/**
+ * Verifica el estado actual de los servicios en el dispositivo
+ * 
+ * @param {string} deviceId - ID del dispositivo
+ */
+function checkServicesStatus(deviceId) {
+    if (!deviceId) {
+        deviceId = getDeviceIdFromUrl();
+    }
+    
+    console.log(`Verificando estado de servicios para dispositivo ${deviceId}`);
+    
+    // Usar el nuevo endpoint que obtiene todos los servicios de una vez
+    fetch(`${API_BASE_URL}/${deviceId}/all-services`)
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.detail || `Error ${response.status}: ${response.statusText}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Estado de servicios:', data);
+            
+            if (!data.success) {
+                console.error('Error al obtener estado de servicios:', data.message);
+                showServiceNotification('warning', 'Estado de servicios', data.message);
+                return;
+            }
+            
+            // Actualizar la UI para cada servicio
+            const services = data.services;
+            for (const [serviceName, serviceData] of Object.entries(services)) {
+                console.log(`Actualizando UI para servicio ${serviceName}:`, serviceData);
+                
+                // Crear un objeto de datos con el formato esperado por updateServiceUI
+                const serviceUIData = {
+                    success: true,
+                    status: serviceData.status,
+                    enabled: serviceData.enabled,
+                    service: serviceName
+                };
+                
+                // Actualizar la UI para este servicio
+                updateServiceUI(deviceId, serviceName, serviceUIData);
+            }
+        })
+
+
+}

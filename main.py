@@ -16,7 +16,7 @@ from models import models
 from models.database import engine
 
 # Importar los routers
-from router import videos, playlists, raspberry, ui, devices, device_playlists, services_enhanced as services
+from router import videos, playlists, raspberry, ui, devices, device_playlists, services_enhanced as services, device_service_api
 
 # Crear las tablas en la base de datos
 models.Base.metadata.create_all(bind=engine)
@@ -81,6 +81,8 @@ app.include_router(ui.router)
 app.include_router(services.router)
 app.include_router(devices.router)  # Router de dispositivos
 app.include_router(device_playlists.router)  # Nuevo router
+app.include_router(device_service_api.router)  # Router para la API de servicios de dispositivos
+
 
 # Ruta raíz
 templates = Jinja2Templates(directory="templates")

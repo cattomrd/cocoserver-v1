@@ -168,137 +168,140 @@
         </div>
     </div>
     
+    <input type="hidden" id="device_id" value="{{ device.device_id }}">
+
     <!-- 3. Gestión de Servicios -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="card-title mb-0">Gestión de Servicios</h5>
+    <!-- 2. Modificar la sección de Gestión de Servicios -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Gestión de Servicios</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Servicio</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                                <th>Auto-inicio</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Servicio Videoloop -->
+                            <tr id="service-videoloop">
+                                <td><strong>Videoloop</strong></td>
+                                <td>
+                                    <span id="videoloop-status-badge" class="badge {% if device.videoloop_status == 'running' %}bg-success{% elif device.videoloop_status == 'stopped' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                        {% if device.videoloop_status == 'running' %}En ejecución{% elif device.videoloop_status == 'stopped' %}Detenido{% else %}Desconocido{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if device.is_active %}
+                                        <div class="btn-group btn-group-sm" id="videoloop-actions">
+                                            {% if device.videoloop_status == 'running' %}
+                                                <button type="button" class="btn btn-sm btn-danger service-action" data-service="videoloop" data-action="stop">
+                                                    <i class="bi bi-stop-fill me-1"></i>Detener
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-warning service-action" data-service="videoloop" data-action="restart">
+                                                    <i class="bi bi-arrow-repeat me-1"></i>Reiniciar
+                                                </button>
+                                            {% elif device.videoloop_status == 'stopped' %}
+                                                <button type="button" class="btn btn-sm btn-success service-action" data-service="videoloop" data-action="start">
+                                                    <i class="bi bi-play-fill me-1"></i>Iniciar
+                                                </button>
+                                            {% else %}
+                                                <button type="button" class="btn btn-sm btn-info service-action" data-service="videoloop" data-action="status">
+                                                    <i class="bi bi-info-circle me-1"></i>Verificar
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">Dispositivo inactivo</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if device.is_active %}
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input service-enable-toggle" type="checkbox" 
+                                                    id="videoloop-enabled" 
+                                                    data-service="videoloop" 
+                                                    {% if device.videoloop_enabled %}checked{% endif %}>
+                                            <label class="form-check-label" for="videoloop-enabled">
+                                                {% if device.videoloop_enabled %}Habilitado{% else %}Deshabilitado{% endif %}
+                                            </label>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">No disponible</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            
+                            <!-- Servicio Kiosk -->
+                            <tr id="service-kiosk">
+                                <td><strong>Kiosk</strong></td>
+                                <td>
+                                    <span id="kiosk-status-badge" class="badge {% if device.kiosk_status == 'running' %}bg-success{% elif device.kiosk_status == 'stopped' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                        {% if device.kiosk_status == 'running' %}En ejecución{% elif device.kiosk_status == 'stopped' %}Detenido{% else %}Desconocido{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if device.is_active %}
+                                        <div class="btn-group btn-group-sm" id="kiosk-actions">
+                                            {% if device.kiosk_status == 'running' %}
+                                                <button type="button" class="btn btn-sm btn-danger service-action" data-service="kiosk" data-action="stop">
+                                                    <i class="bi bi-stop-fill me-1"></i>Detener
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-warning service-action" data-service="kiosk" data-action="restart">
+                                                    <i class="bi bi-arrow-repeat me-1"></i>Reiniciar
+                                                </button>
+                                            {% elif device.kiosk_status == 'stopped' %}
+                                                <button type="button" class="btn btn-sm btn-success service-action" data-service="kiosk" data-action="start">
+                                                    <i class="bi bi-play-fill me-1"></i>Iniciar
+                                                </button>
+                                            {% else %}
+                                                <button type="button" class="btn btn-sm btn-info service-action" data-service="kiosk" data-action="status">
+                                                    <i class="bi bi-info-circle me-1"></i>Verificar
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">Dispositivo inactivo</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if device.is_active %}
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input service-enable-toggle" type="checkbox" 
+                                                    id="kiosk-enabled" 
+                                                    data-service="kiosk" 
+                                                    {% if device.kiosk_enabled %}checked{% endif %}>
+                                            <label class="form-check-label" for="kiosk-enabled">
+                                                {% if device.kiosk_enabled %}Habilitado{% else %}Deshabilitado{% endif %}
+                                            </label>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">No disponible</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Servicio</th>
-                                    <th>Estado</th>
-                                    <th>Acciones</th>
-                                    <th>Auto-inicio</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Servicio Videoloop -->
-                                <tr id="service-videoloop">
-                                    <td><strong>Videoloop</strong></td>
-                                    <td>
-                                        <span id="videoloop-status-badge" class="badge {% if device.videoloop_status == 'running' %}bg-success{% elif device.videoloop_status == 'stopped' %}bg-danger{% else %}bg-secondary{% endif %}">
-                                            {% if device.videoloop_status == 'running' %}En ejecución{% elif device.videoloop_status == 'stopped' %}Detenido{% else %}Desconocido{% endif %}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        {% if device.is_active %}
-                                            <div class="btn-group btn-group-sm" id="videoloop-actions">
-                                                {% if device.videoloop_status == 'running' %}
-                                                    <button type="button" class="btn btn-sm btn-danger service-action" data-service="videoloop" data-action="stop">
-                                                        <i class="bi bi-stop-fill me-1"></i>Detener
-                                                    </button>
-                                                    <button type="button" class="btn btn-sm btn-warning service-action" data-service="videoloop" data-action="restart">
-                                                        <i class="bi bi-arrow-repeat me-1"></i>Reiniciar
-                                                    </button>
-                                                {% elif device.videoloop_status == 'stopped' %}
-                                                    <button type="button" class="btn btn-sm btn-success service-action" data-service="videoloop" data-action="start">
-                                                        <i class="bi bi-play-fill me-1"></i>Iniciar
-                                                    </button>
-                                                {% else %}
-                                                    <button type="button" class="btn btn-sm btn-info service-action" data-service="videoloop" data-action="status">
-                                                        <i class="bi bi-info-circle me-1"></i>Verificar
-                                                    </button>
-                                                {% endif %}
-                                            </div>
-                                        {% else %}
-                                            <span class="text-muted">Dispositivo inactivo</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if device.is_active %}
-                                            <div class="form-check form-switch">
-                                                <input class="form-check-input service-enable-toggle" type="checkbox" 
-                                                        id="videoloop-enabled" 
-                                                        data-service="videoloop" 
-                                                        {% if device.videoloop_enabled %}checked{% endif %}>
-                                                <label class="form-check-label" for="videoloop-enabled">
-                                                    {% if device.videoloop_enabled %}Habilitado{% else %}Deshabilitado{% endif %}
-                                                </label>
-                                            </div>
-                                        {% else %}
-                                            <span class="text-muted">No disponible</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                
-                                <!-- Servicio Kiosk -->
-                                <tr id="service-kiosk">
-                                    <td><strong>Kiosk</strong></td>
-                                    <td>
-                                        <span id="kiosk-status-badge" class="badge {% if device.kiosk_status == 'running' %}bg-success{% elif device.kiosk_status == 'stopped' %}bg-danger{% else %}bg-secondary{% endif %}">
-                                            {% if device.kiosk_status == 'running' %}En ejecución{% elif device.kiosk_status == 'stopped' %}Detenido{% else %}Desconocido{% endif %}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        {% if device.is_active %}
-                                            <div class="btn-group btn-group-sm" id="kiosk-actions">
-                                                {% if device.kiosk_status == 'running' %}
-                                                    <button type="button" class="btn btn-sm btn-danger service-action" data-service="kiosk" data-action="stop">
-                                                        <i class="bi bi-stop-fill me-1"></i>Detener
-                                                    </button>
-                                                    <button type="button" class="btn btn-sm btn-warning service-action" data-service="kiosk" data-action="restart">
-                                                        <i class="bi bi-arrow-repeat me-1"></i>Reiniciar
-                                                    </button>
-                                                {% elif device.kiosk_status == 'stopped' %}
-                                                    <button type="button" class="btn btn-sm btn-success service-action" data-service="kiosk" data-action="start">
-                                                        <i class="bi bi-play-fill me-1"></i>Iniciar
-                                                    </button>
-                                                {% else %}
-                                                    <button type="button" class="btn btn-sm btn-info service-action" data-service="kiosk" data-action="status">
-                                                        <i class="bi bi-info-circle me-1"></i>Verificar
-                                                    </button>
-                                                {% endif %}
-                                            </div>
-                                        {% else %}
-                                            <span class="text-muted">Dispositivo inactivo</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if device.is_active %}
-                                            <div class="form-check form-switch">
-                                                <input class="form-check-input service-enable-toggle" type="checkbox" 
-                                                        id="kiosk-enabled" 
-                                                        data-service="kiosk" 
-                                                        {% if device.kiosk_enabled %}checked{% endif %}>
-                                                <label class="form-check-label" for="kiosk-enabled">
-                                                    {% if device.kiosk_enabled %}Habilitado{% else %}Deshabilitado{% endif %}
-                                                </label>
-                                            </div>
-                                        {% else %}
-                                            <span class="text-muted">No disponible</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <!-- Sección de resultado de acción -->
-                    <div id="service-action-result" class="mt-3 d-none">
-                        <div class="alert alert-info">
-                            <h6 class="alert-heading">Resultado de la operación</h6>
-                            <div id="service-action-message"></div>
-                        </div>
+                
+                <!-- Sección de resultado de acción -->
+                <div id="service-action-result" class="mt-3 d-none">
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading">Resultado de la operación</h6>
+                        <div id="service-action-message"></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
     
     <!-- 4. Listas Asignadas -->
     <div class="row mb-4">
@@ -616,4 +619,7 @@
 {% block extra_scripts %}
 <!-- Cargar nuestro archivo JavaScript separado -->
 <script src="/static/js/detail.js"></script>
+<script src="/static/js/service_manager.js"></script>
+
+
 {% endblock %}

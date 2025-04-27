@@ -21,14 +21,12 @@ router = APIRouter(
     tags=["services"]
 )
 
-# Configuración SSH (usado como fallback si la API falla)
-SSH_KEY_PATH = os.environ.get('SSH_KEY_PATH', '/path/to/ssh/key')
-SSH_USER = os.environ.get('SSH_USER', 'jlr')
-SSH_PORT = int(os.environ.get('SSH_PORT', 22))
-SSH_PASSWORD = os.environ.get('SSH_PASSWORD', '!@Erod800')
+# Lista de servicios permitidos
+ALLOWED_SERVICES = ['videoloop', 'kiosk']
 
-# Lista de servicios permitidos para gestionar
-ALLOWED_SERVICES = ['kiosk', 'videoloop']
+# Obtener variables de entorno para SSH
+SSH_USERNAME = os.environ.get('SSH_USER')
+SSH_PASSWORD = os.environ.get('SSH_PASSWORD')
 logger = logging.getLogger(__name__)
 
 # Tiempo de espera para API y SSH en segundos

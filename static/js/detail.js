@@ -338,7 +338,13 @@ function initLogsFunctionality() {
 }
 
 // ===== MÓDULO: GESTIÓN DE SERVICIOS =====
-function initServiceManagement() {
+
+/**
+ * detail.js - Funciones para la gestión de servicios en la página de detalle de dispositivo
+ */
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Configuración de elementos DOM
     const serviceActionButtons = document.querySelectorAll('.service-action');
     const serviceEnableToggles = document.querySelectorAll('.service-enable-toggle');
     const serviceActionModal = document.getElementById('serviceActionModal');
@@ -347,20 +353,167 @@ function initServiceManagement() {
     const serviceActionResult = document.getElementById('service-action-result');
     const serviceActionMessage = document.getElementById('service-action-message');
     
-    if (!serviceActionButtons.length || !serviceActionModal) return;
-    
-    // Inicializar el modal de Bootstrap
-    const modal = new bootstrap.Modal(serviceActionModal);
-    
     // Variables para almacenar la acción actual
     let currentService = null;
     let currentAction = null;
+    let deviceId = null;
+    
+    // Obtener el ID del dispositivo de la URL
+    const pathParts = window.location.pathname.split('/');
+    deviceId = pathParts[pathParts.length - 1];
+    
+    console.log("Inicializando gestión de servicios para dispositivo:", deviceId);
+    
+    // Inicializar el modal de Bootstrap si existe
+    let modal = null;
+    if (serviceActionModal) {
+        modal = new bootstrap.Modal(serviceActionModal);
+    }
+    
+    // Función para manejar el clic en botones de acción
+    function handleServiceAction(event) {
+        const button = event.currentTarget;
+        currentService = button.dataset.service;
+        currentAction = button.dataset.action;
+        
+        console.log(`Preparando acción: ${currentAction} para servicio ${currentService}`);
+        
+        // Configurar el modal de confirmación
+        if (serviceActionModal) {
+            const confirmMessage = document.getElementById('serviceActionConfirmMessage');
+            let actionText = '';
+            
+            switch (currentAction) {
+                case 'start':
+                    actionText = 'iniciar';
+                    break;
+                case 'stop':
+                    actionText = 'detener';
+                    break;
+                case 'restart':
+                    actionText = 'reiniciar';
+                    break;
+                case 'status':
+                    actionText = 'verificar el estado de';
+                    break;
+            }
+            
+            confirmMessage.textContent = `¿Está seguro que desea ${actionText} el servicio ${currentService}?`;
+            
+            if (serviceActionSpinner) {
+                serviceActionSpinner.classList.add('d-none');
+            }
+            
+            // Mostrar el modal de confirmación
+            modal.show();
+        } else {
+            // Si no hay modal, ejecutar directamente
+            executeServiceAction();
+        }
+    }
+    
+    // Función para ejecutar la acción del servicio
+    async function executeServiceAction() {
+        try {
+            // Mostrar spinner
+            if (serviceActionSpinner) {
+                serviceActionSpinner.classList.remove('d-none');
+            }
+            
+            if (confirmServiceActionBtn) {
+                confirmServiceActionBtn.disabled = true;
+            }
+            
+            console.log(`Ejecutando acción: ${currentAction} para servicio ${currentService} en dispositivo ${deviceId}`);
+            
+            // Realizar la petición a la API (usando comillas invertidas)
+            const response = await fetch(`/api/devices/${deviceId}/service/${currentService}/${currentAction}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            console.log("Respuesta del servidor:", response.status);
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`Error ${response.status}: ${errorData.detail || response.statusText}`);
+            }
+            
+            const result = await response.json();
+            console.log("Resultado:", result);
+            
+            // Cerrar el modal si existe
+            if (modal) {
+                modal.hide();
+            }
+            
+            // Mostrar resultado
+            if (serviceActionResult) {
+                serviceActionResult.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-info');
+                serviceActionResult.classList.add(result.success ? 'alert-success' : 'alert-danger');
+                
+                if (serviceActionMessage) {
+                    serviceActionMessage.innerHTML = `
+                        <strong>${result.success ? 'Éxito' : 'Error'}:</strong> ${result.message}
+                        ${result.details ? `<pre class="mt-2 p-2 bg-light">${result.details}</pre>` : ''}
+                    `;
+                }
+                
+                // Actualizar UI si tuvo éxito
+                if (result.success) {
+                    if (currentAction === 'start' || currentAction === 'stop' || currentAction === 'restart') {
+                        updateServiceUI(currentService, result.status, undefined);
+                    }
+                }
+                
+                // Desplazar a la sección de resultado
+                serviceActionResult.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                // Si no hay elemento para mostrar el resultado, usar alert
+                alert(result.success ? 
+                      `Acción completada: ${result.message}` : 
+                      `Error: ${result.message}`);
+                
+                // Recargar la página para ver cambios
+                window.location.reload();
+            }
+            
+        } catch (error) {
+            console.error('Error:', error);
+            
+            if (serviceActionResult && serviceActionMessage) {
+                serviceActionResult.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-info');
+                serviceActionResult.classList.add('alert-danger');
+                serviceActionMessage.textContent = `Error: ${error.message}`;
+            } else {
+                alert(`Error: ${error.message}`);
+            }
+            
+            // Cerrar el modal si existe
+            if (modal) {
+                modal.hide();
+            }
+        } finally {
+            // Ocultar spinner y rehabilitar botón
+            if (serviceActionSpinner) {
+                serviceActionSpinner.classList.add('d-none');
+            }
+            
+            if (confirmServiceActionBtn) {
+                confirmServiceActionBtn.disabled = false;
+            }
+        }
+    }
     
     // Función para actualizar la UI después de una acción
     function updateServiceUI(service, status, enabled) {
         const statusBadge = document.getElementById(`${service}-status-badge`);
         const actionsContainer = document.getElementById(`${service}-actions`);
         const enableToggle = document.getElementById(`${service}-enabled`);
+        
+        console.log(`Actualizando UI para servicio ${service} con estado ${status}`);
         
         // Actualizar la badge de estado
         if (statusBadge) {
@@ -407,92 +560,6 @@ function initServiceManagement() {
         }
     }
     
-    // Función para manejar el clic en botones de acción
-    function handleServiceAction(event) {
-        const button = event.currentTarget;
-        currentService = button.dataset.service;
-        currentAction = button.dataset.action;
-        
-        // Configurar el modal de confirmación
-        const confirmMessage = document.getElementById('serviceActionConfirmMessage');
-        let actionText = '';
-        
-        switch (currentAction) {
-            case 'start':
-                actionText = 'iniciar';
-                break;
-            case 'stop':
-                actionText = 'detener';
-                break;
-            case 'restart':
-                actionText = 'reiniciar';
-                break;
-            case 'status':
-                actionText = 'verificar el estado de';
-                break;
-        }
-        
-        confirmMessage.textContent = `¿Está seguro que desea ${actionText} el servicio ${currentService}?`;
-        serviceActionSpinner.classList.add('d-none');
-        
-        // Mostrar el modal de confirmación
-        modal.show();
-    }
-    
-    // Función para ejecutar la acción del servicio
-    async function executeServiceAction() {
-        try {
-            // Mostrar spinner
-            serviceActionSpinner.classList.remove('d-none');
-            confirmServiceActionBtn.disabled = true;
-            
-            // Realizar la petición a la API
-            const response = await fetch(`/services/${deviceId}/service/${currentService}/${currentAction}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Error al ${currentAction} servicio: ${response.status} ${response.statusText}`);
-            }
-            
-            const result = await response.json();
-            
-            // Cerrar el modal
-            modal.hide();
-            
-            // Mostrar resultado
-            serviceActionResult.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-info');
-            serviceActionResult.classList.add(result.success ? 'alert-success' : 'alert-danger');
-            serviceActionMessage.innerHTML = `
-                <strong>${result.success ? 'Éxito' : 'Error'}:</strong> ${result.message}
-                ${result.details ? `<pre class="mt-2 p-2 bg-light">${result.details}</pre>` : ''}
-            `;
-            
-            // Actualizar UI si tuvo éxito
-            if (result.success) {
-                if (currentAction === 'start' || currentAction === 'stop' || currentAction === 'restart') {
-                    updateServiceUI(currentService, result.status, undefined);
-                }
-            }
-            
-            // Desplazar a la sección de resultado
-            serviceActionResult.scrollIntoView({ behavior: 'smooth' });
-            
-        } catch (error) {
-            console.error('Error:', error);
-            serviceActionResult.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-info');
-            serviceActionResult.classList.add('alert-danger');
-            serviceActionMessage.textContent = `Error: ${error.message}`;
-        } finally {
-            // Ocultar spinner y rehabilitar botón
-            serviceActionSpinner.classList.add('d-none');
-            confirmServiceActionBtn.disabled = false;
-        }
-    }
-    
     // Función para manejar el toggle de habilitar/deshabilitar
     async function handleServiceToggle(event) {
         const toggle = event.currentTarget;
@@ -505,32 +572,31 @@ function initServiceManagement() {
             // Desactivar el toggle mientras se procesa
             toggle.disabled = true;
             
-            // Mostrar la URL completa para depuración
-            const url = `/services/${deviceId}/service/${service}/${action}`;
-            console.log("URL:", url);
-            
             // Realizar la petición a la API
-            const response = await fetch(url, {
+            const response = await fetch(`/api/devices/${deviceId}/service/${service}/${action}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 }
             });
             
-            // Loguear respuesta completa
-            console.log("Respuesta:", response);
-            
             if (!response.ok) {
-                throw new Error(`Error al ${action} servicio: ${response.status} ${response.statusText}`);
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`Error ${response.status}: ${errorData.detail || response.statusText}`);
             }
             
             const result = await response.json();
-            console.log("Resultado:", result);
             
             // Mostrar resultado
-            serviceActionResult.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-info');
-            serviceActionResult.classList.add(result.success ? 'alert-success' : 'alert-danger');
-            serviceActionMessage.textContent = result.message;
+            if (serviceActionResult && serviceActionMessage) {
+                serviceActionResult.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-info');
+                serviceActionResult.classList.add(result.success ? 'alert-success' : 'alert-danger');
+                serviceActionMessage.textContent = result.message;
+            } else {
+                alert(result.success ? 
+                      `Acción completada: ${result.message}` : 
+                      `Error: ${result.message}`);
+            }
             
             // Actualizar la UI
             if (result.success) {
@@ -545,9 +611,14 @@ function initServiceManagement() {
             
         } catch (error) {
             console.error('Error:', error);
-            serviceActionResult.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-info');
-            serviceActionResult.classList.add('alert-danger');
-            serviceActionMessage.textContent = `Error: ${error.message}`;
+            
+            if (serviceActionResult && serviceActionMessage) {
+                serviceActionResult.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-info');
+                serviceActionResult.classList.add('alert-danger');
+                serviceActionMessage.textContent = `Error: ${error.message}`;
+            } else {
+                alert(`Error: ${error.message}`);
+            }
             
             // Revertir el toggle si hubo error
             toggle.checked = !toggle.checked;
@@ -558,20 +629,302 @@ function initServiceManagement() {
     }
     
     // Agregar event listeners a los botones de acción
-    serviceActionButtons.forEach(button => {
-        button.addEventListener('click', handleServiceAction);
-    });
+    if (serviceActionButtons) {
+        serviceActionButtons.forEach(button => {
+            console.log("Agregando event listener a botón:", button.dataset.service, button.dataset.action);
+            button.addEventListener('click', handleServiceAction);
+        });
+    }
     
     // Agregar event listener al botón de confirmación
     if (confirmServiceActionBtn) {
+        console.log("Agregando event listener al botón de confirmación");
         confirmServiceActionBtn.addEventListener('click', executeServiceAction);
     }
     
     // Agregar event listeners a los toggles de habilitar/deshabilitar
-    serviceEnableToggles.forEach(toggle => {
-        toggle.addEventListener('change', handleServiceToggle);
-    });
-}
+    if (serviceEnableToggles) {
+        serviceEnableToggles.forEach(toggle => {
+            console.log("Agregando event listener a toggle:", toggle.dataset.service);
+            toggle.addEventListener('change', handleServiceToggle);
+        });
+    }
+    
+    // Inicializar verificación de estado
+    function initServiceCheck() {
+        // Verificar el estado actual de los servicios al cargar la página
+        const serviceRows = document.querySelectorAll('[id^="service-"]');
+        
+        if (serviceRows.length > 0) {
+            console.log("Verificando estado inicial de servicios...");
+            
+            // Para cada servicio, verificar su estado
+            serviceRows.forEach(row => {
+                const serviceName = row.id.replace('service-', '');
+                if (serviceName) {
+                    // Hacer una solicitud de estado
+                    fetch(`/api/devices/${deviceId}/service/${serviceName}/status`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success) {
+                            // Actualizar UI con el estado actual
+                            updateServiceUI(serviceName, result.status, result.enabled);
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`Error al verificar estado de ${serviceName}:`, error);
+                    });
+                }
+            });
+        }
+    }
+    
+    // Llamar a la inicialización de verificación
+    // Comentado para evitar llamadas automáticas hasta que se verifique que funciona correctamente
+    // initServiceCheck();
+    
+    console.log("Inicialización de gestión de servicios completada");
+});
+
+// function initServiceManagement() {
+//     const serviceActionButtons = document.querySelectorAll('.service-action');
+//     const serviceEnableToggles = document.querySelectorAll('.service-enable-toggle');
+//     const serviceActionModal = document.getElementById('serviceActionModal');
+//     const confirmServiceActionBtn = document.getElementById('confirmServiceAction');
+//     const serviceActionSpinner = document.getElementById('serviceActionSpinner');
+//     const serviceActionResult = document.getElementById('service-action-result');
+//     const serviceActionMessage = document.getElementById('service-action-message');
+    
+//     if (!serviceActionButtons.length || !serviceActionModal) return;
+    
+//     // Inicializar el modal de Bootstrap
+//     const modal = new bootstrap.Modal(serviceActionModal);
+    
+//     // Variables para almacenar la acción actual
+//     let currentService = null;
+//     let currentAction = null;
+    
+//     // Función para actualizar la UI después de una acción
+//     function updateServiceUI(service, status, enabled) {
+//         const statusBadge = document.getElementById(`${service}-status-badge`);
+//         const actionsContainer = document.getElementById(`${service}-actions`);
+//         const enableToggle = document.getElementById(`${service}-enabled`);
+        
+//         // Actualizar la badge de estado
+//         if (statusBadge) {
+//             statusBadge.className = `badge ${status === 'running' ? 'bg-success' : 'bg-danger'}`;
+//             statusBadge.textContent = status === 'running' ? 'En ejecución' : 'Detenido';
+//         }
+        
+//         // Actualizar botones de acción
+//         if (actionsContainer) {
+//             let buttonsHtml = '';
+            
+//             if (status === 'running') {
+//                 buttonsHtml = `
+//                     <button type="button" class="btn btn-sm btn-danger service-action" data-service="${service}" data-action="stop">
+//                         <i class="bi bi-stop-fill me-1"></i>Detener
+//                     </button>
+//                     <button type="button" class="btn btn-sm btn-warning service-action" data-service="${service}" data-action="restart">
+//                         <i class="bi bi-arrow-repeat me-1"></i>Reiniciar
+//                     </button>
+//                 `;
+//             } else {
+//                 buttonsHtml = `
+//                     <button type="button" class="btn btn-sm btn-success service-action" data-service="${service}" data-action="start">
+//                         <i class="bi bi-play-fill me-1"></i>Iniciar
+//                     </button>
+//                 `;
+//             }
+            
+//             actionsContainer.innerHTML = buttonsHtml;
+            
+//             // Volver a agregar event listeners a los nuevos botones
+//             actionsContainer.querySelectorAll('.service-action').forEach(button => {
+//                 button.addEventListener('click', handleServiceAction);
+//             });
+//         }
+        
+//         // Actualizar toggle de habilitación
+//         if (enableToggle && enabled !== undefined) {
+//             enableToggle.checked = enabled === 'enabled';
+//             const label = enableToggle.nextElementSibling;
+//             if (label) {
+//                 label.textContent = enabled === 'enabled' ? 'Habilitado' : 'Deshabilitado';
+//             }
+//         }
+//     }
+    
+//     // Función para manejar el clic en botones de acción
+//     function handleServiceAction(event) {
+//         const button = event.currentTarget;
+//         currentService = button.dataset.service;
+//         currentAction = button.dataset.action;
+        
+//         // Configurar el modal de confirmación
+//         const confirmMessage = document.getElementById('serviceActionConfirmMessage');
+//         let actionText = '';
+        
+//         switch (currentAction) {
+//             case 'start':
+//                 actionText = 'iniciar';
+//                 break;
+//             case 'stop':
+//                 actionText = 'detener';
+//                 break;
+//             case 'restart':
+//                 actionText = 'reiniciar';
+//                 break;
+//             case 'status':
+//                 actionText = 'verificar el estado de';
+//                 break;
+//         }
+        
+//         confirmMessage.textContent = `¿Está seguro que desea ${actionText} el servicio ${currentService}?`;
+//         serviceActionSpinner.classList.add('d-none');
+        
+//         // Mostrar el modal de confirmación
+//         modal.show();
+//     }
+    
+//     // Función para ejecutar la acción del servicio
+//     async function executeServiceAction() {
+//         try {
+//             // Mostrar spinner
+//             serviceActionSpinner.classList.remove('d-none');
+//             confirmServiceActionBtn.disabled = true;
+            
+//             // Realizar la petición a la API
+//             const response = await fetch(`/services/${deviceId}/service/${currentService}/${currentAction}`, {
+//                 method: 'POST',
+//                 headers: {
+//                     'Content-Type': 'application/json'
+//                 }
+//             });
+            
+//             if (!response.ok) {
+//                 throw new Error(`Error al ${currentAction} servicio: ${response.status} ${response.statusText}`);
+//             }
+            
+//             const result = await response.json();
+            
+//             // Cerrar el modal
+//             modal.hide();
+            
+//             // Mostrar resultado
+//             serviceActionResult.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-info');
+//             serviceActionResult.classList.add(result.success ? 'alert-success' : 'alert-danger');
+//             serviceActionMessage.innerHTML = `
+//                 <strong>${result.success ? 'Éxito' : 'Error'}:</strong> ${result.message}
+//                 ${result.details ? `<pre class="mt-2 p-2 bg-light">${result.details}</pre>` : ''}
+//             `;
+            
+//             // Actualizar UI si tuvo éxito
+//             if (result.success) {
+//                 if (currentAction === 'start' || currentAction === 'stop' || currentAction === 'restart') {
+//                     updateServiceUI(currentService, result.status, undefined);
+//                 }
+//             }
+            
+//             // Desplazar a la sección de resultado
+//             serviceActionResult.scrollIntoView({ behavior: 'smooth' });
+            
+//         } catch (error) {
+//             console.error('Error:', error);
+//             serviceActionResult.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-info');
+//             serviceActionResult.classList.add('alert-danger');
+//             serviceActionMessage.textContent = `Error: ${error.message}`;
+//         } finally {
+//             // Ocultar spinner y rehabilitar botón
+//             serviceActionSpinner.classList.add('d-none');
+//             confirmServiceActionBtn.disabled = false;
+//         }
+//     }
+    
+//     // Función para manejar el toggle de habilitar/deshabilitar
+//     async function handleServiceToggle(event) {
+//         const toggle = event.currentTarget;
+//         const service = toggle.dataset.service;
+//         const action = toggle.checked ? 'enable' : 'disable';
+        
+//         console.log(`Enviando petición para ${action} servicio ${service}`);
+        
+//         try {
+//             // Desactivar el toggle mientras se procesa
+//             toggle.disabled = true;
+            
+//             // Mostrar la URL completa para depuración
+//             const url = `/services/${deviceId}/service/${service}/${action}`;
+//             console.log("URL:", url);
+            
+//             // Realizar la petición a la API
+//             const response = await fetch(url, {
+//                 method: 'POST',
+//                 headers: {
+//                     'Content-Type': 'application/json'
+//                 }
+//             });
+            
+//             // Loguear respuesta completa
+//             console.log("Respuesta:", response);
+            
+//             if (!response.ok) {
+//                 throw new Error(`Error al ${action} servicio: ${response.status} ${response.statusText}`);
+//             }
+            
+//             const result = await response.json();
+//             console.log("Resultado:", result);
+            
+//             // Mostrar resultado
+//             serviceActionResult.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-info');
+//             serviceActionResult.classList.add(result.success ? 'alert-success' : 'alert-danger');
+//             serviceActionMessage.textContent = result.message;
+            
+//             // Actualizar la UI
+//             if (result.success) {
+//                 const label = toggle.nextElementSibling;
+//                 if (label) {
+//                     label.textContent = toggle.checked ? 'Habilitado' : 'Deshabilitado';
+//                 }
+//             } else {
+//                 // Revertir el toggle si hubo error
+//                 toggle.checked = !toggle.checked;
+//             }
+            
+//         } catch (error) {
+//             console.error('Error:', error);
+//             serviceActionResult.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-info');
+//             serviceActionResult.classList.add('alert-danger');
+//             serviceActionMessage.textContent = `Error: ${error.message}`;
+            
+//             // Revertir el toggle si hubo error
+//             toggle.checked = !toggle.checked;
+//         } finally {
+//             // Reactivar el toggle
+//             toggle.disabled = false;
+//         }
+//     }
+    
+//     // Agregar event listeners a los botones de acción
+//     serviceActionButtons.forEach(button => {
+//         button.addEventListener('click', handleServiceAction);
+//     });
+    
+//     // Agregar event listener al botón de confirmación
+//     if (confirmServiceActionBtn) {
+//         confirmServiceActionBtn.addEventListener('click', executeServiceAction);
+//     }
+    
+//     // Agregar event listeners a los toggles de habilitar/deshabilitar
+//     serviceEnableToggles.forEach(toggle => {
+//         toggle.addEventListener('change', handleServiceToggle);
+//     });
+// }
 
 // ===== MÓDULO: CAPTURA DE PANTALLA =====
 function initScreenshotFunctionality() {
@@ -789,7 +1142,7 @@ async function loadAvailablePlaylists() {
             const now = new Date();
             const isExpired = playlist.expiration_date && new Date(playlist.expiration_date) < now;
             const statusText = !playlist.is_active ? '(Inactiva)' : 
-                              isExpired ? '(Expirada)' : '';
+                            isExpired ? '(Expirada)' : '';
             
             option.textContent = `${playlist.title} ${statusText}`;
             

@@ -64,18 +64,10 @@
                     </div>
                 </div>
                 
-                <!-- Buscador para videos -->
                 <div class="row mb-3">
-                    <div class="col-md-8">
-                        <div class="input-group input-group-lg">
-                            <input type="text" id="videoSearchInput" class="form-control" placeholder="Buscar videos por título, descripción o lista...">
-                            <button class="btn btn-outline-secondary" type="button" id="videoSearchBtn">
-                                <i class="fas fa-search"></i> Buscar
-                            </button>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
+                    <div class="col-md-12">
                         <div class="form-group">
+                            <label for="videoFilterExpiration" class="form-label">Filtrar por estado:</label>
                             <select class="form-select form-select-lg" id="videoFilterExpiration" style="font-size: 1rem;">
                                 <option value="all">Todos los videos</option>
                                 <option value="active">Videos activos</option>
@@ -95,11 +87,11 @@
                                 <!-- Vista de tabla para videos -->
                                 <div class="table-responsive">
                                     <table class="table table-striped table-hover" id="videosTable">
-                                <thead>
+                                        <thead>
                                             <tr>
+                                                <th>ID</th>
                                                 <th>Título</th>
                                                 <th>Descripción</th>
-                                                <th>Listas asignadas</th>
                                                 <th>Fecha de Subida</th>
                                                 <th>Expiración</th>
                                                 <th>Estado</th>
@@ -163,18 +155,10 @@
                     </div>
                 </div>
                 
-                <!-- Buscador para playlists -->
                 <div class="row mb-3">
-                    <div class="col-md-8">
-                        <div class="input-group input-group-lg">
-                            <input type="text" id="playlistSearchInput" class="form-control" placeholder="Buscar listas por título o descripción...">
-                            <button class="btn btn-outline-secondary" type="button" id="playlistSearchBtn">
-                                <i class="fas fa-search"></i> Buscar
-                            </button>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
+                    <div class="col-md-12">
                         <div class="form-group">
+                            <label for="playlistFilterStatus" class="form-label">Filtrar por estado:</label>
                             <select class="form-select form-select-lg" id="playlistFilterStatus" style="font-size: 1rem;">
                                 <option value="all">Todas las listas</option>
                                 <option value="active">Listas activas</option>
@@ -194,16 +178,17 @@
                                 <!-- Vista de tabla para playlists -->
                                 <div class="table-responsive">
                                     <table class="table table-striped table-hover" id="playlistsTable">
-                                <thead>
-                                        <tr>
-                                            <th>Título</th>
-                                            <th>Descripción</th>
-                                            <th>Videos</th>
-                                            <th>Expiración</th>
-                                            <th>Estado</th>
-                                            <th>Acciones</th>
-                                        </tr>
-                                    </thead>
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Título</th>
+                                                <th>Descripción</th>
+                                                <th>Videos</th>
+                                                <th>Expiración</th>
+                                                <th>Estado</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
                                         <tbody id="playlistsList">
                                             <!-- Las listas se cargarán aquí dinámicamente -->
                                             <tr>
@@ -415,7 +400,7 @@
     <script>
     // Sobrescribir la función loadVideos para usar formato de tabla
     window.originalLoadVideos = window.loadVideos;
-    window.loadVideos = async function(filter = 'all', searchTerm = '') {
+    window.loadVideos = async function(filter = 'all') {
         try {
             document.getElementById('videosLoading').style.display = 'block';
             
@@ -443,62 +428,12 @@
                 throw new Error("Formato de datos inválido");
             }
             
-            // Cargar también las playlists para poder mostrar las asignaciones
-            let allPlaylistsData = [];
-            try {
-                const playlistsResponse = await fetch(`${API_URL}/playlists/`);
-                if (playlistsResponse.ok) {
-                    allPlaylistsData = await playlistsResponse.json();
-                }
-            } catch (e) {
-                console.error("Error al cargar playlists para asignaciones:", e);
-            }
-            
-            // Crear un mapeo de video a playlists
-            const videoPlaylistMap = {};
-            
-            // Construir el mapeo de videos a playlists
-            allPlaylistsData.forEach(playlist => {
-                if (playlist.videos && Array.isArray(playlist.videos)) {
-                    playlist.videos.forEach(video => {
-                        if (!videoPlaylistMap[video.id]) {
-                            videoPlaylistMap[video.id] = [];
-                        }
-                        videoPlaylistMap[video.id].push({
-                            id: playlist.id,
-                            title: playlist.title,
-                            is_active: isPlaylistActive(playlist)
-                        });
-                    });
-                }
-            });
-            
             // Filtrar videos según el criterio seleccionado
             let filteredVideos = allVideos;
             if (filter === 'active') {
                 filteredVideos = allVideos.filter(video => !video.expiration_date || !isExpired(video.expiration_date));
             } else if (filter === 'expired') {
                 filteredVideos = allVideos.filter(video => video.expiration_date && isExpired(video.expiration_date));
-            }
-            
-            // Aplicar búsqueda si hay un término
-            if (searchTerm) {
-                const searchLower = searchTerm.toLowerCase();
-                filteredVideos = filteredVideos.filter(video => {
-                    // Buscar en título y descripción
-                    const titleMatch = video.title && video.title.toLowerCase().includes(searchLower);
-                    const descMatch = video.description && video.description.toLowerCase().includes(searchLower);
-                    
-                    // Buscar en listas asignadas
-                    let playlistMatch = false;
-                    if (videoPlaylistMap[video.id]) {
-                        playlistMatch = videoPlaylistMap[video.id].some(pl => 
-                            pl.title.toLowerCase().includes(searchLower)
-                        );
-                    }
-                    
-                    return titleMatch || descMatch || playlistMatch;
-                });
             }
             
             if (filteredVideos.length === 0) {
@@ -517,22 +452,10 @@
                 const row = document.createElement('tr');
                 row.className = isVideoExpired ? 'table-danger' : '';
                 
-                // Obtener las playlists asignadas a este video
-                const assignedPlaylists = videoPlaylistMap[video.id] || [];
-                let playlistsHtml = '';
-                
-                if (assignedPlaylists.length === 0) {
-                    playlistsHtml = '<span class="text-muted">Sin asignar</span>';
-                } else {
-                    playlistsHtml = assignedPlaylists.map(pl => 
-                        `<span class="badge ${pl.is_active ? 'bg-success' : 'bg-secondary'} me-1">${pl.title}</span>`
-                    ).join(' ');
-                }
-                
                 row.innerHTML = `
+                    <td>${video.id}</td>
                     <td>${video.title}</td>
                     <td>${video.description || '<span class="text-muted">Sin descripción</span>'}</td>
-                    <td>${playlistsHtml}</td>
                     <td>${formatDate(video.upload_date)}</td>
                     <td>
                         ${video.expiration_date ? 
@@ -617,6 +540,7 @@
                 row.className = active ? '' : 'table-danger';
                 
                 row.innerHTML = `
+                    <td>${playlist.id}</td>
                     <td>${playlist.title}</td>
                     <td>${playlist.description || '<span class="text-muted">Sin descripción</span>'}</td>
                     <td>
@@ -957,137 +881,7 @@
             alert(`Error al añadir el dispositivo a la lista: ${error.message}`);
         }
     };
-    document.addEventListener('DOMContentLoaded', function() {
-    // Botones de acción de servicio
-    const serviceActionButtons = document.querySelectorAll('.service-action');
-    
-    // Toggles de habilitación de servicio
-    const serviceEnableToggles = document.querySelectorAll('.service-enable-toggle');
-    
-    // Función para manejar toggles de habilitación/deshabilitación
-    async function handleServiceToggle(event) {
-        const toggle = event.currentTarget;
-        const service = toggle.dataset.service;
-        const deviceId = toggle.dataset.deviceId;
-        const action = toggle.checked ? 'enable' : 'disable';
-        
-        console.log(`Enviando petición para ${action} servicio ${service} del dispositivo ${deviceId}`);
-        
-        try {
-            // Desactivar el toggle mientras se procesa
-            toggle.disabled = true;
-            
-            // Mostrar un indicador de carga
-            const label = toggle.nextElementSibling;
-            if (label) {
-                label.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Procesando...`;
-            }
-            
-            // Realizar la petición a la API
-            const url = `/services/${deviceId}/service/${service}/${action}`;
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Error del servidor: ${response.status} ${response.statusText}`);
-            }
-            
-            const result = await response.json();
-            console.log("Resultado:", result);
-            
-            // Actualizar la interfaz de usuario
-            if (result.success) {
-                // Actualizar etiqueta
-                if (label) {
-                    label.textContent = toggle.checked ? 'Habilitado' : 'Deshabilitado';
-                }
-                
-                // Mostrar notificación de éxito
-                showNotification(
-                    'success',
-                    `Servicio ${service} ${toggle.checked ? 'habilitado' : 'deshabilitado'} correctamente`,
-                    result.message
-                );
-            } else {
-                // Revertir el toggle porque hubo un error
-                toggle.checked = !toggle.checked;
-                
-                if (label) {
-                    label.textContent = toggle.checked ? 'Habilitado' : 'Deshabilitado';
-                }
-                
-                // Mostrar notificación de error
-                showNotification(
-                    'error',
-                    `Error al ${action} servicio ${service}`,
-                    result.message
-                );
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            
-            // Revertir el toggle porque hubo un error
-            toggle.checked = !toggle.checked;
-            
-            const label = toggle.nextElementSibling;
-            if (label) {
-                label.textContent = toggle.checked ? 'Habilitado' : 'Deshabilitado';
-            }
-            
-            // Mostrar notificación de error
-            showNotification(
-                'error',
-                `Error al ${action} servicio ${service}`,
-                error.message
-            );
-        } finally {
-            // Reactivar el toggle
-            toggle.disabled = false;
-        }
-    }
-    
-    // Función auxiliar para mostrar notificaciones
-    function showNotification(type, title, message) {
-        const alertContainer = document.getElementById('alert-container');
-        if (!alertContainer) {
-            // Si no existe un contenedor de alertas, crear uno
-            const container = document.createElement('div');
-            container.id = 'alert-container';
-            container.className = 'position-fixed top-0 end-0 p-3';
-            container.style.zIndex = '9999';
-            document.body.appendChild(container);
-        }
-        
-        // Crear la alerta
-        const alert = document.createElement('div');
-        alert.className = `alert alert-${type === 'error' ? 'danger' : 'success'} alert-dismissible fade show`;
-        alert.innerHTML = `
-            <strong>${title}</strong>
-            <p>${message}</p>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
-        
-        // Añadir al contenedor
-        document.getElementById('alert-container').appendChild(alert);
-        
-        // Eliminar automáticamente después de 5 segundos
-        setTimeout(() => {
-            if (alert.parentNode) {
-                alert.remove();
-            }
-        }, 5000);
-    }
-    
-    // Agregar listeners a los toggles
-    serviceEnableToggles.forEach(toggle => {
-        toggle.addEventListener('change', handleServiceToggle);
-    });
-});
-</script>
+    </script>
 {% endblock %}
 </body>
 </html>

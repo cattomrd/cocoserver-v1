@@ -324,8 +324,148 @@
             </div>
         </div>
     </div>
-    
-    <!-- 4. Logs del Dispositivo -->
+    <!-- 4. Listas Asignadas -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Listas de Reproducción Asignadas</h5>
+                <button class="btn btn-sm btn-light" id="btnShowAssignPlaylist" data-bs-toggle="modal" data-bs-target="#assignPlaylistModal">
+                    <i class="bi bi-plus-circle"></i> Asignar Lista
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="playlistsContainer">
+                    {% if device.playlists %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>LISTA</th>
+                                        <th>ESTADO</th>
+                                        <th>ESPERIXION</th>
+                                        <th>VIDEOS</th>
+                                        <th>ACCIONES</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for playlist in device.playlists %}
+                                    <tr>
+                                        <td>{{ playlist.title }}</td>
+                                        <td>
+                                            {% if playlist.is_active %}
+                                                <span class="badge bg-success">Activa</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Inactiva</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if playlist.expiration_date %}
+                                                {% if playlist.expiration_date  %}
+                                                    <span class="badge bg-danger">Expirada: {{ playlist.expiration_date.strftime('%Y-%m-%d') }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-info">{{ playlist.expiration_date.strftime('%Y-%m-%d') }}</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="badge bg-secondary">Sin expiración</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ playlist.videos|length }}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-info" onclick="viewPlaylistDetails({{ playlist.id }})">
+                                                    <i class="bi bi-eye"></i> Ver
+                                                </button>
+                                                <button class="btn btn-outline-danger" onclick="confirmRemovePlaylist('{{ device.device_id }}', {{ playlist.id }}, '{{ playlist.title }}')">
+                                                    <i class="bi bi-x-circle"></i> Quitar
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> Este dispositivo no tiene listas de reproducción asignadas.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para asignar playlists -->
+<div class="modal fade" id="assignPlaylistModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Asignar Lista de Reproducción</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="showOnlyActivePlaylistsCheck" checked>
+                    <label class="form-check-label" for="showOnlyActivePlaylistsCheck">Mostrar solo listas activas</label>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="availablePlaylistsSelect" class="form-label">Seleccione una lista:</label>
+                    <select class="form-select" id="availablePlaylistsSelect">
+                        <option value="">Cargando listas...</option>
+                    </select>
+                </div>
+                
+                <div id="playlistPreview" class="d-none">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0" id="previewPlaylistTitle">Información de la Lista</h6>
+                        </div>
+                        <div class="card-body">
+                            <p id="previewPlaylistDescription"></p>
+                            <div class="mb-2">
+                                <span class="badge" id="previewPlaylistStatus"></span>
+                                <span class="badge" id="previewPlaylistExpiration"></span>
+                            </div>
+                            <div>
+                                <span class="badge bg-secondary" id="previewPlaylistVideos"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="confirmAssignPlaylistBtn">Asignar Lista</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación para quitar playlist -->
+<div class="modal fade" id="removePlaylistModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="removePlaylistMessage">¿Está seguro que desea quitar esta lista de reproducción del dispositivo?</p>
+                <input type="hidden" id="removePlaylistId">
+                <input type="hidden" id="removeDeviceId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmRemovePlaylistBtn">Eliminar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- 5. Logs del Dispositivo -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
@@ -528,6 +668,8 @@
 {% block extra_scripts %}
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/js/detail.js"></script> 
-    <script src="/static/js/main.js"></script> 
+    <script src="/static/js/main.js"></script>
+    <!-- Script para modificar la carga de videos en formato tabla -->
+    <script>
+</script>   
 {% endblock %}

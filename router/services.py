@@ -394,6 +394,7 @@ async def get_device_screenshot(device_id: str, db: Session = Depends(get_db)):
     """
     Obtiene una captura de pantalla del dispositivo remoto.
     Consume el endpoint API del cliente para capturar la pantalla.
+    Primero intenta con la IP LAN, y si falla, prueba con la IP WiFi.
     """
     try:
         # Buscar el dispositivo en la base de datos
@@ -407,50 +408,64 @@ async def get_device_screenshot(device_id: str, db: Session = Depends(get_db)):
             logger.error(f"El dispositivo {device_id} no está activo")
             raise HTTPException(status_code=400, detail="El dispositivo no está activo")
         
-        # Obtener dirección IP del dispositivo (preferiblemente LAN)
-        device_ip = device.ip_address_lan or device.ip_address_wifi
-        if not device_ip:
-            logger.error(f"No se encontró una dirección IP válida para el dispositivo {device_id}")
+        # Verificar que al menos una dirección IP está disponible
+        if not device.ip_address_lan and not device.ip_address_wifi:
+            logger.error(f"No se encontró ninguna dirección IP para el dispositivo {device_id}")
             raise HTTPException(
                 status_code=400, 
-                detail="No se encontró una dirección IP válida para el dispositivo"
+                detail="No se encontró ninguna dirección IP para el dispositivo"
             )
         
-        # URL del endpoint de captura de pantalla en el cliente
-        screenshot_url = f"http://{device_ip}:8000/api/screenshot"
+        # Lista de IPs para intentar, primero LAN, luego WiFi
+        ip_addresses = []
+        if device.ip_address_wifi:
+            ip_addresses.append(('WLAN', device.ip_address_wifi))
+        if device.ip_address_wifi:
+            ip_addresses.append(('LAN', device.ip_address_lan))
         
-        logger.info(f"Solicitando captura de pantalla desde {screenshot_url}")
+        # Intentar capturar la pantalla utilizando cada IP disponible
+        last_error = None
         
-        # Realizar la solicitud al cliente
-        try:
-            # Configurar timeout para evitar esperas largas
-            response = requests.get(screenshot_url, timeout=10)
-            
-            if response.status_code != 200:
-                logger.error(f"Error al obtener captura desde el cliente: {response.status_code}")
-                raise HTTPException(
-                    status_code=500, 
-                    detail=f"Error al obtener captura desde el cliente: {response.status_code}"
-                )
+        for connection_type, ip_address in ip_addresses:
+            try:
+                # URL del endpoint de captura de pantalla en el cliente
+                screenshot_url = f"http://{ip_address}:8000/api/screenshot"
                 
-            # Obtener el contenido de la imagen
-            image_content = response.content
-            
-            # Método directo: devolver la imagen directamente
-            return Response(
-                content=image_content,
-                media_type="image/png",
-                headers={
-                    "Content-Disposition": f"inline; filename=screenshot-{device.name}.png"
-                }
-            )
-            
-        except requests.RequestException as e:
-            logger.error(f"Error de conexión con el cliente: {str(e)}")
-            raise HTTPException(
-                status_code=500, 
-                detail=f"Error al conectar con el dispositivo: {str(e)}"
-            )
+                logger.info(f"Intentando captura de pantalla vía {connection_type} ({ip_address}) desde {screenshot_url}")
+                
+                # Realizar la solicitud al cliente con un timeout reducido
+                response = requests.get(screenshot_url, timeout=5)
+                
+                if response.status_code == 200:
+                    logger.info(f"Captura de pantalla exitosa vía {connection_type} ({ip_address})")
+                    
+                    # Obtener el contenido de la imagen
+                    image_content = response.content
+                    
+                    # Devolver la imagen directamente
+                    return Response(
+                        content=image_content,
+                        media_type="image/png",
+                        headers={
+                            "Content-Disposition": f"inline; filename=screenshot-{device.name}.png"
+                        }
+                    )
+                else:
+                    logger.warning(f"Error al obtener captura desde {connection_type} ({ip_address}): {response.status_code}")
+                    last_error = f"Error en {connection_type}: código {response.status_code}"
+                    # Continuar con la siguiente IP
+                    
+            except requests.RequestException as e:
+                logger.warning(f"Error de conexión con {connection_type} ({ip_address}): {str(e)}")
+                last_error = f"Error de conexión con {connection_type}: {str(e)}"
+                # Continuar con la siguiente IP
+        
+        # Si llegamos aquí, ninguna conexión funcionó
+        logger.error(f"No se pudo obtener captura de pantalla de ninguna interfaz. Último error: {last_error}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"No se pudo obtener la captura de pantalla: {last_error}"
+        )
             
     except HTTPException:
         # Re-lanzar excepciones HTTPException

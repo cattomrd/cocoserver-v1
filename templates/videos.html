@@ -63,7 +63,20 @@
                         </div>
                     </div>
                 </div>
-                
+                <!-- Buscador de videos -->
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <div class="input-group">
+                            <input type="text" id="videoSearchInput" class="form-control" placeholder="Buscar videos por título...">
+                            <button class="btn btn-outline-primary" type="button" id="clearVideoSearch">
+                                <i class="fas fa-times"></i> Limpiar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <span id="videoCountBadge" class="badge bg-info">0 videos</span>
+                    </div>
+                </div>
                 <div class="row mb-3">
                     <div class="col-md-12">
                         <div class="form-group">
@@ -89,7 +102,6 @@
                                     <table class="table table-striped table-hover" id="videosTable">
                                         <thead>
                                             <tr>
-                                                <th>ID</th>
                                                 <th>Título</th>
                                                 <th>Descripción</th>
                                                 <th>Fecha de Subida</th>
@@ -154,7 +166,20 @@
                         </div>
                     </div>
                 </div>
-                
+                    <!-- Buscador de listas de reproducción -->
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <div class="input-group">
+                                <input type="text" id="playlistSearchInput" class="form-control" placeholder="Buscar listas por título o descripción...">
+                                <button class="btn btn-outline-primary" type="button" id="clearPlaylistSearch">
+                                    <i class="fas fa-times"></i> Limpiar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <span id="playlistCountBadge" class="badge bg-info">0 listas</span>
+                        </div>
+                    </div>
                 <div class="row mb-3">
                     <div class="col-md-12">
                         <div class="form-group">
@@ -180,7 +205,6 @@
                                     <table class="table table-striped table-hover" id="playlistsTable">
                                         <thead>
                                             <tr>
-                                                <th>ID</th>
                                                 <th>Título</th>
                                                 <th>Descripción</th>
                                                 <th>Videos</th>
@@ -391,11 +415,49 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal para editar playlist -->
+<div class="modal fade" id="editPlaylistModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Lista de Reproducción</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editPlaylistForm">
+                    <input type="hidden" id="editPlaylistId">
+                    <div class="mb-3">
+                        <label for="editPlaylistTitle" class="form-label">Título</label>
+                        <input type="text" class="form-control" id="editPlaylistTitle" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPlaylistDescription" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="editPlaylistDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPlaylistExpiration" class="form-label">Fecha de Expiración (opcional)</label>
+                        <input type="datetime-local" class="form-control" id="editPlaylistExpiration">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="editPlaylistActive">
+                        <label class="form-check-label" for="editPlaylistActive">Lista Activa</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-lg" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary btn-lg" id="savePlaylistChangesBtn">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 {% block extra_scripts %}
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/main.js"></script>
+    <script src="/static/js/search.js"></script>
     <!-- Script para modificar la carga de videos en formato tabla -->
     <script>
     // Sobrescribir la función loadVideos para usar formato de tabla
@@ -453,7 +515,6 @@
                 row.className = isVideoExpired ? 'table-danger' : '';
                 
                 row.innerHTML = `
-                    <td>${video.id}</td>
                     <td>${video.title}</td>
                     <td>${video.description || '<span class="text-muted">Sin descripción</span>'}</td>
                     <td>${formatDate(video.upload_date)}</td>
@@ -540,7 +601,6 @@
                 row.className = active ? '' : 'table-danger';
                 
                 row.innerHTML = `
-                    <td>${playlist.id}</td>
                     <td>${playlist.title}</td>
                     <td>${playlist.description || '<span class="text-muted">Sin descripción</span>'}</td>
                     <td>

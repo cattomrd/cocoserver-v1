@@ -63,6 +63,19 @@ try {
 }
 }
 
+function safeGetElement(id) {
+    return document.getElementById(id);
+}
+
+function safeAccessStyle(element, property, value) {
+    if (element && element.style) {
+        element.style[property] = value;
+    }
+}
+
+// Luego usarlo así:
+const videoLoading = safeGetElement('videosLoading');
+safeAccessStyle(videoLoading, 'display', 'none');
 // Uso en las funciones
 async function loadVideos(filter = 'all') {
 try {
@@ -328,10 +341,28 @@ function createElement(tag, attributes = {}, children = []) {
     }
     );
 
+    class CacheManager {
+        constructor() {
+            this.data = {};
+        }
+        
+        get(key) {
+            return this.data[key] || null;
+        }
+        
+        set(key, value) {
+            this.data[key] = value;
+        }
+        
+        clear() {
+            this.data = {};
+        }
+    }
     // Clase principal que gestiona la aplicación
     class VideoPlaylistApp {
     constructor() {
         this.API_URL = '/api';
+        this.cache = {};
         this.state = {
         videos: [],
         playlists: [],
@@ -351,6 +382,7 @@ function createElement(tag, attributes = {}, children = []) {
         this.init();
     }
 
+    
     init() {
         this.setupEventListeners();
         this.testApiConnection();
@@ -577,8 +609,11 @@ async function loadVideos(filter = 'all') {
             </div>
         `;
     } finally {
-        document.getElementById('videosLoading').style.display = 'none';
-    }
+        const videosLoading = document.getElementById('videosLoading');
+        if (videosLoading) {
+            videosLoading.style.display = 'none';
+        }
+            }
 }
 // Función para cargar los dispositivos asignados a una playlist
 async function loadPlaylistDevices(playlistId) {
@@ -736,7 +771,10 @@ async function loadPlaylists(filter = 'all') {
             </div>
         `;
     } finally {
-        document.getElementById('playlistsLoading').style.display = 'true';
+        const playlistsLoading = document.getElementById('playlistsLoading');
+        if (playlistsLoading) {
+            playlistsLoading.style.display = 'none';
+        }
     }
 }
 
@@ -2029,8 +2067,9 @@ function openPlaylistDetails(playlistId) {
 }
 
 // Inicializar componentes
+const refreshPlaylistsBtn = document.getElementById('refreshPlaylistsBtn');
 if (refreshPlaylistsBtn) {
-    refreshPlaylistsBtn.addEventListener('change', loadAssignedPlaylists);
+    refreshPlaylistsBtn.addEventListener('click', loadAssignedPlaylists);
 }
 
 if (showOnlyActivePlaylistsCheck) {
@@ -2221,3 +2260,4 @@ loadRaspberryActivePlaylists();
 
 console.log("Código de gestión de videos, playlists y dispositivos cargado correctamente");
 });
+

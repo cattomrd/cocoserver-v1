@@ -1,181 +1,48 @@
-# Archivo app/routers/ui.py
+# Updated router/ui.py with authentication
 from fastapi import APIRouter, Request, Depends, HTTPException, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from typing import Optional
 import httpx
 import sys
 import os
 from datetime import datetime
-from utils.auth import get_current_user
-current_timestamp = datetime.now().timestamp()
-# Añadir la ruta del directorio padre al path
+
+# Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# Importaciones absolutas en lugar de relativas
+# Imports from models
 from models import models, schemas
 from models.database import get_db
+
+# Import authentication utilities
+from utils.auth import get_current_active_user
 
 router = APIRouter(
     prefix="/ui",
     tags=["ui"]
 )
 
-# Configurar templates
+# Configure templates
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 @router.get("/", response_class=HTMLResponse)
 async def get_dashboard(request: Request):
     """
-    Página principal del dashboard
+    Main dashboard page
     """
-    return templates.TemplateResponse("index.html", {"request": request, "title": "Raspberry Pi Registry"})
-
-
-@router.get("/profile", response_class=HTMLResponse)
-async def get_profile_page(
-    request: Request,
-    current_user: models.User = Depends(get_current_user)
-):
-    """
-    Página de perfil de usuario
-    """
-    return templates.TemplateResponse(
-        "profile.html",
-        {
-            "request": request,
-            "title": "Mi Perfil",
-            "user": current_user
-        }
-    )
-
-
-@router.get("/admin", response_class=HTMLResponse)
-async def get_admin_page(
-    request: Request,
-    current_user: models.User = Depends(get_current_user)
-):
-    """
-    Panel de administración (solo para administradores)
-    """
-    # Verificar si el usuario es administrador
-    if not current_user.is_admin:
-        return templates.TemplateResponse(
-            "message.html",
-            {
-                "request": request,
-                "title": "Acceso Denegado",
-                "message": "No tienes permisos de administrador para acceder a esta página.",
-                "type": "danger",
-                "redirect_url": "/ui/",
-                "redirect_text": "Volver al Inicio",
-                "auto_redirect": 3
-            }
-        )
+    # Get username from session for template
+    username = request.session.get("username", "User")
+    is_admin = request.session.get("is_admin", False)
     
     return templates.TemplateResponse(
-        "admin.html",
-        {
-            "request": request,
-            "title": "Panel de Administración",
-            "user": current_user
-        }
+        "index.html", 
+        {"request": request, "title": "Raspberry Pi Registry", "username": username, "is_admin": is_admin}
     )
-
-@router.get("/users", response_class=HTMLResponse)
-async def get_users_page(
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
-):
-    """
-    Página de gestión de usuarios (solo para administradores)
-
-    Contexto pasado a la plantilla:
-    - "users": Lista de usuarios obtenida de la base de datos, limitada y paginada.
-    - "current_user": Usuario actual autenticado, utilizado para verificar permisos y mostrar información personalizada.
-    """
-    # Verificar si el usuario es administrador
-    if not current_user.is_active:
-        return templates.TemplateResponse(
-            "message.html",
-            {
-                "request": request,
-                "title": "Acceso Denegado",
-                "message": "No tienes permisos de administrador para acceder a esta página.",
-                "type": "danger",
-                "redirect_url": "/ui/",
-                "redirect_text": "Volver al Inicio",
-                "auto_redirect": 3
-            }
-        )
-    all_users = db.query(models.User).all()
-    
-    return templates.TemplateResponse(
-        "users.html",
-        {
-            "request": request,
-            "title": "Gestión de Usuarios",
-            "users": all_users,
-            "current_user": current_user
-        }
-    )
-
-
-@router.get("/users/{user_id}", response_class=HTMLResponse)
-async def get_user_detail(
-    request: Request,
-    user_id: int,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Página de detalle de usuario (solo para administradores)
-    """
-    # Verificar si el usuario es administrador
-    if not current_user.is_admin:
-        return templates.TemplateResponse(
-            "message.html",
-            {
-                "request": request,
-                "title": "Acceso Denegado",
-                "message": "No tienes permisos de administrador para acceder a esta página.",
-                "type": "danger",
-                "redirect_url": "/ui/",
-                "redirect_text": "Volver al Inicio",
-                "auto_redirect": 3
-            }
-        )
-    
-    # Obtener el usuario especificado
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        return templates.TemplateResponse(
-            "message.html",
-            {
-                "request": request,
-                "title": "Usuario no encontrado",
-                "message": "El usuario solicitado no existe.",
-                "type": "warning",
-                "redirect_url": "/ui/users",
-                "redirect_text": "Volver a la lista de usuarios",
-                "auto_redirect": 3
-            }
-        )
-    
-    return templates.TemplateResponse(
-        "user_detail.html",
-        {
-            "request": request,
-            "title": f"Usuario: {user.username}",
-            "user": user,
-            "current_user": current_user
-        }
-    )
-
 
 @router.get("/devices", response_class=HTMLResponse)
 async def get_devices_page(
@@ -186,9 +53,13 @@ async def get_devices_page(
     db: Session = Depends(get_db)
 ):
     """
-    Página que muestra la lista de dispositivos registrados
+    Page that shows the list of registered devices
     """
-    # Consulta base con join a las playlists
+    # Get username from session for template
+    username = request.session.get("username", "User")
+    is_admin = request.session.get("is_admin", False)
+    
+    # Base query with join to playlists
     query = db.query(models.Device).outerjoin(
         models.DevicePlaylist,
         models.DevicePlaylist.device_id == models.Device.device_id
@@ -197,7 +68,7 @@ async def get_devices_page(
         models.Playlist.id == models.DevicePlaylist.playlist_id
     )
     
-    # Filtros adicionales
+    # Additional filters
     if active_only:
         query = query.filter(models.Device.is_active == True)
     
@@ -232,13 +103,13 @@ async def get_devices_page(
                 )
             )
     
-    # Es importante usar distinct() para evitar duplicados si un dispositivo tiene múltiples playlists
+    # Use distinct() to avoid duplicates if a device has multiple playlists
     devices = query.distinct().all()
     
-    # Cargar explícitamente las playlists para cada dispositivo
+    # Explicitly load playlists for each device
     for device in devices:
-        # SQLAlchemy debería haber cargado las playlists automáticamente,
-        # pero podemos forzar la carga si es necesario
+        # SQLAlchemy should have loaded playlists automatically,
+        # but we can force loading if needed
         if hasattr(device, 'playlists') and device.playlists is None:
             device_playlists = db.query(models.Playlist).join(
                 models.DevicePlaylist,
@@ -247,7 +118,7 @@ async def get_devices_page(
                 models.DevicePlaylist.device_id == device.device_id
             ).all()
             
-            # Asignar manualmente las playlists al dispositivo
+            # Manually assign playlists to the device
             device.playlists = device_playlists
     
     return templates.TemplateResponse(
@@ -258,14 +129,25 @@ async def get_devices_page(
             "devices": devices,
             "active_only": active_only,
             "search_term": search,
-            "search_field": search_field
+            "search_field": search_field,
+            "username": username,
+            "is_admin": is_admin
         }
     )
 
 @router.get("/videos", response_class=HTMLResponse)
-#async def get_videos_page(
-async def home(request: Request):
-    return templates.TemplateResponse("videos.html", {"request": request})
+async def get_videos_page(request: Request):
+    """
+    Videos page
+    """
+    # Get username from session for template
+    username = request.session.get("username", "User")
+    is_admin = request.session.get("is_admin", False)
+    
+    return templates.TemplateResponse(
+        "videos.html", 
+        {"request": request, "title": "Gestión de Videos", "username": username, "is_admin": is_admin}
+    )
 
 @router.get("/devices/{device_id}", response_class=HTMLResponse)
 async def get_device_detail(
@@ -274,48 +156,18 @@ async def get_device_detail(
     db: Session = Depends(get_db)
 ):
     """
-    Página de detalle de un dispositivo específico
+    Device detail page
     """
+    # Get username from session for template
+    username = request.session.get("username", "User")
+    is_admin = request.session.get("is_admin", False)
+    
+    # Perform query with join to load associated playlists
     device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
     if device is None:
         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
     
-    # Intentar obtener el estado del servicio videoloop
-    service_status = None
-    if device.is_active:
-        try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get(f"http://{device.ip_address}:8000/service/videoloop/status")
-                if response.status_code == 200:
-                    service_status = response.json()
-        except:
-            # Si no se puede conectar, establecer estado como desconocido
-            service_status = {"status": "unknown", "active": False, "enabled": False}
-    
-    return templates.TemplateResponse(
-        "device_detail.html", 
-        {
-            "request": request, 
-            "title": f"Dispositivo: {device.name}",
-            "device": device,
-            "service_status": service_status
-        }
-    )
-@router.get("/devices/{device_id}", response_class=HTMLResponse)
-async def get_device_detail(
-    request: Request, 
-    device_id: str,
-    db: Session = Depends(get_db)
-):
-    """
-    Página de detalle de un dispositivo específico
-    """
-    # Realizar el query con join para cargar las playlists asociadas
-    device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
-    if device is None:
-        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
-    
-    # Cargar explícitamente las playlists del dispositivo
+    # Explicitly load the device's playlists
     device_playlists = db.query(models.Playlist).join(
         models.DevicePlaylist,
         models.DevicePlaylist.playlist_id == models.Playlist.id
@@ -323,14 +175,13 @@ async def get_device_detail(
         models.DevicePlaylist.device_id == device_id
     ).all()
     
-    # Asignar las playlists al dispositivo
+    # Assign playlists to the device
     device.playlists = device_playlists
     
-    # Obtener fecha actual para comparaciones en la plantilla
-    from datetime import datetime
+    # Get current date for template comparisons
     now = datetime.now()
     
-    # Intentar obtener el estado del servicio videoloop
+    # Try to get videoloop service status
     service_status = None
     if device.is_active:
         try:
@@ -339,7 +190,7 @@ async def get_device_detail(
                 if response.status_code == 200:
                     service_status = response.json()
         except:
-            # Si no se puede conectar, establecer estado como desconocido
+            # If connection fails, set status as unknown
             service_status = {"status": "unknown", "active": False, "enabled": False}
     
     return templates.TemplateResponse(
@@ -349,11 +200,11 @@ async def get_device_detail(
             "title": f"Dispositivo: {device.name}",
             "device": device,
             "service_status": service_status,
-            "now": now  # Pasar la fecha actual a la plantilla
+            "now": now,
+            "username": username,
+            "is_admin": is_admin
         }
     )
-
-
 
 @router.post("/devices/{device_id}/delete", response_class=HTMLResponse)
 async def delete_device_ui(
@@ -362,7 +213,7 @@ async def delete_device_ui(
     db: Session = Depends(get_db)
 ):
     """
-    Eliminar un dispositivo
+    Delete a device
     """
     device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
     if device is None:
@@ -371,21 +222,8 @@ async def delete_device_ui(
     db.delete(device)
     db.commit()
     
-    # Redirigir a la lista de dispositivos
+    # Redirect to the devices list
     return RedirectResponse(url="/ui/devices", status_code=303)
-
-    
-    # Redirigir a la página de detalle con un mensaje
-    return templates.TemplateResponse(
-        "service_control.html", 
-        {
-            "request": request,
-            "title": f"Control de Servicio: {device.name}",
-            "device": device,
-            "action": action,
-            "result": result
-        }
-    )
 
 @router.post("/devices/{device_id}/update", response_class=HTMLResponse)
 async def update_device_info(
@@ -397,22 +235,52 @@ async def update_device_info(
     db: Session = Depends(get_db)
 ):
     """
-    Actualizar información básica de un dispositivo
+    Update basic device information
     """
     device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
     if device is None:
         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
     
-    # Actualizar solo los campos proporcionados
+    # Update only provided fields
     if location is not None:
         device.location = location
-    if tienda is not None:  # Podría ser una cadena vacía
+    if tienda is not None:  # Could be an empty string
         device.tienda = tienda
     
     device.is_active = is_active
     
     db.commit()
     
-    # Redirigir a la página de detalle
+    # Redirect to the device detail page
     return RedirectResponse(url=f"/ui/devices/{device_id}", status_code=303)
 
+# New route for user administration (only for admins)
+@router.get("/users", response_class=HTMLResponse)
+async def get_users_page(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    User administration page (admin only)
+    """
+    # Check if user is admin
+    is_admin = request.session.get("is_admin", False)
+    if not is_admin:
+        return RedirectResponse(url="/ui/", status_code=303)
+        
+    # Get username from session for template
+    username = request.session.get("username", "User")
+    
+    # Get all users
+    users = db.query(models.User).all()
+    
+    return templates.TemplateResponse(
+        "users.html", 
+        {
+            "request": request, 
+            "title": "Administración de Usuarios",
+            "users": users,
+            "username": username,
+            "is_admin": is_admin
+        }
+    )

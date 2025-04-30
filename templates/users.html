@@ -1,56 +1,29 @@
+<!-- templates/users.html -->
 {% extends "base.html" %}
 
 {% block content %}
 <div class="row">
     <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Gestión de Usuarios</h1>
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
-                <i class="bi bi-person-plus"></i> Nuevo Usuario
-            </button>
-        </div>
+        <h1 class="mb-4">Administración de Usuarios</h1>
         
-        <!-- Alertas -->
-        <div id="userAlert" class="alert d-none" role="alert"></div>
-        
-        <!-- Tabla de usuarios -->
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Usuarios Registrados</h5>
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Usuarios del Sistema</h5>
+                <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                    <i class="bi bi-person-plus"></i> Nuevo Usuario
+                </button>
             </div>
             <div class="card-body">
-                <!-- Filtros -->
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <input type="text" id="userSearchInput" class="form-control" placeholder="Buscar usuarios...">
-                    </div>
-                    <div class="col-md-3">
-                        <select id="userStatusFilter" class="form-select">
-                            <option value="all">Todos los estados</option>
-                            <option value="active">Activos</option>
-                            <option value="inactive">Inactivos</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <select id="userTypeFilter" class="form-select">
-                            <option value="all">Todos los tipos</option>
-                            <option value="admin">Administradores</option>
-                            <option value="user">Usuarios estándar</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <!-- Tabla -->
+                {% if users %}
                 <div class="table-responsive">
                     <table class="table table-striped table-hover">
-                        <thead>
+                        <thead class="table-dark">
                             <tr>
-                                <th>ID</th>
                                 <th>Usuario</th>
+                                <th>Nombre Completo</th>
                                 <th>Email</th>
-                                <th>Nombre</th>
-                                <th>Tipo</th>
                                 <th>Estado</th>
+                                <th>Rol</th>
                                 <th>Último Acceso</th>
                                 <th>Acciones</th>
                             </tr>
@@ -58,19 +31,22 @@
                         <tbody>
                             {% for user in users %}
                             <tr>
-                                <td>{{ user.id }}</td>
                                 <td>{{ user.username }}</td>
+                                <td>{{ user.full_name }}</td>
                                 <td>{{ user.email }}</td>
-                                <td>{{ user.full_name or 'Sin especificar' }}</td>
                                 <td>
-                                    <span class="badge {{ 'bg-warning' if user.is_admin else 'bg-primary' }}">
-                                        {{ 'Administrador' if user.is_admin else 'Usuario' }}
-                                    </span>
+                                    {% if user.disabled %}
+                                    <span class="badge bg-danger">Inactivo</span>
+                                    {% else %}
+                                    <span class="badge bg-success">Activo</span>
+                                    {% endif %}
                                 </td>
                                 <td>
-                                    <span class="badge {{ 'bg-success' if user.is_active else 'bg-danger' }}">
-                                        {{ 'Activo' if user.is_active else 'Inactivo' }}
-                                    </span>
+                                    {% if user.is_admin %}
+                                    <span class="badge bg-primary">Administrador</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Usuario</span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     {% if user.last_login %}
@@ -81,29 +57,24 @@
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
-                                        <a href="/ui/users/{{ user.id }}" class="btn btn-primary">
-                                            <i class="bi bi-eye"></i> Ver
-                                        </a>
-                                        <button class="btn btn-warning edit-user-btn" 
+                                        <button class="btn btn-outline-primary edit-user-btn" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#editUserModal"
                                                 data-user-id="{{ user.id }}"
                                                 data-username="{{ user.username }}"
+                                                data-fullname="{{ user.full_name }}"
                                                 data-email="{{ user.email }}"
-                                                data-full-name="{{ user.full_name or '' }}"
-                                                data-is-admin="{{ user.is_admin|lower }}"
-                                                data-is-active="{{ user.is_active|lower }}">
-                                            <i class="bi bi-pencil"></i> Editar
+                                                data-disabled="{{ user.disabled }}"
+                                                data-admin="{{ user.is_admin|int }}">
+                                            <i class="bi bi-pencil"></i>
                                         </button>
-                                        {% if user.id != current_user.id %}
-                                        <button class="btn btn-danger delete-user-btn"
+                                        <button class="btn btn-outline-danger delete-user-btn"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#deleteUserModal"
                                                 data-user-id="{{ user.id }}"
                                                 data-username="{{ user.username }}">
-                                            <i class="bi bi-trash"></i> Eliminar
+                                            <i class="bi bi-trash"></i>
                                         </button>
-                                        {% else %}
-                                        <button class="btn btn-outline-secondary" disabled>
-                                            <i class="bi bi-lock"></i> (Tú)
-                                        </button>
-                                        {% endif %}
                                     </div>
                                 </td>
                             </tr>
@@ -111,136 +82,131 @@
                         </tbody>
                     </table>
                 </div>
+                {% else %}
+                <div class="alert alert-info">
+                    No hay usuarios registrados en el sistema.
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
 <!-- Modal para crear usuario -->
-<div class="modal fade" id="createUserModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Crear Nuevo Usuario</h5>
+                <h5 class="modal-title" id="createUserModalLabel">Crear Nuevo Usuario</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div id="createUserAlert" class="alert d-none" role="alert"></div>
-                
-                <form id="createUserForm">
+                <form id="createUserForm" action="/users" method="post">
                     <div class="mb-3">
-                        <label for="createUsername" class="form-label">Nombre de Usuario</label>
-                        <input type="text" class="form-control" id="createUsername" name="username" required>
+                        <label for="username" class="form-label">Nombre de Usuario</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
                     </div>
                     <div class="mb-3">
-                        <label for="createEmail" class="form-label">Correo Electrónico</label>
-                        <input type="email" class="form-control" id="createEmail" name="email" required>
+                        <label for="password" class="form-label">Contraseña</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
                     </div>
                     <div class="mb-3">
-                        <label for="createFullName" class="form-label">Nombre Completo</label>
-                        <input type="text" class="form-control" id="createFullName" name="full_name">
+                        <label for="confirm_password" class="form-label">Confirmar Contraseña</label>
+                        <input type="password" class="form-control" id="confirm_password" required>
+                        <div id="password-feedback" class="invalid-feedback">
+                            Las contraseñas no coinciden.
+                        </div>
                     </div>
                     <div class="mb-3">
-                        <label for="createPassword" class="form-label">Contraseña</label>
-                        <input type="password" class="form-control" id="createPassword" name="password" 
-                            minlength="8" required>
-                        <div class="form-text">La contraseña debe tener al menos 8 caracteres</div>
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
                     </div>
                     <div class="mb-3">
-                        <label for="createConfirmPassword" class="form-label">Confirmar Contraseña</label>
-                        <input type="password" class="form-control" id="createConfirmPassword" 
-                            name="confirm_password" required>
+                        <label for="full_name" class="form-label">Nombre Completo</label>
+                        <input type="text" class="form-control" id="full_name" name="full_name" required>
                     </div>
                     <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="createIsAdmin" name="is_admin">
-                        <label class="form-check-label" for="createIsAdmin">Usuario Administrador</label>
+                        <input type="checkbox" class="form-check-input" id="is_admin" name="is_admin">
+                        <label class="form-check-label" for="is_admin">Usuario Administrador</label>
                     </div>
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="createIsActive" name="is_active" checked>
-                        <label class="form-check-label" for="createIsActive">Usuario Activo</label>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary" id="createUserBtn">Crear Usuario</button>
                     </div>
                 </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" id="createUserBtn">Crear Usuario</button>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Modal para editar usuario -->
-<div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Editar Usuario</h5>
+                <h5 class="modal-title" id="editUserModalLabel">Editar Usuario</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div id="editUserAlert" class="alert d-none" role="alert"></div>
-                
-                <form id="editUserForm">
-                    <input type="hidden" id="editUserId" name="user_id">
-                    
+                <form id="editUserForm" action="/users/edit" method="post">
+                    <input type="hidden" id="edit_user_id" name="user_id">
                     <div class="mb-3">
-                        <label for="editUsername" class="form-label">Nombre de Usuario</label>
-                        <input type="text" class="form-control" id="editUsername" name="username" required>
+                        <label for="edit_username" class="form-label">Nombre de Usuario</label>
+                        <input type="text" class="form-control" id="edit_username" name="username" readonly>
                     </div>
                     <div class="mb-3">
-                        <label for="editEmail" class="form-label">Correo Electrónico</label>
-                        <input type="email" class="form-control" id="editEmail" name="email" required>
+                        <label for="edit_password" class="form-label">Nueva Contraseña (dejar en blanco para no cambiar)</label>
+                        <input type="password" class="form-control" id="edit_password" name="password">
                     </div>
                     <div class="mb-3">
-                        <label for="editFullName" class="form-label">Nombre Completo</label>
-                        <input type="text" class="form-control" id="editFullName" name="full_name">
+                        <label for="edit_confirm_password" class="form-label">Confirmar Nueva Contraseña</label>
+                        <input type="password" class="form-control" id="edit_confirm_password">
+                        <div id="edit-password-feedback" class="invalid-feedback">
+                            Las contraseñas no coinciden.
+                        </div>
                     </div>
                     <div class="mb-3">
-                        <label for="editPassword" class="form-label">Nueva Contraseña (dejar vacío para mantener la actual)</label>
-                        <input type="password" class="form-control" id="editPassword" name="password" 
-                            minlength="8">
-                        <div class="form-text">La contraseña debe tener al menos 8 caracteres</div>
+                        <label for="edit_email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="edit_email" name="email" required>
                     </div>
                     <div class="mb-3">
-                        <label for="editConfirmPassword" class="form-label">Confirmar Nueva Contraseña</label>
-                        <input type="password" class="form-control" id="editConfirmPassword" 
-                            name="confirm_password">
+                        <label for="edit_full_name" class="form-label">Nombre Completo</label>
+                        <input type="text" class="form-control" id="edit_full_name" name="full_name" required>
                     </div>
                     <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="editIsAdmin" name="is_admin">
-                        <label class="form-check-label" for="editIsAdmin">Usuario Administrador</label>
+                        <input type="checkbox" class="form-check-input" id="edit_is_admin" name="is_admin">
+                        <label class="form-check-label" for="edit_is_admin">Usuario Administrador</label>
                     </div>
                     <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="editIsActive" name="is_active">
-                        <label class="form-check-label" for="editIsActive">Usuario Activo</label>
+                        <input type="checkbox" class="form-check-input" id="edit_disabled" name="disabled">
+                        <label class="form-check-label" for="edit_disabled">Usuario Desactivado</label>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary" id="updateUserBtn">Guardar Cambios</button>
                     </div>
                 </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" id="editUserBtn">Guardar Cambios</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal de confirmación para eliminar usuario -->
-<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-hidden="true">
+<!-- Modal para eliminar usuario -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <h5 class="modal-title" id="deleteUserModalLabel">Eliminar Usuario</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p id="deleteUserMessage">¿Está seguro que desea eliminar este usuario?</p>
-                <div id="deleteUserAlert" class="alert d-none" role="alert"></div>
-                
-                <input type="hidden" id="deleteUserId">
+                <p>¿Está seguro que desea eliminar al usuario <strong id="delete_username"></strong>?</p>
+                <p class="text-danger">Esta acción no se puede deshacer.</p>
+                <form id="deleteUserForm" action="/users/delete" method="post">
+                    <input type="hidden" id="delete_user_id" name="user_id">
+                </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteUserBtn">Eliminar</button>
+                <button type="submit" class="btn btn-danger" form="deleteUserForm">Eliminar</button>
             </div>
         </div>
     </div>
@@ -249,304 +215,192 @@
 
 {% block extra_scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    setupUserManagement();
-    setupFilters();
-});
-
-// Configurar gestión de usuarios
-function setupUserManagement() {
-    // Filtros
-    const userTable = document.querySelector('table');
-    const userRows = userTable?.querySelectorAll('tbody tr');
-    
-    // Botones de edición
-    const editUserBtns = document.querySelectorAll('.edit-user-btn');
-    editUserBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            // Obtener datos del usuario desde atributos data
-            const userId = this.getAttribute('data-user-id');
-            const username = this.getAttribute('data-username');
-            const email = this.getAttribute('data-email');
-            const fullName = this.getAttribute('data-full-name');
-            const isAdmin = this.getAttribute('data-is-admin') === 'true';
-            const isActive = this.getAttribute('data-is-active') === 'true';
-            
-            // Llenar formulario de edición
-            document.getElementById('editUserId').value = userId;
-            document.getElementById('editUsername').value = username;
-            document.getElementById('editEmail').value = email;
-            document.getElementById('editFullName').value = fullName;
-            document.getElementById('editIsAdmin').checked = isAdmin;
-            document.getElementById('editIsActive').checked = isActive;
-            
-            // Limpiar campos de contraseña
-            document.getElementById('editPassword').value = '';
-            document.getElementById('editConfirmPassword').value = '';
-            
-            // Mostrar modal
-            const editModal = new bootstrap.Modal(document.getElementById('editUserModal'));
-            editModal.show();
-        });
-    });
-    
-    // Botones de eliminación
-    const deleteUserBtns = document.querySelectorAll('.delete-user-btn');
-    deleteUserBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const userId = this.getAttribute('data-user-id');
-            const username = this.getAttribute('data-username');
-            
-            // Configurar modal de confirmación
-            document.getElementById('deleteUserId').value = userId;
-            document.getElementById('deleteUserMessage').textContent = 
-                `¿Está seguro que desea eliminar al usuario "${username}"? Esta acción no se puede deshacer.`;
-            
-            // Ocultar alerta previa
-            const deleteUserAlert = document.getElementById('deleteUserAlert');
-            deleteUserAlert.classList.add('d-none');
-            
-            // Mostrar modal
-            const deleteModal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
-            deleteModal.show();
-        });
-    });
-    
-    // Crear nuevo usuario
-    const createUserBtn = document.getElementById('createUserBtn');
-    const createUserForm = document.getElementById('createUserForm');
-    const createUserAlert = document.getElementById('createUserAlert');
-    
-    if (createUserBtn && createUserForm) {
-        createUserBtn.addEventListener('click', async function() {
-            // Ocultar alerta previa
-            createUserAlert.classList.add('d-none');
-            
-            // Verificar que las contraseñas coincidan
-            const password = document.getElementById('createPassword').value;
-            const confirmPassword = document.getElementById('createConfirmPassword').value;
-            
-            if (password !== confirmPassword) {
-                createUserAlert.textContent = 'Las contraseñas no coinciden';
-                createUserAlert.classList.remove('d-none', 'alert-success');
-                createUserAlert.classList.add('alert-danger');
-                return;
-            }
-            
-            // Obtener datos del formulario
-            const formData = {
-                username: document.getElementById('createUsername').value,
-                email: document.getElementById('createEmail').value,
-                full_name: document.getElementById('createFullName').value || null,
-                password: password,
-                confirm_password: confirmPassword,
-                is_admin: document.getElementById('createIsAdmin').checked,
-                is_active: document.getElementById('createIsActive').checked
-            };
-            
-            try {
-                // Realizar petición para crear usuario
-                const response = await fetch('/api/auth/register', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Error al crear usuario');
-                }
-                
-                // Mostrar mensaje de éxito
-                createUserAlert.textContent = 'Usuario creado correctamente';
-                createUserAlert.classList.remove('d-none', 'alert-danger');
-                createUserAlert.classList.add('alert-success');
-                
-                // Limpiar formulario
-                createUserForm.reset();
-                
-                // Recargar la página después de 2 segundos para mostrar el nuevo usuario
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
-                
-            } catch (error) {
-                // Mostrar mensaje de error
-                createUserAlert.textContent = error.message || 'Error al crear usuario';
-                createUserAlert.classList.remove('d-none', 'alert-success');
-                createUserAlert.classList.add('alert-danger');
-            }
-        });
-    }
-    
-    // Editar usuario
-    const editUserBtn = document.getElementById('editUserBtn');
-    const editUserForm = document.getElementById('editUserForm');
-    const editUserAlert = document.getElementById('editUserAlert');
-    
-    if (editUserBtn && editUserForm) {
-        editUserBtn.addEventListener('click', async function() {
-            // Ocultar alerta previa
-            editUserAlert.classList.add('d-none');
-            
-            // Verificar que las contraseñas coincidan si se proporcionan
-            const password = document.getElementById('editPassword').value;
-            const confirmPassword = document.getElementById('editConfirmPassword').value;
-            
-            if (password && password !== confirmPassword) {
-                editUserAlert.textContent = 'Las contraseñas no coinciden';
-                editUserAlert.classList.remove('d-none', 'alert-success');
-                editUserAlert.classList.add('alert-danger');
-                return;
-            }
-            
-            // Obtener datos del formulario
-            const userId = document.getElementById('editUserId').value;
-            const formData = {
-                username: document.getElementById('editUsername').value,
-                email: document.getElementById('editEmail').value,
-                full_name: document.getElementById('editFullName').value || null,
-                is_admin: document.getElementById('editIsAdmin').checked,
-                is_active: document.getElementById('editIsActive').checked
-            };
-            
-            // Añadir contraseña solo si se proporcionó
-            if (password) {
-                formData.password = password;
-            }
-            
-            try {
-                // Realizar petición para actualizar usuario
-                const response = await fetch(`/api/auth/users/${userId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Error al actualizar usuario');
-                }
-                
-                // Mostrar mensaje de éxito
-                editUserAlert.textContent = 'Usuario actualizado correctamente';
-                editUserAlert.classList.remove('d-none', 'alert-danger');
-                editUserAlert.classList.add('alert-success');
-                
-                // Recargar la página después de 2 segundos para mostrar los cambios
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
-                
-            } catch (error) {
-                // Mostrar mensaje de error
-                editUserAlert.textContent = error.message || 'Error al actualizar usuario';
-                editUserAlert.classList.remove('d-none', 'alert-success');
-                editUserAlert.classList.add('alert-danger');
-            }
-        });
-    }
-    
-    // Eliminar usuario
-    const confirmDeleteUserBtn = document.getElementById('confirmDeleteUserBtn');
-    const deleteUserAlert = document.getElementById('deleteUserAlert');
-    
-    if (confirmDeleteUserBtn) {
-        confirmDeleteUserBtn.addEventListener('click', async function() {
-            // Ocultar alerta previa
-            deleteUserAlert.classList.add('d-none');
-            
-            const userId = document.getElementById('deleteUserId').value;
-            
-            try {
-                // Realizar petición para eliminar usuario
-                const response = await fetch(`/api/auth/users/${userId}`, {
-                    method: 'DELETE'
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Error al eliminar usuario');
-                }
-                
-                // Mostrar mensaje de éxito
-                deleteUserAlert.textContent = 'Usuario eliminado correctamente';
-                deleteUserAlert.classList.remove('d-none', 'alert-danger');
-                deleteUserAlert.classList.add('alert-success');
-                
-                // Deshabilitar botón de eliminación
-                confirmDeleteUserBtn.disabled = true;
-                
-                // Recargar la página después de 2 segundos
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
-                
-            } catch (error) {
-                // Mostrar mensaje de error
-                deleteUserAlert.textContent = error.message || 'Error al eliminar usuario';
-                deleteUserAlert.classList.remove('d-none', 'alert-success');
-                deleteUserAlert.classList.add('alert-danger');
-            }
-        });
-    }
-}
-
-// Configurar filtros de tabla
-function setupFilters() {
-    const searchInput = document.getElementById('userSearchInput');
-    const statusFilter = document.getElementById('userStatusFilter');
-    const typeFilter = document.getElementById('userTypeFilter');
-    const tableRows = document.querySelectorAll('tbody tr');
-    
-    // Función de filtrado
-    function filterTable() {
-        const searchTerm = searchInput.value.toLowerCase();
-        const statusValue = statusFilter.value;
-        const typeValue = typeFilter.value;
+    document.addEventListener('DOMContentLoaded', function() {
+        // Validación de contraseñas en el formulario de creación
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirm_password');
+        const passwordFeedback = document.getElementById('password-feedback');
+        const createUserBtn = document.getElementById('createUserBtn');
         
-        tableRows.forEach(row => {
-            const username = row.cells[1].textContent.toLowerCase();
-            const email = row.cells[2].textContent.toLowerCase();
-            const fullName = row.cells[3].textContent.toLowerCase();
-            const isAdmin = row.cells[4].textContent.includes('Administrador');
-            const isActive = row.cells[5].textContent.includes('Activo');
+        function validatePasswords() {
+            if (passwordInput.value !== confirmPasswordInput.value) {
+                confirmPasswordInput.classList.add('is-invalid');
+                passwordFeedback.style.display = 'block';
+                createUserBtn.disabled = true;
+            } else {
+                confirmPasswordInput.classList.remove('is-invalid');
+                passwordFeedback.style.display = 'none';
+                createUserBtn.disabled = false;
+            }
+        }
+        
+        if (passwordInput && confirmPasswordInput) {
+            passwordInput.addEventListener('input', validatePasswords);
+            confirmPasswordInput.addEventListener('input', validatePasswords);
+        }
+        
+        // Validación de contraseñas en el formulario de edición
+        const editPasswordInput = document.getElementById('edit_password');
+        const editConfirmPasswordInput = document.getElementById('edit_confirm_password');
+        const editPasswordFeedback = document.getElementById('edit-password-feedback');
+        const updateUserBtn = document.getElementById('updateUserBtn');
+        
+        function validateEditPasswords() {
+            // Solo validar si se están ingresando contraseñas
+            if (editPasswordInput.value || editConfirmPasswordInput.value) {
+                if (editPasswordInput.value !== editConfirmPasswordInput.value) {
+                    editConfirmPasswordInput.classList.add('is-invalid');
+                    editPasswordFeedback.style.display = 'block';
+                    updateUserBtn.disabled = true;
+                } else {
+                    editConfirmPasswordInput.classList.remove('is-invalid');
+                    editPasswordFeedback.style.display = 'none';
+                    updateUserBtn.disabled = false;
+                }
+            } else {
+                // Si ambos campos están vacíos, no hay error
+                editConfirmPasswordInput.classList.remove('is-invalid');
+                editPasswordFeedback.style.display = 'none';
+                updateUserBtn.disabled = false;
+            }
+        }
+        
+        if (editPasswordInput && editConfirmPasswordInput) {
+            editPasswordInput.addEventListener('input', validateEditPasswords);
+            editConfirmPasswordInput.addEventListener('input', validateEditPasswords);
+        }
+        
+        // Configurar modal de edición
+        const editUserModal = document.getElementById('editUserModal');
+        if (editUserModal) {
+            editUserModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const userId = button.getAttribute('data-user-id');
+                const username = button.getAttribute('data-username');
+                const fullname = button.getAttribute('data-fullname');
+                const email = button.getAttribute('data-email');
+                const disabled = button.getAttribute('data-disabled') === '1';
+                const isAdmin = button.getAttribute('data-admin') === '1';
+                
+                // Establecer valores en el formulario
+                document.getElementById('edit_user_id').value = userId;
+                document.getElementById('edit_username').value = username;
+                document.getElementById('edit_full_name').value = fullname;
+                document.getElementById('edit_email').value = email;
+                document.getElementById('edit_disabled').checked = disabled;
+                document.getElementById('edit_is_admin').checked = isAdmin;
+                
+                // Limpiar campos de contraseña
+                document.getElementById('edit_password').value = '';
+                document.getElementById('edit_confirm_password').value = '';
+            });
+        }
+        
+        // Configurar modal de eliminación
+        const deleteUserModal = document.getElementById('deleteUserModal');
+        if (deleteUserModal) {
+            deleteUserModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const userId = button.getAttribute('data-user-id');
+                const username = button.getAttribute('data-username');
+                
+                document.getElementById('delete_user_id').value = userId;
+                document.getElementById('delete_username').textContent = username;
+            });
+        }
+        
+        // Manejo de formularios AJAX
+        document.getElementById('createUserForm').addEventListener('submit', function(event) {
+            event.preventDefault();
             
-            // Filtrar por término de búsqueda
-            const matchesSearch = !searchTerm || 
-                username.includes(searchTerm) || 
-                email.includes(searchTerm) || 
-                fullName.includes(searchTerm);
-            
-            // Filtrar por estado
-            let matchesStatus = true;
-            if (statusValue === 'active') {
-                matchesStatus = isActive;
-            } else if (statusValue === 'inactive') {
-                matchesStatus = !isActive;
+            // Validar contraseñas
+            if (passwordInput.value !== confirmPasswordInput.value) {
+                confirmPasswordInput.classList.add('is-invalid');
+                return;
             }
             
-            // Filtrar por tipo
-            let matchesType = true;
-            if (typeValue === 'admin') {
-                matchesType = isAdmin;
-            } else if (typeValue === 'user') {
-                matchesType = !isAdmin;
-            }
+            // Crear FormData
+            const formData = new FormData(this);
             
-            // Mostrar u ocultar fila
-            row.style.display = (matchesSearch && matchesStatus && matchesType) ? '' : 'none';
+            // Enviar petición
+            fetch('/users', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Usuario creado correctamente');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.detail);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Ha ocurrido un error al crear el usuario');
+            });
         });
-    }
-    
-    // Aplicar filtros al cambiar valores
-    if (searchInput) searchInput.addEventListener('input', filterTable);
-    if (statusFilter) statusFilter.addEventListener('change', filterTable);
-    if (typeFilter) typeFilter.addEventListener('change', filterTable);
-}
+        
+        document.getElementById('editUserForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            // Validar contraseñas si se están cambiando
+            if (editPasswordInput.value || editConfirmPasswordInput.value) {
+                if (editPasswordInput.value !== editConfirmPasswordInput.value) {
+                    editConfirmPasswordInput.classList.add('is-invalid');
+                    return;
+                }
+            }
+            
+            // Crear FormData
+            const formData = new FormData(this);
+            
+            // Enviar petición
+            fetch('/users/edit', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Usuario actualizado correctamente');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.detail);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Ha ocurrido un error al actualizar el usuario');
+            });
+        });
+        
+        document.getElementById('deleteUserForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            // Crear FormData
+            const formData = new FormData(this);
+            
+            // Enviar petición
+            fetch('/users/delete', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Usuario eliminado correctamente');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.detail);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Ha ocurrido un error al eliminar el usuario');
+            });
+        });
+    });
 </script>
 {% endblock %}

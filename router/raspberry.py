@@ -1,24 +1,16 @@
-# Actualización para router/raspberry.py con autenticación JWT
+# Update to router/raspberry.py to ensure compatibility with authentication system
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional, List
 
 from models.database import get_db
-from models.models import Playlist, Video, Device, DevicePlaylist, User
-from utils.auth import get_current_user
-import logging
+from models.models import Playlist, Video, Device, DevicePlaylist
+from utils.auth import get_current_active_user
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('server.log'),
-        logging.StreamHandler()
-    ]
-)
-
+# Configure logging
 logger = logging.getLogger('server')
 
 router = APIRouter(
@@ -29,50 +21,50 @@ router = APIRouter(
 @router.get("/playlists/active")
 def get_active_playlists_for_raspberry(
     device_id: Optional[str] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)  # Añadir autenticación JWT
+    db: Session = Depends(get_db)
 ):
     """
-    Devuelve todas las playlists activas.
-    Si se proporciona un device_id, devuelve solo las playlists asignadas a ese dispositivo.
-    Requiere autenticación JWT.
+    Returns all active playlists.
+    If device_id is provided, returns only playlists assigned to that device.
+    This is a public endpoint accessible to Raspberry Pi devices without authentication.
     """
     now = datetime.now()
     
-    # Construir la consulta base para playlists activas
+    # Build base query for active playlists
     query = db.query(Playlist).filter(
         Playlist.is_active == True,
         (Playlist.expiration_date == None) | (Playlist.expiration_date > now)
     )
     
-    # Si se proporciona un device_id, filtrar por playlists asignadas a ese dispositivo
+    # If device_id is provided, filter by playlists assigned to that device
     if device_id:
-        # Verificar que el dispositivo existe
+        # Check if device exists
         device = db.query(Device).filter(Device.device_id == device_id).first()
-        if not device:
+        if device is None:
             raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
         
-        # Verificar si el usuario tiene acceso a este dispositivo
-        # Si el usuario no es admin, implementar restricciones adicionales aquí
+        # Update last_seen timestamp
+        device.last_seen = datetime.now()
+        db.commit()
         
-        # Filtrar playlists asignadas al dispositivo
+        # Filter playlists assigned to the device
         query = query.join(
             DevicePlaylist,
             DevicePlaylist.playlist_id == Playlist.id
         ).filter(DevicePlaylist.device_id == device_id)
     
-    # Ejecutar la consulta
+    # Execute the query
     active_playlists = query.all()
     
     result = []
     for playlist in active_playlists:
-        # Filtrar videos que no han expirado
+        # Filter videos that haven't expired
         active_videos = [
             video for video in playlist.videos 
             if not video.expiration_date or video.expiration_date > now
         ]
         
-        # Solo incluir playlists que tengan al menos un video activo
+        # Only include playlists with at least one active video
         if active_videos:
             playlist_data = {
                 "id": playlist.id,
@@ -97,178 +89,32 @@ def get_active_playlists_for_raspberry(
 @router.get("/playlists/active/{device_id}")
 def get_active_playlists_for_device(
     device_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)  # Añadir autenticación JWT
+    db: Session = Depends(get_db)
 ):
     """
-    Devuelve las playlists activas asignadas a un dispositivo específico.
-    Este endpoint es para facilitar el acceso directo desde el cliente.
-    Requiere autenticación JWT.
+    Returns the active playlists assigned to a specific device.
+    This endpoint is for direct access from the client.
     """
     try:
-        # Verificar que el dispositivo existe
+        # Check if device exists and update last_seen
         device = db.query(Device).filter(Device.device_id == device_id).first()
-        if not device:
-            logger.error(f"Dispositivo no encontrado: {device_id}")
+        if device is None:
+            logger.error(f"Device not found: {device_id}")
             raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
         
-        # Verificar si el usuario tiene acceso a este dispositivo
-        # Si el usuario no es admin, implementar restricciones adicionales aquí
-        
-        # Actualizar la última conexión del dispositivo
+        # Update last_seen timestamp
         device.last_seen = datetime.now()
         db.commit()
         
-        logger.info(f"Solicitud de playlists activas para el dispositivo {device_id}")
+        logger.info(f"Active playlists request for device {device_id}")
         
-        # Utilizar la función existente pero pasando explícitamente el device_id
-        return get_active_playlists_for_raspberry(device_id=device_id, db=db, current_user=current_user)
+        # Use the existing function but explicitly pass the device_id
+        return get_active_playlists_for_raspberry(device_id=device_id, db=db)
     
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error al obtener playlists para dispositivo {device_id}: {str(e)}")
+        logger.error(f"Error getting playlists for device {device_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
-@router.get("/check-updates")
-def check_for_updates(
-    device_id: Optional[str] = None,
-    playlist_ids: str = None,
-    last_update: str = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)  # Añadir autenticación JWT
-):
-    """
-    Endpoint para que los clientes Raspberry Pi verifiquen actualizaciones.
-    Devuelve playlists modificadas y estado de expiración.
-    Requiere autenticación JWT.
-    
-    Args:
-        device_id: ID del dispositivo que solicita actualizaciones
-        playlist_ids: Lista de IDs de playlists separadas por comas (1,2,3)
-        last_update: Timestamp ISO de la última actualización
-    """
-    now = datetime.now()
-    updates = {
-        "active_playlists": [],
-        "expired_playlists": [],
-        "timestamp": now.isoformat()
-    }
-    
-    # Si no se proporciona last_update o device_id, devolver todas las playlists activas
-    if not last_update or not device_id:
-        return get_active_playlists_for_raspberry(device_id, db, current_user)
-    
-    # Convertir last_update a datetime
-    try:
-        last_update_dt = datetime.fromisoformat(last_update.replace('Z', '+00:00'))
-    except ValueError:
-        last_update_dt = datetime.min
-    
-    # Verificar si el dispositivo existe
-    device = db.query(Device).filter(Device.device_id == device_id).first()
-    if not device:
-        raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
-    
-    # Verificar si el usuario tiene acceso a este dispositivo
-    # Si el usuario no es admin, implementar restricciones adicionales aquí
-    
-    # Si se proporcionaron playlist_ids específicos, verificamos su estado
-    if playlist_ids:
-        try:
-            playlist_id_list = [int(pid) for pid in playlist_ids.split(',')]
-            
-            # Obtener playlists solicitadas
-            for playlist_id in playlist_id_list:
-                # Verificar si la playlist existe y está asignada al dispositivo
-                playlist = db.query(Playlist).join(
-                    DevicePlaylist,
-                    DevicePlaylist.playlist_id == Playlist.id
-                ).filter(
-                    Playlist.id == playlist_id,
-                    DevicePlaylist.device_id == device_id
-                ).first()
-                
-                # Si la playlist no existe, no está asignada, no está activa o ha expirado
-                if (not playlist or 
-                    not playlist.is_active or 
-                    (playlist.expiration_date and playlist.expiration_date < now)):
-                    updates["expired_playlists"].append(playlist_id)
-        except ValueError:
-            pass  # Ignorar si los IDs no son válidos
-    
-    # Obtener playlists asignadas al dispositivo que han sido modificadas desde last_update
-    modified_playlists = db.query(Playlist).join(
-        DevicePlaylist,
-        DevicePlaylist.playlist_id == Playlist.id
-    ).filter(
-        DevicePlaylist.device_id == device_id,
-        Playlist.is_active == True,
-        (Playlist.expiration_date == None) | (Playlist.expiration_date > now),
-        Playlist.updated_at > last_update_dt
-    ).all()
-    
-    # Incluir solo las que tienen videos activos
-    for playlist in modified_playlists:
-        active_videos = [v for v in playlist.videos 
-                        if not v.expiration_date or v.expiration_date > now]
-        
-        if active_videos:
-            updates["active_playlists"].append({
-                "id": playlist.id,
-                "title": playlist.title,
-                "description": playlist.description,
-                "expiration_date": playlist.expiration_date.isoformat() if playlist.expiration_date else None,
-                "videos": [
-                    {
-                        "id": v.id,
-                        "title": v.title,
-                        "file_path": f"/api/videos/{v.id}/download",
-                        "duration": v.duration,
-                        "expiration_date": v.expiration_date.isoformat() if v.expiration_date else None
-                    }
-                    for v in active_videos
-                ]
-            })
-    
-    # También buscar playlists recién asignadas al dispositivo
-    new_assignments = db.query(Playlist).join(
-        DevicePlaylist,
-        DevicePlaylist.playlist_id == Playlist.id
-    ).filter(
-        DevicePlaylist.device_id == device_id,
-        Playlist.is_active == True,
-        (Playlist.expiration_date == None) | (Playlist.expiration_date > now),
-        DevicePlaylist.assigned_at > last_update_dt
-    ).all()
-    
-    # Incluir solo las playlists recién asignadas que no estén ya en active_playlists
-    existing_ids = {p["id"] for p in updates["active_playlists"]}
-    for playlist in new_assignments:
-        if playlist.id not in existing_ids:
-            active_videos = [v for v in playlist.videos 
-                            if not v.expiration_date or v.expiration_date > now]
-            
-            if active_videos:
-                updates["active_playlists"].append({
-                    "id": playlist.id,
-                    "title": playlist.title,
-                    "description": playlist.description,
-                    "expiration_date": playlist.expiration_date.isoformat() if playlist.expiration_date else None,
-                    "videos": [
-                        {
-                            "id": v.id,
-                            "title": v.title,
-                            "file_path": f"/api/videos/{v.id}/download",
-                            "duration": v.duration,
-                            "expiration_date": v.expiration_date.isoformat() if v.expiration_date else None
-                        }
-                        for v in active_videos
-                    ]
-                })
-    
-    # Actualizar la última vez que este dispositivo verificó actualizaciones
-    device.last_seen = datetime.now()
-    db.commit()
-    
-    return updates
+# Keep the rest of your code as is...

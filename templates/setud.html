@@ -1,0 +1,158 @@
+<!-- templates/setup.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración Inicial</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .setup-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 30px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+        .setup-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .setup-header h1 {
+            color: #0d6efd;
+            font-weight: 600;
+        }
+        .setup-form {
+            margin-bottom: 20px;
+        }
+        .error-message {
+            color: #dc3545;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        .form-control {
+            border-radius: 5px;
+            padding: 10px 12px;
+        }
+        .setup-button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            color: #6c757d;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="setup-container">
+            <div class="setup-header">
+                <h1>Configuración Inicial</h1>
+                <p class="text-muted">Crear Usuario Administrador</p>
+            </div>
+            
+            {% if error %}
+            <div class="alert alert-danger error-message">
+                {{ error }}
+            </div>
+            {% endif %}
+            
+            {% if success %}
+            <div class="alert alert-success">
+                <h4 class="alert-heading">¡Configuración completada!</h4>
+                <p>El usuario administrador ha sido creado correctamente. Ahora puede <a href="/login" class="alert-link">iniciar sesión</a> con las credenciales que ha configurado.</p>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <p><strong>Importante:</strong> Esta página solo está disponible para la configuración inicial. Una vez que se cree el usuario administrador, esta página dejará de estar disponible.</p>
+            </div>
+            
+            <form class="setup-form" action="/setup/init" method="post">
+                <div class="mb-3">
+                    <label for="setup_key" class="form-label">Clave de Configuración</label>
+                    <input type="password" class="form-control" id="setup_key" name="setup_key" 
+                            placeholder="Ingrese la clave de configuración" required>
+                    <div class="form-text">Contacte al administrador del sistema para obtener esta clave.</div>
+                </div>
+                
+                <h5 class="mb-3">Datos del Administrador</h5>
+                
+                <div class="mb-3">
+                    <label for="admin_username" class="form-label">Nombre de Usuario</label>
+                    <input type="text" class="form-control" id="admin_username" name="admin_username" 
+                            placeholder="Nombre de usuario para acceder al sistema" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="admin_password" class="form-label">Contraseña</label>
+                    <input type="password" class="form-control" id="admin_password" name="admin_password" 
+                            placeholder="Contraseña segura" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="admin_confirm_password" class="form-label">Confirmar Contraseña</label>
+                    <input type="password" class="form-control" id="admin_confirm_password" 
+                            placeholder="Repetir contraseña" required>
+                    <div id="password-match-error" class="form-text text-danger d-none">Las contraseñas no coinciden.</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="admin_email" class="form-label">Correo Electrónico</label>
+                    <input type="email" class="form-control" id="admin_email" name="admin_email" 
+                            placeholder="ejemplo@dominio.com" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="admin_full_name" class="form-label">Nombre Completo</label>
+                    <input type="text" class="form-control" id="admin_full_name" name="admin_full_name" 
+                            placeholder="Nombre y apellidos" required>
+                </div>
+                
+                <button type="submit" class="btn btn-primary setup-button" id="submit-btn">Crear Usuario Administrador</button>
+            </form>
+            {% endif %}
+            
+            <div class="footer">
+                &copy; 2025 Raspberry Pi Registry - Sistema de Gestión
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Verificar que las contraseñas coinciden
+        document.addEventListener('DOMContentLoaded', function() {
+            const passwordInput = document.getElementById('admin_password');
+            const confirmPasswordInput = document.getElementById('admin_confirm_password');
+            const passwordMatchError = document.getElementById('password-match-error');
+            const submitBtn = document.getElementById('submit-btn');
+            
+            function checkPasswords() {
+                if (passwordInput.value && confirmPasswordInput.value) {
+                    if (passwordInput.value !== confirmPasswordInput.value) {
+                        passwordMatchError.classList.remove('d-none');
+                        submitBtn.disabled = true;
+                    } else {
+                        passwordMatchError.classList.add('d-none');
+                        submitBtn.disabled = false;
+                    }
+                }
+            }
+            
+            if (passwordInput && confirmPasswordInput) {
+                passwordInput.addEventListener('input', checkPasswords);
+                confirmPasswordInput.addEventListener('input', checkPasswords);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,306 +1,221 @@
-# app/router/auth.py
-
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+# router/auth.py
+from fastapi import APIRouter, Request, Response, Depends, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from typing import List
+from typing import Optional
+import os
 
 from models.database import get_db
-from models import models, schemas
+from models import models
 from utils.auth import (
     authenticate_user, 
     create_access_token, 
-    get_current_user, 
-    get_current_active_admin,
+    get_current_active_user,
+    get_password_hash,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
 
-router = APIRouter(
-    prefix="/api/auth",
-    tags=["auth"]
-)
+# Create the auth router
+router = APIRouter(tags=["auth"])
 
-@router.post("/login", response_model=schemas.TokenResponse)
+# Set up templates
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+
+# Login page route
+@router.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request, next: Optional[str] = None):
+    """Return the login page HTML"""
+    # Check if user is already logged in
+    if request.session.get("access_token"):
+        # If next parameter exists, redirect there, otherwise to homepage
+        if next:
+            return RedirectResponse(url=next, status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(url="/ui/", status_code=status.HTTP_303_SEE_OTHER)
+    
+    # Render login page
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "title": "Login", "next": next}
+    )
+
+# Login API endpoint
+@router.post("/login")
+async def login(
+    request: Request,
+    response: Response,
+    username: str = Form(...),
+    password: str = Form(...),
+    next: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    """Handle login form submission"""
+    # Authenticate user
+    user = authenticate_user(db, username, password)
+    if not user:
+        # If authentication fails, redirect back to login with error
+        return templates.TemplateResponse(
+            "login.html",
+            {
+                "request": request,
+                "title": "Login",
+                "error": "Invalid username or password",
+                "username": username,
+                "next": next
+            },
+            status_code=status.HTTP_401_UNAUTHORIZED
+        )
+    
+    # Create access token for the user
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username},
+        expires_delta=access_token_expires
+    )
+    
+    # Update last login timestamp
+    user.last_login = datetime.now()
+    db.commit()
+    
+    # Store token in session
+    request.session["access_token"] = access_token
+    request.session["username"] = user.username
+    request.session["is_admin"] = user.is_admin
+    
+    # Redirect to requested next page or home
+    redirect_url = next if next else "/ui/"
+    return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
+
+# Logout route
+@router.get("/logout")
+async def logout(request: Request):
+    """Log the user out by clearing the session"""
+    # Clear session
+    request.session.clear()
+    # Redirect to login page
+    return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+
+# API token endpoint for OAuth2
+@router.post("/token")
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    """
-    Permite a los usuarios iniciar sesión y obtener un token JWT
-    """
-    # Autenticar usuario
-    user = authenticate_user(form_data.username, form_data.password, db)
+    """Handle API token requests using OAuth2"""
+    # Authenticate user
+    user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Nombre de usuario o contraseña incorrectos",
+            detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Crear datos para el token
-    token_data = {"sub": str(user.id)}
-    
-    # Generar token de acceso
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data=token_data,
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        data={"sub": user.username},
+        expires_delta=access_token_expires
     )
     
-    # Convertir el usuario a esquema de respuesta
-    user_response = schemas.UserResponse(
-        id=user.id,
-        username=user.username,
-        email=user.email,
-        full_name=user.full_name,
-        is_active=user.is_active,
-        is_admin=user.is_admin,
-        created_at=user.created_at,
-        last_login=user.last_login
-    )
+    # Update last login timestamp
+    user.last_login = datetime.now()
+    db.commit()
     
-    # Retornar el token de acceso
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # en segundos
-        "user": user_response
-    }
+    # Return token
+    return {"access_token": access_token, "token_type": "bearer"}
 
-@router.post("/token", response_model=schemas.TokenResponse)
-async def get_token(
-    login_data: schemas.TokenRequest,
+# User registration (administrative function)
+@router.post("/users")
+async def create_user(
+    username: str = Form(...),
+    password: str = Form(...),
+    email: str = Form(...),
+    full_name: str = Form(...),
+    is_admin: bool = Form(False),
+    current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Endpoint alternativo para obtener token usando JSON en lugar de form-data
-    """
-    # Autenticar usuario
-    user = authenticate_user(login_data.username, login_data.password, db)
-    if not user:
+    """Create a new user (requires admin privileges)"""
+    # Check if current user is admin
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can create users"
+        )
+    
+    # Check if username already exists
+    existing_user = db.query(models.User).filter(models.User.username == username).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already registered"
+        )
+    
+    # Check if email already exists
+    existing_email = db.query(models.User).filter(models.User.email == email).first()
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    # Create new user
+    db_user = models.User(
+        username=username,
+        email=email,
+        full_name=full_name,
+        hashed_password=get_password_hash(password),
+        is_admin=is_admin
+    )
+    
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    
+    return {"username": db_user.username, "email": db_user.email, "success": True}
+
+# Initial setup route to create the first admin user
+@router.post("/setup/init")
+async def initialize_admin(
+    request: Request,
+    setup_key: str = Form(...),
+    admin_username: str = Form(...),
+    admin_password: str = Form(...),
+    admin_email: str = Form(...),
+    admin_full_name: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """Initialize the first admin user - only works if there are no users in the database"""
+    # Check setup key (should be set as an environment variable in production)
+    expected_key = os.environ.get("SETUP_KEY", "defaultsetupkey")
+    if setup_key != expected_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Nombre de usuario o contraseña incorrectos"
+            detail="Invalid setup key"
         )
     
-    # Crear datos para el token
-    token_data = {"sub": str(user.id)}
-    
-    # Generar token de acceso
-    access_token = create_access_token(
-        data=token_data,
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
-    
-    # Convertir el usuario a esquema de respuesta
-    user_response = schemas.UserResponse(
-        id=user.id,
-        username=user.username,
-        email=user.email,
-        full_name=user.full_name,
-        is_active=user.is_active,
-        is_admin=user.is_admin,
-        created_at=user.created_at,
-        last_login=user.last_login
-    )
-    
-    # Retornar el token de acceso
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # en segundos
-        "user": user_response
-    }
-
-@router.post("/register", response_model=schemas.UserResponse)
-async def register_user(
-    user_data: schemas.UserCreate,
-    db: Session = Depends(get_db)
-):
-    """
-    Permite a los usuarios registrarse en el sistema
-    """
-    # Verificar si el nombre de usuario ya existe
-    db_user = db.query(models.User).filter(models.User.username == user_data.username).first()
-    if db_user:
+    # Check if any users already exist
+    user_count = db.query(models.User).count()
+    if user_count > 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El nombre de usuario ya está registrado"
+            detail="Setup has already been completed. Users exist in the database."
         )
     
-    # Verificar si el correo electrónico ya existe
-    db_email = db.query(models.User).filter(models.User.email == user_data.email).first()
-    if db_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El correo electrónico ya está registrado"
-        )
-    
-    # Crear nuevo usuario
-    new_user = models.User(
-        username=user_data.username,
-        email=user_data.email,
-        full_name=user_data.full_name,
-        is_active=True,
-        is_admin=False,  # Los usuarios registrados no son administradores por defecto
-        created_at=datetime.now()
+    # Create the admin user
+    admin_user = models.User(
+        username=admin_username,
+        email=admin_email,
+        full_name=admin_full_name,
+        hashed_password=get_password_hash(admin_password),
+        is_admin=True
     )
-    # Establecer la contraseña (será hasheada por el setter)
-    new_user.password = user_data.password
     
-    # Guardar en la base de datos
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    return schemas.UserResponse(
-        id=new_user.id,
-        username=new_user.username,
-        email=new_user.email,
-        full_name=new_user.full_name,
-        is_active=new_user.is_active,
-        is_admin=new_user.is_admin,
-        created_at=new_user.created_at,
-        last_login=new_user.last_login
-    )
-
-@router.get("/users/me", response_model=schemas.UserResponse)
-async def read_users_me(
-    current_user: models.User = Depends(get_current_user)
-):
-    """
-    Devuelve la información del usuario actualmente autenticado
-    """
-    return current_user
-
-@router.put("/users/me", response_model=schemas.UserResponse)
-async def update_user_me(
-    user_update: schemas.UserUpdate,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Permite al usuario actualizar su propia información
-    """
-    # No permitir cambiar is_admin desde aquí
-    if hasattr(user_update, 'is_admin'):
-        delattr(user_update, 'is_admin')
-    
-    # Actualizar los campos proporcionados
-    update_data = user_update.dict(exclude_unset=True, exclude={'is_admin'})
-    for key, value in update_data.items():
-        setattr(current_user, key, value)
-    
-    db.commit()
-    db.refresh(current_user)
-    
-    return current_user
-
-@router.post("/users/me/change-password", response_model=dict)
-async def change_password(
-    password_data: schemas.PasswordChange,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Permite al usuario cambiar su contraseña
-    """
-    # Verificar la contraseña actual
-    if not current_user.verify_password(password_data.current_password):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La contraseña actual es incorrecta"
-        )
-    
-    # Cambiar la contraseña
-    current_user.password = password_data.new_password
+    db.add(admin_user)
     db.commit()
     
-    return {"message": "Contraseña actualizada correctamente"}
-
-# === Endpoints de administración de usuarios (solo para administradores) ===
-
-@router.get("/users", response_model=List[schemas.UserResponse])
-async def get_users(
-    skip: int = 0,
-    limit: int = 100,
-    current_user: models.User = Depends(get_current_active_admin),
-    db: Session = Depends(get_db)
-):
-    """
-    Obtiene la lista de usuarios (solo administradores)
-    """
-    users = db.query(models.User).offset(skip).limit(limit).all()
-    return users
-
-@router.get("/users/{user_id}", response_model=schemas.UserResponse)
-async def get_user(
-    user_id: int,
-    current_user: models.User = Depends(get_current_active_admin),
-    db: Session = Depends(get_db)
-):
-    """
-    Obtiene un usuario por su ID (solo administradores)
-    """
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
-        )
-    return user
-
-@router.put("/users/{user_id}", response_model=schemas.UserResponse)
-async def update_user(
-    user_id: int,
-    user_update: schemas.UserUpdate,
-    current_user: models.User = Depends(get_current_active_admin),
-    db: Session = Depends(get_db)
-):
-    """
-    Actualiza un usuario por su ID (solo administradores)
-    """
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
-        )
-    
-    # Actualizar los campos proporcionados
-    update_data = user_update.dict(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(user, key, value)
-    
-    db.commit()
-    db.refresh(user)
-    
-    return user
-
-@router.delete("/users/{user_id}", response_model=dict)
-async def delete_user(
-    user_id: int,
-    current_user: models.User = Depends(get_current_active_admin),
-    db: Session = Depends(get_db)
-):
-    """
-    Elimina un usuario por su ID (solo administradores)
-    """
-    # No permitir eliminar al propio usuario administrador
-    if user_id == current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No puedes eliminar tu propia cuenta de administrador"
-        )
-    
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
-        )
-    
-    db.delete(user)
-    db.commit()
-    
-    return {"message": "Usuario eliminado correctamente"}
+    return {"success": True, "message": "Admin user created successfully"}

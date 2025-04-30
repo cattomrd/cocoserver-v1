@@ -200,3 +200,45 @@ def apply_migration(engine):
 # Ejemplo de uso:
 # from models.database import engine
 # apply_migration(engine)
+
+# Agregar esto al archivo models/models.py después de las clases existentes
+
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint, Float, func
+from sqlalchemy.orm import relationship
+from passlib.context import CryptContext
+
+# Configuración de encriptación de contraseñas
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, nullable=False, index=True)
+    email = Column(String, unique=True, nullable=False, index=True)
+    full_name = Column(String, nullable=True)
+    hashed_password = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=func.now())
+    last_login = Column(DateTime, nullable=True)
+    
+    @property
+    def password(self):
+        raise AttributeError("La contraseña no puede ser leída directamente")
+    
+    @password.setter
+    def password(self, password):
+        self.hashed_password = pwd_context.hash(password)
+    
+    def verify_password(self, password):
+        return pwd_context.verify(password, self.hashed_password)
+
+# Método para verificar contraseña desde cualquier parte del código
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+# Método para hashear contraseña desde cualquier parte del código
+def get_password_hash(password):
+    return pwd_context.hash(password)
+

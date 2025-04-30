@@ -9,6 +9,7 @@ import httpx
 import sys
 import os
 from datetime import datetime
+from utils.auth import get_current_user, get_current_active_admin
 current_timestamp = datetime.now().timestamp()
 # Añadir la ruta del directorio padre al path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -32,6 +33,129 @@ async def get_dashboard(request: Request):
     Página principal del dashboard
     """
     return templates.TemplateResponse("index.html", {"request": request, "title": "Raspberry Pi Registry"})
+
+
+@router.get("/admin", response_class=HTMLResponse)
+async def get_admin_page(
+    request: Request,
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Panel de administración (solo para administradores)
+    """
+    # Verificar si el usuario es administrador
+    if not current_user.is_admin:
+        return templates.TemplateResponse(
+            "message.html",
+            {
+                "request": request,
+                "title": "Acceso Denegado",
+                "message": "No tienes permisos de administrador para acceder a esta página.",
+                "type": "danger",
+                "redirect_url": "/ui/",
+                "redirect_text": "Volver al Inicio",
+                "auto_redirect": 3
+            }
+        )
+    
+    return templates.TemplateResponse(
+        "admin.html",
+        {
+            "request": request,
+            "title": "Panel de Administración",
+            "user": current_user
+        }
+    )
+
+@router.get("/users", response_class=HTMLResponse)
+async def get_users_page(
+    request: Request,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Página de gestión de usuarios (solo para administradores)
+    """    
+# Verificar si el usuario es administrador
+    if not current_user:
+        return templates.TemplateResponse(
+            "message.html",
+            {
+                "request": request,
+                "title": "Acceso Denegado",
+                "message": "No tienes permisos de administrador para acceder a esta página.",
+                "type": "danger",
+                "redirect_url": "/ui/",
+                "redirect_text": "Volver al Inicio",
+                "auto_redirect": 3
+            }
+        )
+
+    # Obtener todos los usuarios
+    users = db.query(models.User).all()
+    
+    return templates.TemplateResponse(
+        "users.html",
+        {
+            "request": request,
+            "title": "Gestión de Usuarios",
+            "users": users,
+            "current_user": current_user
+        }
+    )
+
+@router.get("/users/{user_id}", response_class=HTMLResponse)
+async def get_user_detail(
+    request: Request,
+    user_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Página de detalle de usuario (solo para administradores)
+    """
+    # Verificar si el usuario es administrador
+    if not current_user.is_admin:
+        return templates.TemplateResponse(
+            "message.html",
+            {
+                "request": request,
+                "title": "Acceso Denegado",
+                "message": "No tienes permisos de administrador para acceder a esta página.",
+                "type": "danger",
+                "redirect_url": "/ui/",
+                "redirect_text": "Volver al Inicio",
+                "auto_redirect": 3
+            }
+        )
+    
+    # Obtener el usuario especificado
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        return templates.TemplateResponse(
+            "message.html",
+            {
+                "request": request,
+                "title": "Usuario no encontrado",
+                "message": "El usuario solicitado no existe.",
+                "type": "warning",
+                "redirect_url": "/ui/users",
+                "redirect_text": "Volver a la lista de usuarios",
+                "auto_redirect": 3
+            }
+        )
+    
+    return templates.TemplateResponse(
+        "user_detail.html",
+        {
+            "request": request,
+            "title": f"Usuario: {user.username}",
+            "user": user,
+            "current_user": current_user
+        }
+    )
+
+
 
 @router.get("/devices", response_class=HTMLResponse)
 async def get_devices_page(
@@ -271,5 +395,4 @@ async def update_device_info(
     
     # Redirigir a la página de detalle
     return RedirectResponse(url=f"/ui/devices/{device_id}", status_code=303)
-
 

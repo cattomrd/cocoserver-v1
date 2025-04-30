@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Iniciar Sesión</h4>
+            </div>
+            <div class="card-body">
+                <div id="loginAlert" class="alert alert-danger d-none" role="alert">
+                    <!-- Mensajes de error aparecerán aquí -->
+                </div>
+
+                <form id="loginForm" method="post">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Usuario o Email</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Contraseña</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Iniciar Sesión</button>
+                    </div>
+                </form>
+                
+                <hr>
+                <div class="text-center">
+                    <p>¿No tienes una cuenta? <a href="/ui/register">Regístrate</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loginForm = document.getElementById('loginForm');
+    const loginAlert = document.getElementById('loginAlert');
+    
+    loginForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // Ocultar alerta previa
+        loginAlert.classList.add('d-none');
+        
+        // Obtener datos del formulario
+        const formData = {
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value
+        };
+        
+        try {
+            // Realizar la petición de login
+            const response = await fetch('/api/auth/token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            if (!response.ok) {
+                // Mostrar mensaje de error
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Error de autenticación');
+            }
+            
+            // Procesar respuesta exitosa
+            const data = await response.json();
+            
+            // Guardar token en localStorage
+            localStorage.setItem('auth_token', data.access_token);
+            localStorage.setItem('token_type', data.token_type);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            
+            // Calcular y guardar tiempo de expiración
+            const expiresAt = new Date();
+            expiresAt.setSeconds(expiresAt.getSeconds() + data.expires_in);
+            localStorage.setItem('expires_at', expiresAt.toISOString());
+            
+            // Redireccionar a la página principal
+            window.location.href = '/ui/';
+            
+        } catch (error) {
+            // Mostrar mensaje de error
+            loginAlert.textContent = error.message || 'Error al iniciar sesión';
+            loginAlert.classList.remove('d-none');
+        }
+    });
+});
+</script>
+<script>
+    function checkAuthStatus() {
+        const token = localStorage.getItem('auth_token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        
+        console.log('Token:', token ? 'Presente' : 'Ausente');
+        console.log('Usuario:', user);
+        console.log('Es admin:', user.is_admin);
+        
+        alert(`Estado de autenticación:\nToken: ${token ? 'Presente' : 'Ausente'}\nUsuario: ${user.username || 'No encontrado'}\nEs admin: ${user.is_admin || 'No'}`);
+    }
+</script>
+<button onclick="checkAuthStatus()">Verificar Auth</button>
+{% endblock %}

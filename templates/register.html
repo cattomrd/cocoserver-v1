@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Crear Cuenta</h4>
+            </div>
+            <div class="card-body">
+                <div id="registerAlert" class="alert alert-danger d-none" role="alert">
+                    <!-- Mensajes de error aparecerán aquí -->
+                </div>
+
+                <form id="registerForm" method="post">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Nombre de Usuario</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Correo Electrónico</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="full_name" class="form-label">Nombre Completo</label>
+                        <input type="text" class="form-control" id="full_name" name="full_name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Contraseña</label>
+                        <input type="password" class="form-control" id="password" name="password" 
+                               minlength="8" required>
+                        <div class="form-text">La contraseña debe tener al menos 8 caracteres</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">Confirmar Contraseña</label>
+                        <input type="password" class="form-control" id="confirm_password" 
+                               name="confirm_password" required>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Registrarse</button>
+                    </div>
+                </form>
+                
+                <hr>
+                <div class="text-center">
+                    <p>¿Ya tienes una cuenta? <a href="/ui/login">Iniciar Sesión</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const registerForm = document.getElementById('registerForm');
+    const registerAlert = document.getElementById('registerAlert');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirm_password');
+    
+    // Validar que las contraseñas coincidan
+    function validatePasswords() {
+        if (passwordInput.value !== confirmPasswordInput.value) {
+            confirmPasswordInput.setCustomValidity('Las contraseñas no coinciden');
+        } else {
+            confirmPasswordInput.setCustomValidity('');
+        }
+    }
+    
+    passwordInput.addEventListener('change', validatePasswords);
+    confirmPasswordInput.addEventListener('keyup', validatePasswords);
+    
+    registerForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // Ocultar alerta previa
+        registerAlert.classList.add('d-none');
+        
+        // Verificar que las contraseñas coinciden
+        if (passwordInput.value !== confirmPasswordInput.value) {
+            registerAlert.textContent = 'Las contraseñas no coinciden';
+            registerAlert.classList.remove('d-none');
+            return;
+        }
+        
+        // Obtener datos del formulario
+        const formData = {
+            username: document.getElementById('username').value,
+            email: document.getElementById('email').value,
+            full_name: document.getElementById('full_name').value || null,
+            password: passwordInput.value,
+            confirm_password: confirmPasswordInput.value
+        };
+        
+        try {
+            // Realizar la petición de registro
+            const response = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            if (!response.ok) {
+                // Mostrar mensaje de error
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Error al registrar usuario');
+            }
+            
+            // Procesar respuesta exitosa
+            const data = await response.json();
+            
+            // Mostrar mensaje de éxito
+            registerAlert.textContent = '¡Registro exitoso! Redirigiendo para iniciar sesión...';
+            registerAlert.classList.remove('d-none');
+            registerAlert.classList.remove('alert-danger');
+            registerAlert.classList.add('alert-success');
+            
+            // Redireccionar a login después de 2 segundos
+            setTimeout(() => {
+                window.location.href = '/ui/login';
+            }, 2000);
+            
+        } catch (error) {
+            // Mostrar mensaje de error
+            registerAlert.textContent = error.message || 'Error al registrar usuario';
+            registerAlert.classList.remove('d-none');
+        }
+    });
+});
+</script>
+{% endblock %}

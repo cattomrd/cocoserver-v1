@@ -996,3 +996,4 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAssignedPlaylists();
     loadAvailablePlaylists();
 });
+

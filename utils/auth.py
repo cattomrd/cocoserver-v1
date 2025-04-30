@@ -7,7 +7,8 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from pydantic import ValidationError
-
+from fastapi import Request, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 from models.database import get_db
 from models import models, schemas
 
@@ -52,11 +53,28 @@ def verify_token(token: str):
     except JWTError:
         return None
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    """
-    Dependencia para obtener el usuario actual a partir del token JWT.
-    Se utiliza para proteger rutas que requieren autenticación.
-    """
+async def get_token_from_request(request: Request):
+    # Intenta obtener el token de la cookie primero
+    token = request.cookies.get("access_token")  # Ajusta el nombre de la cookie según tu configuración
+    
+    # Si no hay token en la cookie, intenta obtenerlo del header de autorización
+    if not token:
+        authorization = request.headers.get("Authorization")
+        if authorization and authorization.startswith("Bearer "):
+            token = authorization.replace("Bearer ", "")
+    
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    return token
+
+# Modifica la función get_current_user para usar la nueva dependencia
+async def get_current_user(token: str = Depends(get_token_from_request), db: Session = Depends(get_db)):
+    # El resto de la función permanece igual
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Credenciales inválidas",
@@ -67,20 +85,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     token_data = verify_token(token)
     if token_data is None:
         raise credentials_exception
-    
-    # Obtener usuario de la base de datos
-    user = db.query(models.User).filter(models.User.id == token_data["user_id"]).first()
-    if user is None:
-        raise credentials_exception
-    
-    # Verificar que el usuario esté activo
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Usuario inactivo"
-        )
-    
-    return user
 
 async def get_current_active_admin(current_user: models.User = Depends(get_current_user)):
     """

@@ -94,17 +94,4 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-<script>
-    function checkAuthStatus() {
-        const token = localStorage.getItem('auth_token');
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        
-        console.log('Token:', token ? 'Presente' : 'Ausente');
-        console.log('Usuario:', user);
-        console.log('Es admin:', user.is_admin);
-        
-        alert(`Estado de autenticación:\nToken: ${token ? 'Presente' : 'Ausente'}\nUsuario: ${user.username || 'No encontrado'}\nEs admin: ${user.is_admin || 'No'}`);
-    }
-</script>
-<button onclick="checkAuthStatus()">Verificar Auth</button>
 {% endblock %}

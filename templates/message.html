@@ -4,17 +4,17 @@
 <div class="row justify-content-center mt-5">
     <div class="col-md-8">
         <div class="card">
-            <div class="card-header bg-{{ type|default:'primary' }} text-white">
-                <h4 class="mb-0">{{ title|default:'Mensaje del Sistema' }}</h4>
+            <div class="card-header bg-{{ type | default('primary') }} text-white">
+                <h4 class="mb-0">{{ title|default('Mensaje del Sistema') }}</h4>
             </div>
             <div class="card-body">
-                <div class="alert alert-{{ type|default:'info' }}" role="alert">
-                    {{ message|default:'No hay mensaje disponible' }}
+                <div class="alert alert-{{ type|default('info') }}" role="alert">
+                    {{ message|default('No hay mensaje disponible') }}
                 </div>
                 
                 {% if redirect_url %}
                 <div class="text-center mt-4">
-                    <a href="{{ redirect_url }}" class="btn btn-primary">{{ redirect_text|default:'Continuar' }}</a>
+                    <a href="{{ redirect_url }}" class="btn btn-primary">{{ redirect_text|default('Continuar') }}</a>
                 </div>
                 {% endif %}
             </div>

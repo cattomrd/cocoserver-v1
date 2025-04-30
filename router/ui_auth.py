@@ -105,3 +105,5 @@ def add_auth_middleware(app):
         # Continuar con la solicitud
         response = await call_next(request)
         return response
+    
+    

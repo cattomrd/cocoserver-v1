@@ -9,7 +9,7 @@ import httpx
 import sys
 import os
 from datetime import datetime
-from utils.auth import get_current_user, get_current_active_admin
+from utils.auth import get_current_user
 current_timestamp = datetime.now().timestamp()
 # Añadir la ruta del directorio padre al path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -33,6 +33,24 @@ async def get_dashboard(request: Request):
     Página principal del dashboard
     """
     return templates.TemplateResponse("index.html", {"request": request, "title": "Raspberry Pi Registry"})
+
+
+@router.get("/profile", response_class=HTMLResponse)
+async def get_profile_page(
+    request: Request,
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Página de perfil de usuario
+    """
+    return templates.TemplateResponse(
+        "profile.html",
+        {
+            "request": request,
+            "title": "Mi Perfil",
+            "user": current_user
+        }
+    )
 
 
 @router.get("/admin", response_class=HTMLResponse)
@@ -70,14 +88,18 @@ async def get_admin_page(
 @router.get("/users", response_class=HTMLResponse)
 async def get_users_page(
     request: Request,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
     """
     Página de gestión de usuarios (solo para administradores)
-    """    
-# Verificar si el usuario es administrador
-    if not current_user:
+
+    Contexto pasado a la plantilla:
+    - "users": Lista de usuarios obtenida de la base de datos, limitada y paginada.
+    - "current_user": Usuario actual autenticado, utilizado para verificar permisos y mostrar información personalizada.
+    """
+    # Verificar si el usuario es administrador
+    if not current_user.is_active:
         return templates.TemplateResponse(
             "message.html",
             {
@@ -90,19 +112,18 @@ async def get_users_page(
                 "auto_redirect": 3
             }
         )
-
-    # Obtener todos los usuarios
-    users = db.query(models.User).all()
+    all_users = db.query(models.User).all()
     
     return templates.TemplateResponse(
         "users.html",
         {
             "request": request,
             "title": "Gestión de Usuarios",
-            "users": users,
+            "users": all_users,
             "current_user": current_user
         }
     )
+
 
 @router.get("/users/{user_id}", response_class=HTMLResponse)
 async def get_user_detail(
@@ -154,7 +175,6 @@ async def get_user_detail(
             "current_user": current_user
         }
     )
-
 
 
 @router.get("/devices", response_class=HTMLResponse)

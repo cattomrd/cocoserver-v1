@@ -14,7 +14,7 @@ from models import models
 from models.database import engine
 
 # Importar los routers
-from router import videos, playlists, raspberry, ui, services, devices, device_playlists, auth,ui_auth
+from router import videos, playlists, raspberry, ui, services_enhanced as services, devices, device_playlists, auth,ui_auth, device_service_api
 
 # Cargar variables de entorno
 load_dotenv()
@@ -68,6 +68,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 app.mount("/playlists", StaticFiles(directory=PLAYLIST_DIR), name="playlists")
 
+
 templates = Jinja2Templates(directory='templates')
 
 # Incluir los routers
@@ -80,6 +81,7 @@ app.include_router(ui.router)
 app.include_router(services.router)
 app.include_router(devices.router)
 app.include_router(device_playlists.router)
+app.include_router(device_service_api.router)
 
 # Middleware para verificar la salud de la API
 @app.middleware("http")

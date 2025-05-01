@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 import os
 import json
 from dotenv import load_dotenv
-from werkzeug.security import generate_password_hash, check_password_hash
 
 from models.database import get_db
 from models.models import User
@@ -97,8 +96,14 @@ def get_current_user(request: Request):
     return validate_session(session_id)
 
 def auth_middleware(
-    public_paths: List[str] = ["/login", "/static/", "/docs", "/redoc", "/openapi.json"],
-    admin_paths: List[str] = ["/ui/users/"],
+    public_paths: List[str] = ["/login", 
+                            "/static/", 
+                            "/api/raspberry/", 
+                            "/api/devices"],
+    admin_paths: List[str] = ["/ui/users/",
+                            "/docs", 
+                            "/redoc", 
+                            "/openapi.json", ],
     api_token_enabled: bool = True
 ):
     """

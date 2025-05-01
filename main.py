@@ -49,10 +49,8 @@ app.middleware("http")(
         public_paths=[
             "/login", 
             "/static/", 
-            "/docs", 
-            "/redoc", 
-            "/openapi.json",
             "/api/devices",  # Allow device registration
+            "/api/raspberry/", 
         ],
         admin_paths=[
             "/ui/users/",  # Only admins can access user management

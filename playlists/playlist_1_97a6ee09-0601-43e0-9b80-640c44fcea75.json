@@ -1,0 +1,15 @@
+{
+    "id": 1,
+    "title": "P2",
+    "description": "test",
+    "expiration_date": "2025-05-10T21:30:00",
+    "videos": [
+        {
+            "id": 1,
+            "title": "ALL_HBP_GENERICO_HORZ",
+            "description": "ALL_HBP_GENERICO_HORZ",
+            "file_path": "uploads/ee5f01e4-ba8b-41d0-b105-3fe6665cff38.MP4",
+            "duration": null
+        }
+    ]
+}

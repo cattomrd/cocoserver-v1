@@ -1,8 +1,9 @@
 # models/models.py (reemplaza COMPLETAMENTE el archivo actual)
 
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint, Float, func, or_
+from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.orm import relationship
-
+from typing import Optional
 from datetime import datetime
 from .database import Base
 
@@ -214,31 +215,64 @@ class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, nullable=False, index=True)
-    email = Column(String, unique=True, nullable=False, index=True)
-    full_name = Column(String, nullable=True)
-    hashed_password = Column(String, nullable=False)
+    username = Column(String(50), unique=True, nullable=False)
+    email = Column(String(100), unique=True, nullable=False)
+    password_hash = Column(String(128), nullable=False)
+    fullname = Column(String(100))
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=func.now())
+    created_at = Column(DateTime, default=datetime.now)
     last_login = Column(DateTime, nullable=True)
     
     @property
     def password(self):
-        raise AttributeError("La contraseña no puede ser leída directamente")
-    
+        raise AttributeError('password is not a readable attribute')
+        
     @password.setter
     def password(self, password):
-        self.hashed_password = pwd_context.hash(password)
+        self.password_hash = generate_password_hash(password)
+        
+    def verify_password(self, password) -> bool:
+        return check_password_hash(self.password_hash, password)
     
-    def verify_password(self, password):
-        return pwd_context.verify(password, self.hashed_password)
-
-# Método para verificar contraseña desde cualquier parte del código
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-# Método para hashear contraseña desde cualquier parte del código
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
+    def update_last_login(self):
+        self.last_login = datetime.now()
+    
+    @classmethod
+    def create_user(cls, db, username: str, email: str, password: str, 
+                    fullname: Optional[str] = None, is_admin: bool = False):
+        """
+        Crear un nuevo usuario en la base de datos
+        """
+        user = cls(
+            username=username,
+            email=email,
+            fullname=fullname,
+            is_admin=is_admin
+        )
+        user.password = password
+        
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+    
+    @classmethod
+    def get_by_username(cls, db, username: str):
+        """
+        Obtener un usuario por su nombre de usuario
+        """
+        return db.query(cls).filter(cls.username == username).first()
+    
+    @classmethod
+    def authenticate(cls, db, username: str, password: str):
+        """
+        Autenticar un usuario con nombre de usuario y contraseña
+        Devuelve el usuario si las credenciales son válidas, None en caso contrario
+        """
+        user = cls.get_by_username(db, username)
+        if user and user.verify_password(password) and user.is_active:
+            user.update_last_login()
+            db.commit()
+            return user
+        return None

@@ -1,263 +1,188 @@
+<!-- templates/user_detail.html -->
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Detalle de Usuario: {{ user.username }}</h1>
-            <a href="/ui/users" class="btn btn-outline-secondary">Volver a la lista</a>
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Usuario: {{ user.username }}</h1>
+        <a href="/ui/users/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a la lista
+        </a>
+    </div>
+    
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+    
+    {% if request.query_params.get('success') %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        {{ request.query_params.get('success') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <!-- Información del usuario -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">Información del Usuario</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <tr>
+                            <th style="width: 30%">ID:</th>
+                            <td>{{ user.id }}</td>
+                        </tr>
+                        <tr>
+                            <th>Nombre de Usuario:</th>
+                            <td>{{ user.username }}</td>
+                        </tr>
+                        <tr>
+                            <th>Nombre Completo:</th>
+                            <td>{{ user.fullname if user.fullname else 'No especificado' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Correo Electrónico:</th>
+                            <td>{{ user.email }}</td>
+                        </tr>
+                        <tr>
+                            <th>Rol:</th>
+                            <td>
+                                <span class="badge {% if user.is_admin %}bg-danger{% else %}bg-success{% endif %}">
+                                    {% if user.is_admin %}Administrador{% else %}Usuario{% endif %}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Estado:</th>
+                            <td>
+                                <span class="badge {% if user.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                                    {% if user.is_active %}Activo{% else %}Inactivo{% endif %}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Fecha de Creación:</th>
+                            <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Último Ingreso:</th>
+                            <td>
+                                {% if user.last_login %}
+                                {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
+                                {% else %}
+                                <span class="text-muted">Nunca</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                {% if user.id != current_user.user_id %}
+                <div class="card-footer">
+                    <button type="button" class="btn btn-danger" 
+                            onclick="confirmDelete('{{ user.username }}', {{ user.id }})">
+                        <i class="bi bi-trash"></i> Eliminar Usuario
+                    </button>
+                </div>
+                {% endif %}
+            </div>
         </div>
         
-        <!-- Alertas -->
-        <div id="userDetailAlert" class="alert d-none" role="alert"></div>
-        
-        <div class="row">
-            <!-- Tarjeta de información del usuario -->
-            <div class="col-md-4 mb-4">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="card-title mb-0">Información de Usuario</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="text-center mb-3">
-                            <div class="rounded-circle bg-light d-inline-flex align-items-center justify-content-center" 
-                                style="width: 100px; height: 100px; font-size: 3rem; color: #6c757d;">
-                                <i class="bi bi-person"></i>
-                            </div>
+        <!-- Editar usuario -->
+        <div class="col-md-8 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Editar Usuario</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="/ui/users/{{ user.id }}/update">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Correo Electrónico <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="email" name="email" required 
+                                   value="{{ user.email }}">
                         </div>
                         
-                        <h4 class="text-center">{{ user.full_name or 'Sin especificar' }}</h4>
-                        <p class="text-center text-muted">@{{ user.username }}</p>
+                        <div class="mb-3">
+                            <label for="fullname" class="form-label">Nombre Completo</label>
+                            <input type="text" class="form-control" id="fullname" name="fullname" 
+                                   value="{{ user.fullname or '' }}">
+                        </div>
                         
-                        <ul class="list-group list-group-flush mt-3">
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span>ID</span>
-                                <span class="badge bg-secondary">{{ user.id }}</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span>Email</span>
-                                <span class="text-muted">{{ user.email }}</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span>Tipo de Cuenta</span>
-                                <span class="badge {{ 'bg-warning' if user.is_admin else 'bg-primary' }}">
-                                    {{ 'Administrador' if user.is_admin else 'Usuario' }}
-                                </span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span>Estado</span>
-                                <span class="badge {{ 'bg-success' if user.is_active else 'bg-danger' }}">
-                                    {{ 'Activo' if user.is_active else 'Inactivo' }}
-                                </span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span>Fecha de Registro</span>
-                                <span class="text-muted">{{ user.created_at.strftime('%Y-%m-%d') }}</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span>Último Acceso</span>
-                                <span class="text-muted">
-                                    {% if user.last_login %}
-                                        {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="is_admin" name="is_admin" 
+                                           {% if user.is_admin %}checked{% endif %} 
+                                           {% if user.id == current_user.user_id %}disabled{% endif %}>
+                                    <label class="form-check-label" for="is_admin">
+                                        <span class="badge bg-danger">Rol de Administrador</span>
+                                    </label>
+                                </div>
+                                <div class="form-text">
+                                    {% if user.id == current_user.user_id %}
+                                    No puedes cambiar tu propio rol para evitar bloqueos.
                                     {% else %}
-                                        Nunca
+                                    Los administradores tienen acceso a todas las funciones, incluyendo la gestión de usuarios.
                                     {% endif %}
-                                </span>
-                            </li>
-                        </ul>
-                    </div>
-                    <div class="card-footer">
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editUserModal">
-                                <i class="bi bi-pencil"></i> Editar Usuario
-                            </button>
-                            {% if user.id != current_user.id %}
-                            <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteUserModal">
-                                <i class="bi bi-trash"></i> Eliminar Usuario
-                            </button>
-                            {% else %}
-                            <button class="btn btn-outline-secondary" disabled>
-                                <i class="bi bi-lock"></i> No puedes eliminar tu propia cuenta
-                            </button>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Actividad y permisos -->
-            <div class="col-md-8">
-                <div class="card mb-4">
-                    <div class="card-header bg-info text-white">
-                        <h5 class="card-title mb-0">Acciones de Administrador</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <!-- Restablecer contraseña -->
-                            <div class="col-md-6 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <h5 class="card-title">Restablecer Contraseña</h5>
-                                        <p class="card-text">
-                                            Genera una nueva contraseña temporal para este usuario.
-                                        </p>
-                                        <button class="btn btn-warning btn-sm" id="resetPasswordBtn">
-                                            <i class="bi bi-key"></i> Restablecer Contraseña
-                                        </button>
-                                    </div>
                                 </div>
                             </div>
-                            
-                            <!-- Cambiar estado -->
-                            <div class="col-md-6 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <h5 class="card-title">Cambiar Estado</h5>
-                                        <p class="card-text">
-                                            {% if user.is_active %}
-                                                El usuario está actualmente <span class="badge bg-success">Activo</span>
-                                            {% else %}
-                                                El usuario está actualmente <span class="badge bg-danger">Inactivo</span>
-                                            {% endif %}
-                                        </p>
-                                        <button class="btn btn-{{ 'danger' if user.is_active else 'success' }} btn-sm" id="toggleStatusBtn">
-                                            {% if user.is_active %}
-                                                <i class="bi bi-person-slash"></i> Desactivar Usuario
-                                            {% else %}
-                                                <i class="bi bi-person-check"></i> Activar Usuario
-                                            {% endif %}
-                                        </button>
-                                    </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                                           {% if user.is_active %}checked{% endif %}
+                                           {% if user.id == current_user.user_id %}disabled{% endif %}>
+                                    <label class="form-check-label" for="is_active">
+                                        <span class="badge {% if user.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                                            Usuario Activo
+                                        </span>
+                                    </label>
                                 </div>
-                            </div>
-                            
-                            <!-- Cambiar tipo de cuenta -->
-                            <div class="col-md-6 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <h5 class="card-title">Tipo de Cuenta</h5>
-                                        <p class="card-text">
-                                            {% if user.is_admin %}
-                                                El usuario tiene permisos de <span class="badge bg-warning">Administrador</span>
-                                            {% else %}
-                                                El usuario tiene permisos de <span class="badge bg-primary">Usuario</span>
-                                            {% endif %}
-                                        </p>
-                                        {% if user.id != current_user.id %}
-                                        <button class="btn btn-{{ 'secondary' if user.is_admin else 'warning' }} btn-sm" id="toggleAdminBtn">
-                                            {% if user.is_admin %}
-                                                <i class="bi bi-shield-minus"></i> Quitar Permisos Admin
-                                            {% else %}
-                                                <i class="bi bi-shield-plus"></i> Dar Permisos Admin
-                                            {% endif %}
-                                        </button>
-                                        {% else %}
-                                        <button class="btn btn-outline-secondary btn-sm" disabled>
-                                            <i class="bi bi-lock"></i> No puedes modificar tus permisos
-                                        </button>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Ver actividad reciente -->
-                            <div class="col-md-6 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <h5 class="card-title">Actividad Reciente</h5>
-                                        <p class="card-text">
-                                            Último acceso: 
-                                            {% if user.last_login %}
-                                                {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
-                                            {% else %}
-                                                Nunca
-                                            {% endif %}
-                                        </p>
-                                        <button class="btn btn-info btn-sm" id="viewActivityBtn">
-                                            <i class="bi bi-clock-history"></i> Ver Más Actividad
-                                        </button>
-                                    </div>
+                                <div class="form-text">
+                                    {% if user.id == current_user.user_id %}
+                                    No puedes desactivar tu propio usuario.
+                                    {% else %}
+                                    Los usuarios inactivos no pueden iniciar sesión.
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-                
-                <!-- Tarjeta para la actividad del usuario (inicialmente oculta) -->
-                <div class="card d-none" id="activityCard">
-                    <div class="card-header bg-secondary text-white">
-                        <h5 class="card-title mb-0">Historial de Actividad</h5>
-                    </div>
-                    <div class="card-body">
-                        <ul class="list-group" id="activityList">
-                            <li class="list-group-item text-center text-muted">
-                                <i class="bi bi-info-circle"></i> No hay registros de actividad disponibles
-                            </li>
-                        </ul>
-                    </div>
+                        
+                        <hr class="my-4">
+                        
+                        <h6>Cambiar Contraseña</h6>
+                        <p class="text-muted small">Deje en blanco si no desea cambiar la contraseña.</p>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="password" class="form-label">Nueva Contraseña</label>
+                                <input type="password" class="form-control" id="password" name="password"
+                                       minlength="6">
+                                <div class="form-text">Mínimo 6 caracteres</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="password_confirm" class="form-label">Confirmar Contraseña</label>
+                                <input type="password" class="form-control" id="password_confirm" name="password_confirm" 
+                                       minlength="6">
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="/ui/users/" class="btn btn-outline-secondary me-md-2">Cancelar</a>
+                            <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal para editar usuario -->
-<div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Editar Usuario</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div id="editUserAlert" class="alert d-none" role="alert"></div>
-                
-                <form id="editUserForm">
-                    <input type="hidden" id="editUserId" name="user_id" value="{{ user.id }}">
-                    
-                    <div class="mb-3">
-                        <label for="editUsername" class="form-label">Nombre de Usuario</label>
-                        <input type="text" class="form-control" id="editUsername" name="username" value="{{ user.username }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editEmail" class="form-label">Correo Electrónico</label>
-                        <input type="email" class="form-control" id="editEmail" name="email" value="{{ user.email }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editFullName" class="form-label">Nombre Completo</label>
-                        <input type="text" class="form-control" id="editFullName" name="full_name" value="{{ user.full_name or '' }}">
-                    </div>
-                    <div class="mb-3">
-                        <label for="editPassword" class="form-label">Nueva Contraseña (dejar vacío para mantener la actual)</label>
-                        <input type="password" class="form-control" id="editPassword" name="password" 
-                            minlength="8">
-                        <div class="form-text">La contraseña debe tener al menos 8 caracteres</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editConfirmPassword" class="form-label">Confirmar Nueva Contraseña</label>
-                        <input type="password" class="form-control" id="editConfirmPassword" 
-                            name="confirm_password">
-                    </div>
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="editIsAdmin" name="is_admin" {% if user.is_admin %}checked{% endif %}>
-                        <label class="form-check-label" for="editIsAdmin">Usuario Administrador</label>
-                    </div>
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="editIsActive" name="is_active" {% if user.is_active %}checked{% endif %}>
-                        <label class="form-check-label" for="editIsActive">Usuario Activo</label>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" id="saveUserChangesBtn">Guardar Cambios</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal de confirmación para eliminar usuario -->
-<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-hidden="true">
+<!-- Modal de Confirmación para Eliminar -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -265,428 +190,65 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>¿Está seguro que desea eliminar al usuario <strong>{{ user.username }}</strong>?</p>
-                <p class="text-danger">Esta acción no se puede deshacer. Todos los datos asociados a este usuario serán eliminados.</p>
-                <div id="deleteUserAlert" class="alert d-none" role="alert"></div>
+                <p>¿Estás seguro de que deseas eliminar al usuario <strong id="deleteUsername"></strong>?</p>
+                <p class="text-danger">Esta acción no se puede deshacer.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteUserBtn">Eliminar</button>
+                <form id="deleteForm" method="post" action="">
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal para restablecer contraseña -->
-<div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Restablecer Contraseña</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>Está a punto de generar una nueva contraseña para el usuario <strong>{{ user.username }}</strong>.</p>
-                <p>La nueva contraseña se mostrará solo una vez. Asegúrese de copiarla y compartirla con el usuario de forma segura.</p>
-                <div id="resetPasswordAlert" class="alert d-none" role="alert"></div>
-                
-                <div id="newPasswordContainer" class="d-none">
-                    <div class="input-group mb-3">
-                        <input type="text" class="form-control" id="newGeneratedPassword" readonly>
-                        <button class="btn btn-outline-secondary" type="button" id="copyPasswordBtn">
-                            <i class="bi bi-clipboard"></i> Copiar
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-warning" id="confirmResetPasswordBtn">Generar Nueva Contraseña</button>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    setupUserManagement();
-    setupActivityView();
-});
-
-// Configurar gestión de usuario
-function setupUserManagement() {
-    // Editar usuario
-    const saveUserChangesBtn = document.getElementById('saveUserChangesBtn');
-    const editUserForm = document.getElementById('editUserForm');
-    const editUserAlert = document.getElementById('editUserAlert');
-    
-    if (saveUserChangesBtn && editUserForm) {
-        saveUserChangesBtn.addEventListener('click', async function() {
-            // Ocultar alerta previa
-            editUserAlert.classList.add('d-none');
-            
-            // Verificar que las contraseñas coincidan si se proporcionan
-            const password = document.getElementById('editPassword').value;
-            const confirmPassword = document.getElementById('editConfirmPassword').value;
-            
-            if (password && password !== confirmPassword) {
-                editUserAlert.textContent = 'Las contraseñas no coinciden';
-                editUserAlert.classList.remove('d-none', 'alert-success');
-                editUserAlert.classList.add('alert-danger');
-                return;
-            }
-            
-            // Obtener datos del formulario
-            const userId = document.getElementById('editUserId').value;
-            const formData = {
-                username: document.getElementById('editUsername').value,
-                email: document.getElementById('editEmail').value,
-                full_name: document.getElementById('editFullName').value || null,
-                is_admin: document.getElementById('editIsAdmin').checked,
-                is_active: document.getElementById('editIsActive').checked
-            };
-            
-            // Añadir contraseña solo si se proporcionó
-            if (password) {
-                formData.password = password;
-            }
-            
-            try {
-                // Realizar petición para actualizar usuario
-                const response = await fetch(`/api/auth/users/${userId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Error al actualizar usuario');
-                }
-                
-                // Mostrar mensaje de éxito
-                editUserAlert.textContent = 'Usuario actualizado correctamente';
-                editUserAlert.classList.remove('d-none', 'alert-danger');
-                editUserAlert.classList.add('alert-success');
-                
-                // Recargar la página después de 2 segundos para mostrar los cambios
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
-                
-            } catch (error) {
-                // Mostrar mensaje de error
-                editUserAlert.textContent = error.message || 'Error al actualizar usuario';
-                editUserAlert.classList.remove('d-none', 'alert-success');
-                editUserAlert.classList.add('alert-danger');
-            }
-        });
-    }
-    
-    // Eliminar usuario
-    const confirmDeleteUserBtn = document.getElementById('confirmDeleteUserBtn');
-    const deleteUserAlert = document.getElementById('deleteUserAlert');
-    
-    if (confirmDeleteUserBtn) {
-        confirmDeleteUserBtn.addEventListener('click', async function() {
-            // Ocultar alerta previa
-            deleteUserAlert.classList.add('d-none');
-            
-            const userId = {{ user.id }};
-            
-            try {
-                // Realizar petición para eliminar usuario
-                const response = await fetch(`/api/auth/users/${userId}`, {
-                    method: 'DELETE'
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Error al eliminar usuario');
-                }
-                
-                // Mostrar mensaje de éxito
-                deleteUserAlert.textContent = 'Usuario eliminado correctamente';
-                deleteUserAlert.classList.remove('d-none', 'alert-danger');
-                deleteUserAlert.classList.add('alert-success');
-                
-                // Deshabilitar botón de eliminación
-                confirmDeleteUserBtn.disabled = true;
-                
-                // Redireccionar a la lista de usuarios después de 2 segundos
-                setTimeout(() => {
-                    window.location.href = '/ui/users';
-                }, 2000);
-                
-            } catch (error) {
-                // Mostrar mensaje de error
-                deleteUserAlert.textContent = error.message || 'Error al eliminar usuario';
-                deleteUserAlert.classList.remove('d-none', 'alert-success');
-                deleteUserAlert.classList.add('alert-danger');
-            }
-        });
-    }
-    
-    // Cambiar estado (activar/desactivar)
-    const toggleStatusBtn = document.getElementById('toggleStatusBtn');
-    if (toggleStatusBtn) {
-        toggleStatusBtn.addEventListener('click', async function() {
-            const userId = {{ user.id }};
-            const newStatus = {{ 'false' if user.is_active else 'true' }};
-            
-            try {
-                // Realizar petición para actualizar estado
-                const response = await fetch(`/api/auth/users/${userId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        is_active: newStatus === true
-                    })
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Error al cambiar estado');
-                }
-                
-                // Recargar la página para mostrar los cambios
-                window.location.reload();
-                
-            } catch (error) {
-                // Mostrar mensaje de error
-                alert('Error al cambiar estado: ' + (error.message || 'Error desconocido'));
-            }
-        });
-    }
-    
-    // Cambiar tipo de cuenta (admin/usuario)
-    const toggleAdminBtn = document.getElementById('toggleAdminBtn');
-    if (toggleAdminBtn) {
-        toggleAdminBtn.addEventListener('click', async function() {
-            const userId = {{ user.id }};
-            const newAdminStatus = {{ 'false' if user.is_admin else 'true' }};
-            
-            try {
-                // Realizar petición para actualizar tipo de cuenta
-                const response = await fetch(`/api/auth/users/${userId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        is_admin: newAdminStatus === true
-                    })
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Error al cambiar tipo de cuenta');
-                }
-                
-                // Recargar la página para mostrar los cambios
-                window.location.reload();
-                
-            } catch (error) {
-                // Mostrar mensaje de error
-                alert('Error al cambiar tipo de cuenta: ' + (error.message || 'Error desconocido'));
-            }
-        });
-    }
-    
-    // Restablecer contraseña
-    const resetPasswordBtn = document.getElementById('resetPasswordBtn');
-    const confirmResetPasswordBtn = document.getElementById('confirmResetPasswordBtn');
-    const resetPasswordAlert = document.getElementById('resetPasswordAlert');
-    const newPasswordContainer = document.getElementById('newPasswordContainer');
-    const newGeneratedPassword = document.getElementById('newGeneratedPassword');
-    const copyPasswordBtn = document.getElementById('copyPasswordBtn');
-    
-    if (resetPasswordBtn) {
-        resetPasswordBtn.addEventListener('click', function() {
-            // Mostrar modal de reseteo de contraseña
-            const resetModal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
-            resetModal.show();
-            
-            // Ocultar alerta previa y contenedor de contraseña
-            resetPasswordAlert.classList.add('d-none');
-            newPasswordContainer.classList.add('d-none');
-        });
-    }
-    
-    if (confirmResetPasswordBtn) {
-        confirmResetPasswordBtn.addEventListener('click', async function() {
-            try {
-                // Mostrar indicador de carga
-                this.disabled = true;
-                this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generando...';
-                
-                // Ocultar alerta previa
-                resetPasswordAlert.classList.add('d-none');
-                
-                // Generar una contraseña aleatoria (esto podría hacerse en el servidor)
-                const newPassword = generateRandomPassword(12);
-                
-                // Realizar petición para cambiar contraseña
-                const userId = {{ user.id }};
-                const response = await fetch(`/api/auth/users/${userId}/reset-password`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        new_password: newPassword
-                    })
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Error al restablecer contraseña');
-                }
-                
-                // Mostrar la nueva contraseña
-                newGeneratedPassword.value = newPassword;
-                newPasswordContainer.classList.remove('d-none');
-                
-                // Mostrar mensaje de éxito
-                resetPasswordAlert.textContent = 'Contraseña restablecida correctamente';
-                resetPasswordAlert.classList.remove('d-none', 'alert-danger');
-                resetPasswordAlert.classList.add('alert-success');
-                
-                // Ocultar botón de confirmación
-                this.style.display = 'none';
-                
-            } catch (error) {
-                // Mostrar mensaje de error
-                resetPasswordAlert.textContent = error.message || 'Error al restablecer contraseña';
-                resetPasswordAlert.classList.remove('d-none', 'alert-success');
-                resetPasswordAlert.classList.add('alert-danger');
-                
-            } finally {
-                // Restaurar botón
-                this.disabled = false;
-                this.innerHTML = 'Generar Nueva Contraseña';
-            }
-        });
-    }
-    
-    // Copiar contraseña al portapapeles
-    if (copyPasswordBtn) {
-        copyPasswordBtn.addEventListener('click', function() {
-            const password = newGeneratedPassword.value;
-            
-            // Copiar al portapapeles
-            navigator.clipboard.writeText(password).then(
-                function() {
-                    // Cambiar texto del botón temporalmente
-                    const originalText = copyPasswordBtn.innerHTML;
-                    copyPasswordBtn.innerHTML = '<i class="bi bi-check"></i> Copiado';
-                    
-                    // Restaurar después de 2 segundos
-                    setTimeout(() => {
-                        copyPasswordBtn.innerHTML = originalText;
-                    }, 2000);
-                },
-                function(err) {
-                    console.error('Error al copiar: ', err);
-                    alert('Error al copiar al portapapeles. Por favor, seleccione y copie manualmente.');
-                }
-            );
-        });
-    }
-}
-
-// Configurar vista de actividad
-function setupActivityView() {
-    const viewActivityBtn = document.getElementById('viewActivityBtn');
-    const activityCard = document.getElementById('activityCard');
-    
-    if (viewActivityBtn && activityCard) {
-        viewActivityBtn.addEventListener('click', async function() {
-            // Alternar visibilidad
-            activityCard.classList.toggle('d-none');
-            
-            // Cambiar texto del botón
-            if (activityCard.classList.contains('d-none')) {
-                this.innerHTML = '<i class="bi bi-clock-history"></i> Ver Más Actividad';
-            } else {
-                this.innerHTML = '<i class="bi bi-eye-slash"></i> Ocultar Actividad';
-                
-                // Cargar actividad solo si se está mostrando
-                await loadUserActivity();
-            }
-        });
-    }
-}
-
-// Cargar actividad del usuario
-async function loadUserActivity() {
-    const activityList = document.getElementById('activityList');
-    if (!activityList) return;
-    
-    // Mostrar indicador de carga
-    activityList.innerHTML = `
-        <li class="list-group-item text-center">
-            <div class="spinner-border spinner-border-sm text-primary" role="status">
-                <span class="visually-hidden">Cargando...</span>
-            </div>
-            <span class="ms-2">Cargando actividad...</span>
-        </li>
-    `;
-    
-    try {
-        // Esta función es un ejemplo, tal vez no tengas un endpoint de actividad
-        // Si no existe, puedes mostrar datos simulados o un mensaje
-        const userId = {{ user.id }};
-        const response = await fetch(`/api/auth/users/${userId}/activity`);
+    document.addEventListener('DOMContentLoaded', function() {
+        // Validación de coincidencia de contraseñas
+        const password = document.getElementById('password');
+        const passwordConfirm = document.getElementById('password_confirm');
         
-        if (response.ok) {
-            const activities = await response.json();
-            
-            // Mostrar actividades
-            if (activities.length === 0) {
-                activityList.innerHTML = `
-                    <li class="list-group-item text-center text-muted">
-                        <i class="bi bi-info-circle"></i> No hay registros de actividad disponibles
-                    </li>
-                `;
-                return;
+        function validatePassword() {
+            if (password.value !== passwordConfirm.value) {
+                passwordConfirm.setCustomValidity('Las contraseñas no coinciden');
+            } else {
+                passwordConfirm.setCustomValidity('');
             }
-            
-            activityList.innerHTML = '';
-            activities.forEach(activity => {
-                const activityItem = document.createElement('li');
-                activityItem.className = 'list-group-item';
-                activityItem.innerHTML = `
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <i class="bi bi-${getActivityIcon(activity.type)}"></i>
-                            ${activity.description}
-                        </div>
-                        <small class="text-muted">${formatDate(activity.timestamp)}</small>
-                    </div>
-                `;
-                activityList.appendChild(activityItem);
-            });
-        } else {
-            // Si el endpoint no existe o hay un error, mostrar mensaje
-            activityList.innerHTML = `
-                <li class="list-group-item text-center text-muted">
-                    <i class="bi bi-exclamation-circle"></i> No se pudo cargar la actividad
-                </li>
-            `;
         }
-    } catch (error) {
-        // Mostrar datos de ejemplo (simulados)
-        activityList.innerHTML = `
-            <li class="list-group-item text-center text-muted">
-                <i class="bi bi-exclamation-circle"></i> Error al cargar la actividad
-            </li>
-        `;
+        
+        password.addEventListener('change', validatePassword);
+        passwordConfirm.addEventListener('keyup', validatePassword);
+        
+        // Mantener el estado original de los checkboxes para formularios
+        if (document.getElementById('is_admin').disabled) {
+            const adminHiddenInput = document.createElement('input');
+            adminHiddenInput.type = 'hidden';
+            adminHiddenInput.name = 'is_admin';
+            adminHiddenInput.value = document.getElementById('is_admin').checked ? 'true' : 'false';
+            document.getElementById('is_admin').parentNode.appendChild(adminHiddenInput);
+        }
+        
+        if (document.getElementById('is_active').disabled) {
+            const activeHiddenInput = document.createElement('input');
+            activeHiddenInput.type = 'hidden';
+            activeHiddenInput.name = 'is_active';
+            activeHiddenInput.value = document.getElementById('is_active').checked ? 'true' : 'false';
+            document.getElementById('is_active').parentNode.appendChild(activeHiddenInput);
+        }
+    });
+    
+    function confirmDelete(username, userId) {
+        // Configurar el modal
+        document.getElementById('deleteUsername').textContent = username;
+        document.getElementById('deleteForm').action = `/ui/users/${userId}/delete`;
+        
+        // Mostrar el modal
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        deleteModal.show();
     }
-
+</script>
+{% endblock %}

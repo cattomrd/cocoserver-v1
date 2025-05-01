@@ -8,7 +8,7 @@ from typing import Optional, List
 
 from models.database import get_db
 from models.models import Playlist, Video, Device, DevicePlaylist
-from utils.auth import get_current_active_user
+
 
 # Configure logging
 logger = logging.getLogger('server')

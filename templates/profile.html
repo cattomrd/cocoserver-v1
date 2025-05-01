@@ -1,310 +1,68 @@
+<!-- templates/profile.html -->
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-4">
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">Perfil de Usuario</h5>
-            </div>
-            <div class="card-body">
-                <div class="text-center mb-3">
-                    <div class="rounded-circle bg-light d-inline-flex align-items-center justify-content-center" 
-                        style="width: 100px; height: 100px; font-size: 3rem; color: #6c757d;">
-                        <i class="bi bi-person"></i>
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 mt-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="bi bi-person-circle me-2"></i> Mi Perfil</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 text-center mb-4">
+                            <div class="avatar-container mb-3">
+                                <i class="bi bi-person-circle" style="font-size: 7rem; color: #6c757d;"></i>
+                            </div>
+                            <h5>{{ user.username }}</h5>
+                            <span class="badge {% if user.is_admin %}bg-danger{% else %}bg-success{% endif %} mb-2">
+                                {% if user.is_admin %}Administrador{% else %}Usuario{% endif %}
+                            </span>
+                        </div>
+                        <div class="col-md-8">
+                            <h4 class="mb-3">Información de Usuario</h4>
+                            <table class="table">
+                                <tr>
+                                    <th style="width: 40%">Nombre de Usuario:</th>
+                                    <td>{{ user.username }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Rol:</th>
+                                    <td>
+                                        {% if user.is_admin %}
+                                        <span class="badge bg-danger">Administrador</span>
+                                        {% else %}
+                                        <span class="badge bg-success">Usuario</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Último acceso:</th>
+                                    <td>{% if user.last_login %}{{ user.last_login.strftime('%Y-%m-%d %H:%M') }}{% else %}Desconocido{% endif %}</td>
+                                </tr>
+                            </table>
+                            
+                            <div class="d-grid gap-2 mt-4">
+                                {% if user.is_admin %}
+                                <a href="/ui/users/" class="btn btn-info">
+                                    <i class="bi bi-people-fill me-2"></i> Gestión de Usuarios
+                                </a>
+                                {% endif %}
+                                <a href="/logout" class="btn btn-outline-danger">
+                                    <i class="bi bi-box-arrow-right me-2"></i> Cerrar Sesión
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
-                <h4 class="text-center" id="profileFullName">Nombre Completo</h4>
-                <p class="text-center text-muted" id="profileUsername">@usuario</p>
-                
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>Email</span>
-                        <span id="profileEmail" class="text-muted">email@example.com</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>Tipo de Cuenta</span>
-                        <span id="profileType" class="badge bg-primary">Usuario</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>Estado</span>
-                        <span id="profileStatus" class="badge bg-success">Activo</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>Fecha de Registro</span>
-                        <span id="profileCreated" class="text-muted">01/01/2024</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>Último Acceso</span>
-                        <span id="profileLastLogin" class="text-muted">01/01/2024</span>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-8">
-        <ul class="nav nav-tabs" id="profileTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="edit-tab" data-bs-toggle="tab" data-bs-target="#edit-profile" 
-                        type="button" role="tab" aria-controls="edit-profile" aria-selected="true">
-                    Editar Perfil
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="password-tab" data-bs-toggle="tab" data-bs-target="#change-password" 
-                        type="button" role="tab" aria-controls="change-password" aria-selected="false">
-                    Cambiar Contraseña
-                </button>
-            </li>
-        </ul>
-        
-        <div class="tab-content p-3 border border-top-0 rounded-bottom" id="profileTabsContent">
-            <!-- Pestaña de Edición de Perfil -->
-            <div class="tab-pane fade show active" id="edit-profile" role="tabpanel" aria-labelledby="edit-tab">
-                <h4>Editar Información Personal</h4>
-                
-                <div id="editProfileAlert" class="alert d-none" role="alert"></div>
-                
-                <form id="editProfileForm" class="mt-3">
-                    <div class="mb-3">
-                        <label for="fullName" class="form-label">Nombre Completo</label>
-                        <input type="text" class="form-control" id="fullName" name="full_name">
+                <div class="card-footer">
+                    <div class="small text-muted">
+                        Nota: Para cambiar su contraseña o información de contacto, póngase en contacto con un administrador del sistema.
                     </div>
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Nombre de Usuario</label>
-                        <input type="text" class="form-control" id="username" name="username">
-                    </div>
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Correo Electrónico</label>
-                        <input type="email" class="form-control" id="email" name="email">
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
-                </form>
-            </div>
-            
-            <!-- Pestaña de Cambio de Contraseña -->
-            <div class="tab-pane fade" id="change-password" role="tabpanel" aria-labelledby="password-tab">
-                <h4>Cambiar Contraseña</h4>
-                
-                <div id="passwordAlert" class="alert d-none" role="alert"></div>
-                
-                <form id="changePasswordForm" class="mt-3">
-                    <div class="mb-3">
-                        <label for="currentPassword" class="form-label">Contraseña Actual</label>
-                        <input type="password" class="form-control" id="currentPassword" name="current_password" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="newPassword" class="form-label">Nueva Contraseña</label>
-                        <input type="password" class="form-control" id="newPassword" name="new_password" 
-                            minlength="8" required>
-                        <div class="form-text">La contraseña debe tener al menos 8 caracteres</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="confirmPassword" class="form-label">Confirmar Nueva Contraseña</label>
-                        <input type="password" class="form-control" id="confirmPassword" name="confirm_password" required>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary">Cambiar Contraseña</button>
-                </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    loadUserProfile();
-    setupForms();
-});
-
-// Cargar perfil de usuario
-async function loadUserProfile() {
-    try {
-        // Obtener datos del usuario actual desde localStorage primero (para cargar rápidamente)
-        const cachedUser = localStorage.getItem('user');
-        if (cachedUser) {
-            displayUserData(JSON.parse(cachedUser));
-        }
-        
-        // Luego obtener los datos actualizados del servidor
-        const response = await fetch('/api/auth/users/me');
-        if (!response.ok) {
-            throw new Error('Error al obtener perfil de usuario');
-        }
-        
-        const userData = await response.json();
-        
-        // Mostrar datos en el perfil
-        displayUserData(userData);
-        
-        // Actualizar datos guardados en localStorage
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-    } catch (error) {
-        console.error('Error al cargar perfil de usuario:', error);
-    }
-}
-
-// Mostrar datos del usuario en el perfil
-function displayUserData(user) {
-    // Datos de cabecera
-    document.getElementById('profileFullName').textContent = user.full_name || 'Sin especificar';
-    document.getElementById('profileUsername').textContent = '@' + user.username;
-    document.getElementById('profileEmail').textContent = user.email;
-    
-    // Estado y tipo de cuenta
-    document.getElementById('profileType').textContent = user.is_admin ? 'Administrador' : 'Usuario';
-    document.getElementById('profileType').className = 'badge ' + (user.is_admin ? 'bg-warning' : 'bg-primary');
-    
-    document.getElementById('profileStatus').textContent = user.is_active ? 'Activo' : 'Inactivo';
-    document.getElementById('profileStatus').className = 'badge ' + (user.is_active ? 'bg-success' : 'bg-danger');
-    
-    // Fechas formateadas
-    const createdDate = new Date(user.created_at);
-    document.getElementById('profileCreated').textContent = createdDate.toLocaleDateString();
-    
-    if (user.last_login) {
-        const lastLoginDate = new Date(user.last_login);
-        document.getElementById('profileLastLogin').textContent = lastLoginDate.toLocaleDateString() + ' ' + 
-                                                                lastLoginDate.toLocaleTimeString();
-    } else {
-        document.getElementById('profileLastLogin').textContent = 'Nunca';
-    }
-    
-    // Formulario de edición
-    document.getElementById('fullName').value = user.full_name || '';
-    document.getElementById('username').value = user.username || '';
-    document.getElementById('email').value = user.email || '';
-}
-
-// Configurar formularios
-function setupForms() {
-    // Formulario de edición de perfil
-    const editProfileForm = document.getElementById('editProfileForm');
-    const editProfileAlert = document.getElementById('editProfileAlert');
-    
-    if (editProfileForm) {
-        editProfileForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            // Ocultar alerta previa
-            editProfileAlert.classList.add('d-none');
-            
-            // Obtener datos del formulario
-            const formData = {
-                full_name: document.getElementById('fullName').value,
-                username: document.getElementById('username').value,
-                email: document.getElementById('email').value
-            };
-            
-            try {
-                // Realizar la petición de actualización
-                const response = await fetch('/api/auth/users/me', {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-                
-                if (!response.ok) {
-                    // Mostrar mensaje de error
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Error al actualizar perfil');
-                }
-                
-                // Procesar respuesta exitosa
-                const userData = await response.json();
-                
-                // Actualizar datos en localStorage
-                localStorage.setItem('user', JSON.stringify(userData));
-                
-                // Mostrar mensaje de éxito
-                editProfileAlert.textContent = 'Perfil actualizado correctamente';
-                editProfileAlert.classList.remove('d-none', 'alert-danger');
-                editProfileAlert.classList.add('alert-success');
-                
-                // Actualizar UI
-                displayUserData(userData);
-                
-            } catch (error) {
-                // Mostrar mensaje de error
-                editProfileAlert.textContent = error.message || 'Error al actualizar perfil';
-                editProfileAlert.classList.remove('d-none', 'alert-success');
-                editProfileAlert.classList.add('alert-danger');
-            }
-        });
-    }
-    
-    // Formulario de cambio de contraseña
-    const changePasswordForm = document.getElementById('changePasswordForm');
-    const passwordAlert = document.getElementById('passwordAlert');
-    
-    if (changePasswordForm) {
-        changePasswordForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            // Ocultar alerta previa
-            passwordAlert.classList.add('d-none');
-            
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            
-            // Verificar que las contraseñas coinciden
-            if (newPassword !== confirmPassword) {
-                passwordAlert.textContent = 'Las contraseñas no coinciden';
-                passwordAlert.classList.remove('d-none', 'alert-success');
-                passwordAlert.classList.add('alert-danger');
-                return;
-            }
-            
-            // Obtener datos del formulario
-            const formData = {
-                current_password: document.getElementById('currentPassword').value,
-                new_password: newPassword,
-                confirm_password: confirmPassword
-            };
-            
-            try {
-                // Realizar la petición de cambio de contraseña
-                const response = await fetch('/api/auth/users/me/change-password', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-                
-                if (!response.ok) {
-                    // Mostrar mensaje de error
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Error al cambiar contraseña');
-                }
-                
-                // Procesar respuesta exitosa
-                const data = await response.json();
-                
-                // Mostrar mensaje de éxito
-                passwordAlert.textContent = data.message || 'Contraseña cambiada correctamente';
-                passwordAlert.classList.remove('d-none', 'alert-danger');
-                passwordAlert.classList.add('alert-success');
-                
-                // Limpiar formulario
-                changePasswordForm.reset();
-                
-            } catch (error) {
-                // Mostrar mensaje de error
-                passwordAlert.textContent = error.message || 'Error al cambiar contraseña';
-                passwordAlert.classList.remove('d-none', 'alert-success');
-                passwordAlert.classList.add('alert-danger');
-            }
-        });
-    }
-}
-</script>
 {% endblock %}

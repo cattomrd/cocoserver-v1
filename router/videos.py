@@ -1,4 +1,4 @@
-# Actualización para router/videos.py con autenticación JWT
+#Corrección para router/videos.py
 
 import os
 import shutil
@@ -12,9 +12,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from models.database import get_db
-from models.models import Video, User
-from models.schemas import VideoCreate, VideoResponse, VideoUpdate
-from utils.auth import get_current_user, auth_middleware
+from models.models import Video
+from models.schemas import  VideoResponse, VideoUpdate
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -34,8 +33,7 @@ async def create_video(
     description: Optional[str] = Form(None),
     expiration_date: Optional[str] = Form(None),
     file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(auth_middleware)  # Añadir autenticación JWT
+    db: Session = Depends(get_db)
 ):
     try:
         # Validar que el archivo sea un video
@@ -95,8 +93,7 @@ def read_videos(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     active_only: bool = False,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)  # Añadir autenticación JWT
+    db: Session = Depends(get_db)
 ):
     try:
         query = db.query(Video)
@@ -131,8 +128,7 @@ def read_videos(
 @router.get("/{video_id}", response_model=VideoResponse)
 def read_video(
     video_id: int, 
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)  # Añadir autenticación JWT
+    db: Session = Depends(get_db)
 ):
     try:
         video = db.query(Video).filter(Video.id == video_id).first()
@@ -149,8 +145,7 @@ def read_video(
 def update_video(
     video_id: int,
     video_update: VideoUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)  # Añadir autenticación JWT
+    db: Session = Depends(get_db)
 ):
     try:
         db_video = db.query(Video).filter(Video.id == video_id).first()
@@ -172,12 +167,10 @@ def update_video(
         logger.error(f"Error al actualizar video {video_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error al actualizar video: {str(e)}")
 
-
 @router.get("/{video_id}/download")
 def download_video(
     video_id: int, 
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)  # Añadir autenticación JWT
+    db: Session = Depends(get_db)
 ):
     try:
         video = db.query(Video).filter(Video.id == video_id).first()
@@ -203,29 +196,28 @@ def download_video(
         logger.error(f"Error al descargar video {video_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error al descargar video: {str(e)}")
 
-# @router.delete("/{video_id}")
-# def delete_video(
-#     video_id: int, 
-#     db: Session = Depends(get_db),
-#     current_user: User = Depends(get_current_active_admin)  # Requerir admin para borrar
-# ):
-#     try:
-#         video = db.query(Video).filter(Video.id == video_id).first()
-#         if video is None:
-#             raise HTTPException(status_code=404, detail="Video no encontrado")
+@router.delete("/{video_id}")
+def delete_video(
+    video_id: int, 
+    db: Session = Depends(get_db)
+):
+    try:
+        video = db.query(Video).filter(Video.id == video_id).first()
+        if video is None:
+            raise HTTPException(status_code=404, detail="Video no encontrado")
         
-#         # Eliminar el archivo físico
-#         if os.path.exists(video.file_path):
-#             os.remove(video.file_path)
+        # Eliminar el archivo físico
+        if os.path.exists(video.file_path):
+            os.remove(video.file_path)
         
-#         # Eliminar de la base de datos
-#         db.delete(video)
-#         db.commit()
+        # Eliminar de la base de datos
+        db.delete(video)
+        db.commit()
         
-#         return {"message": "Video eliminado correctamente"}
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         db.rollback()
-#         logger.error(f"Error al eliminar video {video_id}: {str(e)}")
-#         raise HTTPException(status_code=500, detail=f"Error al eliminar video: {str(e)}")
+        return {"message": "Video eliminado correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error al eliminar video {video_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al eliminar video: {str(e)}")

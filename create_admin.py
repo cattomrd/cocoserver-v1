@@ -17,9 +17,9 @@ load_dotenv()
 # Import models and utilities
 from models.database import SessionLocal
 from models.models import User
-from utils.auth import get_password_hash
-
-def create_admin_user(username, password, email, full_name, force=False):
+from werkzeug.security import generate_password_hash, check_password_hash
+def create_admin_user(username, password_hash, email, fullname, force=False
+                    ):
     """
     Create an admin user in the database
     
@@ -27,7 +27,7 @@ def create_admin_user(username, password, email, full_name, force=False):
         username (str): Admin username
         password (str): Admin password
         email (str): Admin email
-        full_name (str): Admin full name
+        fullname (str): Admin full name
         force (bool): Force creation even if users already exist
     
     Returns:
@@ -57,8 +57,8 @@ def create_admin_user(username, password, email, full_name, force=False):
         admin_user = User(
             username=username,
             email=email,
-            full_name=full_name,
-            hashed_password=get_password_hash(password),
+            fullname=fullname,
+            password_hash=generate_password_hash(password_hash),
             is_admin=True
         )
         
@@ -82,7 +82,7 @@ def main():
     parser.add_argument("--username", required=True, help="Admin username")
     parser.add_argument("--password", required=True, help="Admin password")
     parser.add_argument("--email", required=True, help="Admin email")
-    parser.add_argument("--full-name", required=True, help="Admin full name")
+    parser.add_argument("--full-name", required=False, help="Admin full name")
     parser.add_argument("--force", action="store_true", help="Force creation even if users already exist")
     
     args = parser.parse_args()

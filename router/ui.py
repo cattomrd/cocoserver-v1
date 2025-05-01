@@ -1,48 +1,38 @@
-# Updated router/ui.py with authentication
+# Archivo app/routers/ui.py - Corregido para manejar la ruta de videos correctamente
 from fastapi import APIRouter, Request, Depends, HTTPException, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
 from typing import Optional
 import httpx
 import sys
 import os
 from datetime import datetime
+from sqlalchemy import or_
 
-# Add parent directory to path
+# Añadir la ruta del directorio padre al path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# Imports from models
+# Importaciones absolutas en lugar de relativas
 from models import models, schemas
 from models.database import get_db
-
-# Import authentication utilities
-from utils.auth import get_current_active_user
 
 router = APIRouter(
     prefix="/ui",
     tags=["ui"]
 )
 
-# Configure templates
+# Configurar templates
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 @router.get("/", response_class=HTMLResponse)
 async def get_dashboard(request: Request):
     """
-    Main dashboard page
+    Página principal del dashboard
     """
-    # Get username from session for template
-    username = request.session.get("username", "User")
-    is_admin = request.session.get("is_admin", False)
-    
-    return templates.TemplateResponse(
-        "index.html", 
-        {"request": request, "title": "Raspberry Pi Registry", "username": username, "is_admin": is_admin}
-    )
+    return templates.TemplateResponse("index.html", {"request": request, "title": "Raspberry Pi Registry"})
 
 @router.get("/devices", response_class=HTMLResponse)
 async def get_devices_page(
@@ -53,13 +43,9 @@ async def get_devices_page(
     db: Session = Depends(get_db)
 ):
     """
-    Page that shows the list of registered devices
+    Página que muestra la lista de dispositivos registrados
     """
-    # Get username from session for template
-    username = request.session.get("username", "User")
-    is_admin = request.session.get("is_admin", False)
-    
-    # Base query with join to playlists
+    # Consulta base con join a las playlists
     query = db.query(models.Device).outerjoin(
         models.DevicePlaylist,
         models.DevicePlaylist.device_id == models.Device.device_id
@@ -68,7 +54,7 @@ async def get_devices_page(
         models.Playlist.id == models.DevicePlaylist.playlist_id
     )
     
-    # Additional filters
+    # Filtros adicionales
     if active_only:
         query = query.filter(models.Device.is_active == True)
     
@@ -103,13 +89,13 @@ async def get_devices_page(
                 )
             )
     
-    # Use distinct() to avoid duplicates if a device has multiple playlists
+    # Es importante usar distinct() para evitar duplicados si un dispositivo tiene múltiples playlists
     devices = query.distinct().all()
     
-    # Explicitly load playlists for each device
+    # Cargar explícitamente las playlists para cada dispositivo
     for device in devices:
-        # SQLAlchemy should have loaded playlists automatically,
-        # but we can force loading if needed
+        # SQLAlchemy debería haber cargado las playlists automáticamente,
+        # pero podemos forzar la carga si es necesario
         if hasattr(device, 'playlists') and device.playlists is None:
             device_playlists = db.query(models.Playlist).join(
                 models.DevicePlaylist,
@@ -118,7 +104,7 @@ async def get_devices_page(
                 models.DevicePlaylist.device_id == device.device_id
             ).all()
             
-            # Manually assign playlists to the device
+            # Asignar manualmente las playlists al dispositivo
             device.playlists = device_playlists
     
     return templates.TemplateResponse(
@@ -129,24 +115,23 @@ async def get_devices_page(
             "devices": devices,
             "active_only": active_only,
             "search_term": search,
-            "search_field": search_field,
-            "username": username,
-            "is_admin": is_admin
+            "search_field": search_field
         }
     )
 
 @router.get("/videos", response_class=HTMLResponse)
 async def get_videos_page(request: Request):
     """
-    Videos page
+    Página de gestión de videos y playlists
     """
-    # Get username from session for template
-    username = request.session.get("username", "User")
-    is_admin = request.session.get("is_admin", False)
-    
+    # En esta ruta, simplemente renderizamos la plantilla videos.html con los datos básicos
+    # Los datos de videos y playlists se cargarán dinámicamente con JavaScript
     return templates.TemplateResponse(
         "videos.html", 
-        {"request": request, "title": "Gestión de Videos", "username": username, "is_admin": is_admin}
+        {
+            "request": request, 
+            "title": "Gestión de Videos y Listas"
+        }
     )
 
 @router.get("/devices/{device_id}", response_class=HTMLResponse)
@@ -156,18 +141,14 @@ async def get_device_detail(
     db: Session = Depends(get_db)
 ):
     """
-    Device detail page
+    Página de detalle de un dispositivo específico
     """
-    # Get username from session for template
-    username = request.session.get("username", "User")
-    is_admin = request.session.get("is_admin", False)
-    
-    # Perform query with join to load associated playlists
+    # Realizar el query con join para cargar las playlists asociadas
     device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
     if device is None:
         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
     
-    # Explicitly load the device's playlists
+    # Cargar explícitamente las playlists del dispositivo
     device_playlists = db.query(models.Playlist).join(
         models.DevicePlaylist,
         models.DevicePlaylist.playlist_id == models.Playlist.id
@@ -175,13 +156,13 @@ async def get_device_detail(
         models.DevicePlaylist.device_id == device_id
     ).all()
     
-    # Assign playlists to the device
+    # Asignar las playlists al dispositivo
     device.playlists = device_playlists
     
-    # Get current date for template comparisons
+    # Obtener fecha actual para comparaciones en la plantilla
     now = datetime.now()
     
-    # Try to get videoloop service status
+    # Intentar obtener el estado del servicio videoloop
     service_status = None
     if device.is_active:
         try:
@@ -190,7 +171,7 @@ async def get_device_detail(
                 if response.status_code == 200:
                     service_status = response.json()
         except:
-            # If connection fails, set status as unknown
+            # Si no se puede conectar, establecer estado como desconocido
             service_status = {"status": "unknown", "active": False, "enabled": False}
     
     return templates.TemplateResponse(
@@ -200,9 +181,7 @@ async def get_device_detail(
             "title": f"Dispositivo: {device.name}",
             "device": device,
             "service_status": service_status,
-            "now": now,
-            "username": username,
-            "is_admin": is_admin
+            "now": now  # Pasar la fecha actual a la plantilla
         }
     )
 
@@ -213,7 +192,7 @@ async def delete_device_ui(
     db: Session = Depends(get_db)
 ):
     """
-    Delete a device
+    Eliminar un dispositivo
     """
     device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
     if device is None:
@@ -222,7 +201,7 @@ async def delete_device_ui(
     db.delete(device)
     db.commit()
     
-    # Redirect to the devices list
+    # Redirigir a la lista de dispositivos
     return RedirectResponse(url="/ui/devices", status_code=303)
 
 @router.post("/devices/{device_id}/update", response_class=HTMLResponse)
@@ -235,52 +214,21 @@ async def update_device_info(
     db: Session = Depends(get_db)
 ):
     """
-    Update basic device information
+    Actualizar información básica de un dispositivo
     """
     device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
     if device is None:
         raise HTTPException(status_code=404, detail="Dispositivo no encontrado")
     
-    # Update only provided fields
+    # Actualizar solo los campos proporcionados
     if location is not None:
         device.location = location
-    if tienda is not None:  # Could be an empty string
+    if tienda is not None:  # Podría ser una cadena vacía
         device.tienda = tienda
     
     device.is_active = is_active
     
     db.commit()
     
-    # Redirect to the device detail page
+    # Redirigir a la página de detalle
     return RedirectResponse(url=f"/ui/devices/{device_id}", status_code=303)
-
-# New route for user administration (only for admins)
-@router.get("/users", response_class=HTMLResponse)
-async def get_users_page(
-    request: Request,
-    db: Session = Depends(get_db)
-):
-    """
-    User administration page (admin only)
-    """
-    # Check if user is admin
-    is_admin = request.session.get("is_admin", False)
-    if not is_admin:
-        return RedirectResponse(url="/ui/", status_code=303)
-        
-    # Get username from session for template
-    username = request.session.get("username", "User")
-    
-    # Get all users
-    users = db.query(models.User).all()
-    
-    return templates.TemplateResponse(
-        "users.html", 
-        {
-            "request": request, 
-            "title": "Administración de Usuarios",
-            "users": users,
-            "username": username,
-            "is_admin": is_admin
-        }
-    )

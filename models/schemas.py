@@ -184,49 +184,56 @@ from datetime import datetime
 class UserBase(BaseModel):
     username: str
     email: EmailStr
-    full_name: Optional[str] = None
+    fullname: Optional[str] = None
+    is_active: bool = True
+    is_admin: bool = False
+
 
 # Esquema para creación de usuarios (registro)
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=8)
-    confirm_password: str
+    password: str = Field(..., min_length=6)
+    password_confirm: str = Field(..., min_length=6)
 
-    @validator('confirm_password')
-    def passwords_match(cls, v, values, **kwargs):
+    @validator('password_confirm')
+    def passwords_match(cls, v, values):
         if 'password' in values and v != values['password']:
             raise ValueError('Las contraseñas no coinciden')
         return v
 
 # Esquema para actualización de usuarios
 class UserUpdate(BaseModel):
-    username: Optional[str] = None
     email: Optional[EmailStr] = None
-    full_name: Optional[str] = None
+    fullname: Optional[str] = None
     is_active: Optional[bool] = None
     is_admin: Optional[bool] = None
+    password: Optional[str] = Field(None, min_length=6)
+    password_confirm: Optional[str] = Field(None, min_length=6)
 
 # Esquema para cambiar contraseña
-class PasswordChange(BaseModel):
-    current_password: str
-    new_password: str = Field(..., min_length=8)
-    confirm_password: str
+# class PasswordChange(BaseModel):
+#     current_password: str
+#     new_password: str = Field(..., min_length=8)
+#     confirm_password: str
 
-    @validator('confirm_password')
-    def passwords_match(cls, v, values, **kwargs):
-        if 'new_password' in values and v != values['new_password']:
+    @validator('password_confirm')
+    def passwords_match(cls, v, values):
+        if 'password' in values and values['password'] is not None and v != values['password']:
             raise ValueError('Las contraseñas no coinciden')
         return v
-
+    
 # Esquema para datos de usuario en respuestas
 class UserResponse(UserBase):
     id: int
-    is_active: bool
-    is_admin: bool
     created_at: datetime
     last_login: Optional[datetime] = None
-
+    
     class Config:
         orm_mode = True
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
 
 # Esquema para solicitud de token (login)
 class TokenRequest(BaseModel):

@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 import logging
+from utils.ping_checker import start_background_ping_checker
 
 load_dotenv()
 
@@ -43,6 +44,8 @@ app = FastAPI(
     version="1.0.0"
 )
 
+start_background_ping_checker(app)
+
 # Add the authentication middleware with admin paths
 app.middleware("http")(
     auth_middleware(
@@ -50,7 +53,8 @@ app.middleware("http")(
             "/login", 
             "/static/", 
             "/api/devices",  # Allow device registration
-            "/api/raspberry/", 
+            "/api/raspberry/",
+            "/api/videos/" 
         ],
         admin_paths=[
             "/ui/users/",  # Only admins can access user management

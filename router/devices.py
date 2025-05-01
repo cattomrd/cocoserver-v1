@@ -14,6 +14,7 @@ import os
 import logging
 from fastapi.logger import logger # type: ignore
 import requests
+import http
 # Configuración del logger
 logging.basicConfig(level=logging.INFO) 
 router = APIRouter(

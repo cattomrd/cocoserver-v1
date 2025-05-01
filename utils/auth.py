@@ -99,6 +99,7 @@ def auth_middleware(
     public_paths: List[str] = ["/login", 
                             "/static/", 
                             "/api/raspberry/", 
+                            "/api/videos"
                             "/api/devices"],
     admin_paths: List[str] = ["/ui/users/",
                             "/docs", 

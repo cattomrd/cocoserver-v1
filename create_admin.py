@@ -62,6 +62,7 @@ def create_admin_user(username, password_hash, email, fullname, force=False
             is_admin=True
         )
         
+        print(password_hash)
         db.add(admin_user)
         db.commit()
         

@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import logging
 from utils.ping_checker import start_background_ping_checker
 
+
 load_dotenv()
 
 import os

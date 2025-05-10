@@ -64,7 +64,12 @@ try {
 }
 
 function safeGetElement(id) {
-    return document.getElementById(id);
+    const element = document.getElementById(id);
+    if (!element) {
+        console.warn(`Element with ID '${id}' not found in the DOM`);
+        return null;
+    }
+    return element;
 }
 
 function safeAccessStyle(element, property, value) {
@@ -1671,7 +1676,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Guardar cambios de video
     document.getElementById('saveVideoChangesBtn').addEventListener('click', saveVideoChanges);
     
-    // Verificar estado de playlists automáticamente cada minuto
+    // Verificar estado de playlists automáticamente cada 5 minutos
     setInterval(() => {
         const activeTab = document.querySelector('.nav-link.active').getAttribute('href');
         if (activeTab === '#playlists') {
@@ -1683,8 +1688,9 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (activeTab === '#raspberry') {
             loadRaspberryActivePlaylists();
         }
-    }, 60000); // 60 segundos
+    }, 300000); // 5 minutos
 });
+
 
 // Modificaciones a static/js/main.js para manejar la asociación de dispositivos a playlists
 
@@ -2256,7 +2262,7 @@ loadVideos(filterValue);
 } else if (activeTab === '#raspberry') {
 loadRaspberryActivePlaylists();
 }
-}, 60000); // 1 minuto
+}, 300000); // 1 minuto
 
 console.log("Código de gestión de videos, playlists y dispositivos cargado correctamente");
 });

@@ -547,18 +547,25 @@
                 videosList.appendChild(row);
             });
         } catch (error) {
-            console.error('Error al cargar videos:', error);
-            document.getElementById('videosList').innerHTML = `
+        console.error('Error al cargar videos:', error);
+        const videosList = document.getElementById('videosList');
+        if (videosList) {
+            videosList.innerHTML = `
                 <tr>
                     <td colspan="7" class="text-center py-5">
                         <div class="alert alert-danger">Error al cargar videos: ${error.message}</div>
                     </td>
                 </tr>
             `;
-        } finally {
-            document.getElementById('videosLoading').style.display = 'none';
         }
-    };
+    } finally {
+        const loadingElement = document.getElementById('videosLoading');
+        if (loadingElement) {
+            loadingElement.style.display = 'none';
+        }
+    }
+}
+
 
     // Sobrescribir la función para cargar listas de reproducción en formato tabla
     window.originalLoadPlaylists = window.loadPlaylists;

@@ -10,6 +10,7 @@ warnings.filterwarnings("ignore", message="Valid config keys have changed in V2"
 class VideoBase(BaseModel):
     title: str
     description: Optional[str] = None
+    stat_date_date: Optional[datetime] = None
     expiration_date: Optional[datetime] = None
 
 class VideoCreate(VideoBase):
@@ -18,6 +19,7 @@ class VideoCreate(VideoBase):
 class VideoUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    stat_date_date: Optional[datetime] = None
     expiration_date: Optional[datetime] = None
 
 class VideoResponse(VideoBase):
@@ -43,6 +45,7 @@ class PlaylistCreate(PlaylistBase):
 class PlaylistUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    stat_date_date: Optional[datetime] = None
     expiration_date: Optional[datetime] = None
     is_active: Optional[bool] = None
 
@@ -117,6 +120,7 @@ class PlaylistInfo(BaseModel):
     id: int
     title: str
     is_active: bool
+    stat_date_date: Optional[datetime] = None
     expiration_date: Optional[datetime] = None
 
     class Config:

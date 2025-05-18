@@ -35,6 +35,7 @@ class Playlist(Base):
     description = Column(Text, nullable=True)
     creation_date = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    start_date = Column(DateTime, nullable=True)
     expiration_date = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)
     

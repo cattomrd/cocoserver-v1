@@ -160,3 +160,5 @@ async def get_device_screenshot_as_file(device_id: str, db: Session = Depends(ge
     except Exception as e:
         logger.exception(f"Error al procesar la solicitud de captura: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
+    
+

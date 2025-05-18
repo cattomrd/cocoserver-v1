@@ -1408,3 +1408,4 @@ window.assignPlaylistToDevice = assignPlaylistToDevice;
 document.addEventListener('DOMContentLoaded', function() {
     initPlaylistManagement();
 });
+

@@ -351,42 +351,6 @@ function checkServicesStatus(deviceId) {
         deviceId = getDeviceIdFromUrl();
     }
     
-    // Verificar los servicios conocidos
-    const services = ['videoloop', 'kiosk'];
-    
-    services.forEach(serviceName => {
-        manageServiceViaApi(deviceId, serviceName, 'status');
-    });
-}
-
-// Inicializar cuando el DOM esté completamente cargado
-document.addEventListener('DOMContentLoaded', function() {
-    // Inicializar botones de acción
-    initServiceActionButtons();
-    
-    // Verificar estado actual de los servicios
-    checkServicesStatus();
-    
-    console.log('Gestor de servicios inicializado');
-});
-
-// Exportar funciones para uso externo
-window.ServiceManager = {
-    manage: manageServiceViaApi,
-    checkStatus: checkServicesStatus,
-    showNotification: showServiceNotification
-};
-
-/**
- * Verifica el estado actual de los servicios en el dispositivo
- * 
- * @param {string} deviceId - ID del dispositivo
- */
-function checkServicesStatus(deviceId) {
-    if (!deviceId) {
-        deviceId = getDeviceIdFromUrl();
-    }
-    
     console.log(`Verificando estado de servicios para dispositivo ${deviceId}`);
     
     // Usar el nuevo endpoint que obtiene todos los servicios de una vez
@@ -425,6 +389,63 @@ function checkServicesStatus(deviceId) {
                 updateServiceUI(deviceId, serviceName, serviceUIData);
             }
         })
-
-
 }
+
+// Exportar funciones para uso externo
+window.ServiceManager = {
+    manage: manageServiceViaApi,
+    checkStatus: checkServicesStatus,
+    showNotification: showServiceNotification
+};
+
+/**
+ * Inicializa el botón de reinicio general
+ */
+function initRestartButton() {
+    const restartButton = document.getElementById('restartButton');
+    if (restartButton) {
+        restartButton.addEventListener('click', function() {
+            const deviceId = getDeviceIdFromUrl();
+            
+            if (confirm('¿Está seguro que desea reiniciar todos los servicios?')) {
+                // Mostrar indicador de carga
+                restartButton.innerHTML = `
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span>Reiniciando...</span>
+                `;
+                restartButton.disabled = true;
+                
+                // Reiniciar los servicios conocidos
+                const services = ['videoloop', 'kiosk'];
+                let completedServices = 0;
+                
+                services.forEach(serviceName => {
+                    manageServiceViaApi(deviceId, serviceName, 'restart', function() {
+                        completedServices++;
+                        // Cuando todos los servicios se han reiniciado
+                        if (completedServices === services.length) {
+                            // Restaurar el botón
+                            restartButton.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Reiniciar Todos';
+                            restartButton.disabled = false;
+                        }
+                    });
+                });
+            }
+        });
+    }
+}
+
+// Inicializar cuando el DOM esté completamente cargado
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar botones de acción
+    initServiceActionButtons();
+    
+    // Inicializar botón de reinicio
+    initRestartButton();
+    
+    // Verificar estado actual de los servicios
+    checkServicesStatus();
+    
+    console.log('Gestor de servicios inicializado');
+});
+

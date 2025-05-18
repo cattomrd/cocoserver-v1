@@ -6,16 +6,16 @@ import os
 
 load_dotenv()
 # Configuración de la base de datos
-#SQLALCHEMY_DATABASE_URL = "sqlite:///./RaspDatos.db"
+SQLALCHEMY_DATABASE_URL = "sqlite:///./rpi.db"
 
 # Para una base de datos PostgreSQL, usa:
 
-user_db = os.environ.get('POSTGRES_USER')
-password_db = os.environ.get('POSTGRES_PASSWORD')
-db = os.environ.get('POSTGRES_DB')
-server = os.environ.get('POSTGRES_HOST')
+# user_db = os.environ.get('POSTGRES_USER')
+# password_db = os.environ.get('POSTGRES_PASSWORD')
+# db = os.environ.get('POSTGRES_DB')
+# server = os.environ.get('POSTGRES_HOST')
 
-SQLALCHEMY_DATABASE_URL = f"postgresql://{user_db}:{password_db}@127.0.0.1/{db}"
+# SQLALCHEMY_DATABASE_URL = f"postgresql://{user_db}:{password_db}@127.0.0.1/{db}"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

@@ -1,0 +1,97 @@
+<!-- templates/login.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 30px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+        .login-logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .login-logo h1 {
+            color: #0d6efd;
+            font-weight: 600;
+        }
+        .login-form {
+            margin-bottom: 20px;
+        }
+        .error-message {
+            color: #dc3545;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        .form-control {
+            border-radius: 5px;
+            padding: 10px 12px;
+        }
+        .login-button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            color: #6c757d;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="login-container">
+            <div class="login-logo">
+                <h1>Raspberry Pi Registry</h1>
+                <p class="text-muted">Sistema de Gestión de Videos</p>
+            </div>
+            
+            {% if error %}
+            <div class="alert alert-danger error-message">
+                {{ error }}
+            </div>
+            {% endif %}
+            
+            <form class="login-form" action="/login" method="post">
+                <div class="mb-3">
+                    <label for="username" class="form-label">Usuario</label>
+                    <input type="text" class="form-control" id="username" name="username" 
+                            placeholder="Ingrese su nombre de usuario" required
+                            value="{{ username if username else '' }}">
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Contraseña</label>
+                    <input type="password" class="form-control" id="password" name="password" 
+                            placeholder="Ingrese su contraseña" required>
+                </div>
+                
+                {% if next %}
+                <input type="hidden" name="next" value="{{ next }}">
+                {% endif %}
+                
+                <button type="submit" class="btn btn-primary login-button">Iniciar Sesión</button>
+            </form>
+            
+            <div class="footer">
+                &copy; 2025 Raspberry Pi Registry - Sistema de Gestión
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

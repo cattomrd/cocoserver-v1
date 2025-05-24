@@ -1,0 +1,254 @@
+<!-- templates/user_detail.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Usuario: {{ user.username }}</h1>
+        <a href="/ui/users/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a la lista
+        </a>
+    </div>
+    
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+    
+    {% if request.query_params.get('success') %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        {{ request.query_params.get('success') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <!-- Información del usuario -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">Información del Usuario</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <tr>
+                            <th style="width: 30%">ID:</th>
+                            <td>{{ user.id }}</td>
+                        </tr>
+                        <tr>
+                            <th>Nombre de Usuario:</th>
+                            <td>{{ user.username }}</td>
+                        </tr>
+                        <tr>
+                            <th>Nombre Completo:</th>
+                            <td>{{ user.fullname if user.fullname else 'No especificado' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Correo Electrónico:</th>
+                            <td>{{ user.email }}</td>
+                        </tr>
+                        <tr>
+                            <th>Rol:</th>
+                            <td>
+                                <span class="badge {% if user.is_admin %}bg-danger{% else %}bg-success{% endif %}">
+                                    {% if user.is_admin %}Administrador{% else %}Usuario{% endif %}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Estado:</th>
+                            <td>
+                                <span class="badge {% if user.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                                    {% if user.is_active %}Activo{% else %}Inactivo{% endif %}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Fecha de Creación:</th>
+                            <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Último Ingreso:</th>
+                            <td>
+                                {% if user.last_login %}
+                                {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
+                                {% else %}
+                                <span class="text-muted">Nunca</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                {% if user.id != current_user.user_id %}
+                <div class="card-footer">
+                    <button type="button" class="btn btn-danger" 
+                            onclick="confirmDelete('{{ user.username }}', {{ user.id }})">
+                        <i class="bi bi-trash"></i> Eliminar Usuario
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Editar usuario -->
+        <div class="col-md-8 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Editar Usuario</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="/ui/users/{{ user.id }}/update">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Correo Electrónico <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="email" name="email" required 
+                                   value="{{ user.email }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="fullname" class="form-label">Nombre Completo</label>
+                            <input type="text" class="form-control" id="fullname" name="fullname" 
+                                   value="{{ user.fullname or '' }}">
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="is_admin" name="is_admin" 
+                                           {% if user.is_admin %}checked{% endif %} 
+                                           {% if user.id == current_user.user_id %}disabled{% endif %}>
+                                    <label class="form-check-label" for="is_admin">
+                                        <span class="badge bg-danger">Rol de Administrador</span>
+                                    </label>
+                                </div>
+                                <div class="form-text">
+                                    {% if user.id == current_user.user_id %}
+                                    No puedes cambiar tu propio rol para evitar bloqueos.
+                                    {% else %}
+                                    Los administradores tienen acceso a todas las funciones, incluyendo la gestión de usuarios.
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                                           {% if user.is_active %}checked{% endif %}
+                                           {% if user.id == current_user.user_id %}disabled{% endif %}>
+                                    <label class="form-check-label" for="is_active">
+                                        <span class="badge {% if user.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                                            Usuario Activo
+                                        </span>
+                                    </label>
+                                </div>
+                                <div class="form-text">
+                                    {% if user.id == current_user.user_id %}
+                                    No puedes desactivar tu propio usuario.
+                                    {% else %}
+                                    Los usuarios inactivos no pueden iniciar sesión.
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <h6>Cambiar Contraseña</h6>
+                        <p class="text-muted small">Deje en blanco si no desea cambiar la contraseña.</p>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="password" class="form-label">Nueva Contraseña</label>
+                                <input type="password" class="form-control" id="password" name="password"
+                                       minlength="6">
+                                <div class="form-text">Mínimo 6 caracteres</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="password_confirm" class="form-label">Confirmar Contraseña</label>
+                                <input type="password" class="form-control" id="password_confirm" name="password_confirm" 
+                                       minlength="6">
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="/ui/users/" class="btn btn-outline-secondary me-md-2">Cancelar</a>
+                            <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmación para Eliminar -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas eliminar al usuario <strong id="deleteUsername"></strong>?</p>
+                <p class="text-danger">Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="deleteForm" method="post" action="">
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Validación de coincidencia de contraseñas
+        const password = document.getElementById('password');
+        const passwordConfirm = document.getElementById('password_confirm');
+        
+        function validatePassword() {
+            if (password.value !== passwordConfirm.value) {
+                passwordConfirm.setCustomValidity('Las contraseñas no coinciden');
+            } else {
+                passwordConfirm.setCustomValidity('');
+            }
+        }
+        
+        password.addEventListener('change', validatePassword);
+        passwordConfirm.addEventListener('keyup', validatePassword);
+        
+        // Mantener el estado original de los checkboxes para formularios
+        if (document.getElementById('is_admin').disabled) {
+            const adminHiddenInput = document.createElement('input');
+            adminHiddenInput.type = 'hidden';
+            adminHiddenInput.name = 'is_admin';
+            adminHiddenInput.value = document.getElementById('is_admin').checked ? 'true' : 'false';
+            document.getElementById('is_admin').parentNode.appendChild(adminHiddenInput);
+        }
+        
+        if (document.getElementById('is_active').disabled) {
+            const activeHiddenInput = document.createElement('input');
+            activeHiddenInput.type = 'hidden';
+            activeHiddenInput.name = 'is_active';
+            activeHiddenInput.value = document.getElementById('is_active').checked ? 'true' : 'false';
+            document.getElementById('is_active').parentNode.appendChild(activeHiddenInput);
+        }
+    });
+    
+    function confirmDelete(username, userId) {
+        // Configurar el modal
+        document.getElementById('deleteUsername').textContent = username;
+        document.getElementById('deleteForm').action = `/ui/users/${userId}/delete`;
+        
+        // Mostrar el modal
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        deleteModal.show();
+    }
+</script>
+{% endblock %}

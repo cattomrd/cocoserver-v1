@@ -1,0 +1,113 @@
+<!-- templates/user_create.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Crear Nuevo Usuario</h1>
+        <a href="/ui/users/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a la lista
+        </a>
+    </div>
+    
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+    
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Información de Usuario</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" action="/ui/users/create">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="username" class="form-label">Nombre de Usuario <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="username" name="username" required 
+                               value="{{ username or '' }}" pattern="[a-zA-Z0-9_]+" 
+                               title="Solo letras, números y guion bajo">
+                        <div class="form-text">Solo letras, números y guion bajo (_)</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="email" class="form-label">Correo Electrónico <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="email" name="email" required 
+                               value="{{ email or '' }}">
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="fullname" class="form-label">Nombre Completo</label>
+                    <input type="text" class="form-control" id="fullname" name="fullname" 
+                           value="{{ fullname or '' }}">
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="password" class="form-label">Contraseña <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="password" name="password" required
+                               minlength="6">
+                        <div class="form-text">Mínimo 6 caracteres</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="password_confirm" class="form-label">Confirmar Contraseña <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="password_confirm" name="password_confirm" 
+                               required minlength="6">
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="is_admin" name="is_admin" 
+                                   {% if is_admin %}checked{% endif %}>
+                            <label class="form-check-label" for="is_admin">
+                                <span class="badge bg-danger">Rol de Administrador</span>
+                            </label>
+                        </div>
+                        <div class="form-text">Los administradores tienen acceso a todas las funciones, incluyendo la gestión de usuarios.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                                {% if is_active is not defined or is_active %}checked{% endif %}>
+                            <label class="form-check-label" for="is_active">
+                                <span class="badge bg-success">Usuario Activo</span>
+                            </label>
+                        </div>
+                        <div class="form-text">Los usuarios inactivos no pueden iniciar sesión.</div>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="/ui/users/" class="btn btn-outline-secondary me-md-2">Cancelar</a>
+                    <button type="submit" class="btn btn-primary">Crear Usuario</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Validación de coincidencia de contraseñas
+        const password = document.getElementById('password');
+        const passwordConfirm = document.getElementById('password_confirm');
+        
+        function validatePassword() {
+            if (password.value !== passwordConfirm.value) {
+                passwordConfirm.setCustomValidity('Las contraseñas no coinciden');
+            } else {
+                passwordConfirm.setCustomValidity('');
+            }
+        }
+        
+        password.addEventListener('change', validatePassword);
+        passwordConfirm.addEventListener('keyup', validatePassword);
+    });
+</script>
+{% endblock %}

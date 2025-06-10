@@ -35,7 +35,8 @@ class Playlist(Base):
     description = Column(Text, nullable=True)
     creation_date = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    expiration_date = Column(DateTime, nullable=True)
+    start_date = Column(DateTime, nullable=True)  # Fecha de inicio de la playlist
+    expiration_date = Column(DateTime, nullable=True)  # Fecha de fin de la playlist
     is_active = Column(Boolean, default=True)
     
     # Relación con PlaylistVideo
@@ -58,6 +59,26 @@ class Playlist(Base):
         secondary="device_playlists",
         viewonly=True
     )
+    
+    @property
+    def is_currently_active(self):
+        """
+        Verifica si la playlist está activa según las fechas de inicio y fin
+        """
+        if not self.is_active:
+            return False
+            
+        now = datetime.now()
+        
+        # Verificar fecha de inicio
+        if self.start_date and now < self.start_date:
+            return False
+        
+        # Verificar fecha de expiración
+        if self.expiration_date and now > self.expiration_date:
+            return False
+            
+        return True
 
 class Video(Base):
     __tablename__ = "videos"

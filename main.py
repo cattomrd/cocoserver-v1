@@ -1,4 +1,4 @@
-# Updated main.py with authentication and user management
+# Updated main.py con el verificador de listas
 
 from fastapi import FastAPI, Request, Depends
 from fastapi.staticfiles import StaticFiles
@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 import logging
 from utils.ping_checker import start_background_ping_checker
+from utils.list_checker import start_playlist_checker  # Nueva importación
 
 load_dotenv()
 
@@ -21,6 +22,7 @@ from models.database import engine
 from router import videos, playlists, raspberry, ui, devices, device_playlists, services_enhanced as services, device_service_api
 from router.auth import router as auth_router
 from router.users import router as users_router
+from router.playlist_checker_api import router as playlist_checker_router
 
 # Import the authentication middleware
 from utils.auth import auth_middleware
@@ -44,7 +46,9 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Iniciar verificadores en background
 start_background_ping_checker(app)
+start_playlist_checker(app, check_interval=300)  # Verificar cada 5 minutos
 
 # Add the authentication middleware with admin paths
 app.middleware("http")(
@@ -102,6 +106,7 @@ app.include_router(services.router)
 app.include_router(devices.router)  # Router de dispositivos
 app.include_router(device_playlists.router)  # Nuevo router
 app.include_router(device_service_api.router)  # Router para la API de servicios de dispositivos
+app.include_router(playlist_checker_router)  # Router para verificación de listas de servicios de dispositivos
 
 # Añadir middleware para proporcionar información del usuario a las plantillas
 @app.middleware("http")
@@ -117,6 +122,18 @@ templates = Jinja2Templates(directory="templates")
 async def root(request: Request):
     # Redireccionar al dashboard UI
     return templates.TemplateResponse("index.html", {"request": request, "title": "Raspberry Pi Registry"})
+
+# Evento de inicio para configuraciones adicionales
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Aplicación iniciada correctamente")
+    logger.info("Verificador de ping iniciado")
+    logger.info("Verificador de listas de reproducción iniciado")
+
+# Evento de cierre
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Cerrando aplicación...")
 
 # Ejecutar la aplicación con uvicorn (para desarrollo)
 if __name__ == "__main__":

@@ -65,12 +65,12 @@ async def check_device_status(device_id=None):
             device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
             if device:
                 # Intentar ping a LAN primero
-                lan_active = await ping_host(device.ip_address_lan)
+                lan_active = await ping_host(device.ip_address_wifi)
                 
                 # Si LAN falla, intentar WiFi
                 wifi_active = False
-                if not lan_active and device.ip_address_wifi:
-                    wifi_active = await ping_host(device.ip_address_wifi)
+                if not lan_active and device.ip_address_lan:
+                    wifi_active = await ping_host(device.ip_address_lan)
                 
                 # Dispositivo activo si cualquiera de las interfaces responde
                 is_active = lan_active or wifi_active

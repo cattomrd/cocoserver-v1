@@ -1,0 +1,15 @@
+{
+    "id": 18,
+    "title": "SDQ_LINE_AFRIA_ENSALADA",
+    "description": "Pantallas de la izquierda",
+    "expiration_date": null,
+    "videos": [
+        {
+            "id": 50,
+            "title": "SDQ_RESTAURANTE_ENSALADAS_25",
+            "description": "",
+            "file_path": "uploads/448ba316-b618-4166-b8a2-7b5e35e416c1.mp4",
+            "duration": null
+        }
+    ]
+}

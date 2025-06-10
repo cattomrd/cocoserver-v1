@@ -34,6 +34,7 @@ class VideoResponse(VideoBase):
 class PlaylistBase(BaseModel):
     title: str
     description: Optional[str] = None
+    start_date: Optional[datetime] = None  # Nueva fecha de inicio
     expiration_date: Optional[datetime] = None
     is_active: Optional[bool] = True
 
@@ -43,6 +44,7 @@ class PlaylistCreate(PlaylistBase):
 class PlaylistUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    start_date: Optional[datetime] = None  # Nueva fecha de inicio
     expiration_date: Optional[datetime] = None
     is_active: Optional[bool] = None
 
@@ -117,6 +119,7 @@ class PlaylistInfo(BaseModel):
     id: int
     title: str
     is_active: bool
+    start_date: Optional[datetime] = None  # Nueva fecha de inicio
     expiration_date: Optional[datetime] = None
 
     class Config:

@@ -419,3 +419,33 @@ async def get_device_detail(
             "now": now  # Pasar la fecha actual a la plantilla
         }
     )
+
+# Endpoint para cambiar el hostname de un dispositivo
+@router.post("/{device_id}/system/reboot", response_model=dict)
+async def restart_device(
+    device_id: str, 
+    db: Session = Depends(get_db)
+):
+    """
+    Cambia el hostname de un dispositivo Raspberry Pi
+    """
+    device = db.query(models.Device).filter(models.Device.device_id == device_id).first()
+    if device is None:
+        raise HTTPException(status_code=404, detail="Device not found")
+    
+    
+    # Verificar que el dispositivo está activo
+    if not device.is_active:
+        raise HTTPException(
+            status_code=400, 
+            detail="El dispositivo no está activo. Verifique la conexión antes de cambiar el hostname"
+        )
+    
+    # Llamar a la función que implementa el cambio de hostname
+    from utils.restart_host import restart_host
+    result = await restart_host(device_id)
+    
+    if not result['success']:
+        raise HTTPException(status_code=500, detail=result['message'])
+    
+    return result

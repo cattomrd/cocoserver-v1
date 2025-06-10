@@ -5,52 +5,87 @@
 <div class="row">
     <div class="col-12">
         <h1 class="mb-4">Dispositivos Registrados</h1>
-        
-        <div class="card mb-4">
-            <div class="card-header bg-light">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Filtros</h5>
+ <!-- Modificar el bloque de filtros existente para incluir el botón de limpiar -->
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Filtros</h5>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="clearFilters">
+                <i class="bi bi-x-circle"></i> Limpiar todos
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <form action="/ui/devices" method="get" class="row g-3">
+            <!-- Campo de búsqueda -->
+            <div class="col-md-4 mb-2">
+                <label for="search" class="form-label">Buscar dispositivos:</label>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="search" name="search" 
+                            placeholder="Nombre, ubicación, modelo..." value="{{ search_term if search_term else '' }}">
+                    <button type="button" class="btn btn-outline-secondary" id="clearSearch" title="Limpiar búsqueda">
+                        <i class="bi bi-x"></i>
+                    </button>
                 </div>
             </div>
-            <div class="card-body">
-                <form action="/ui/devices" method="get" class="row g-3">
-                    <!-- Campo de búsqueda -->
-                    <div class="col-md-4 mb-2">
-                        <label for="search" class="form-label">Buscar dispositivos:</label>
-                        <input type="text" class="form-control" id="search" name="search" 
-                                placeholder="Nombre, ubicación, modelo..." value="{{ search_term if search_term else '' }}">
-                    </div>
-                    
-                    <!-- Filtro por campo específico -->
-                    <div class="col-md-3 mb-2">
-                        <label for="search_field" class="form-label">Buscar en:</label>
-                        <select class="form-select" id="search_field" name="search_field">
-                            <option value="all" {% if search_field == 'all' %}selected{% endif %}>Todos los campos</option>
-                            <option value="name" {% if search_field == 'name' %}selected{% endif %}>Nombre</option>
-                            <option value="location" {% if search_field == 'location' %}selected{% endif %}>Ubicación</option>
-                            <option value="tienda" {% if search_field == 'tienda' %}selected{% endif %}>Tienda</option>
-                            <option value="model" {% if search_field == 'model' %}selected{% endif %}>Modelo</option>
-                            <option value="ip" {% if search_field == 'ip' %}selected{% endif %}>Dirección IP</option>
-                            <option value="lista" {% if search_field == 'lista' %}selected{% endif %}>Lista</option>
-                        </select>
-                    </div>
-                    
-                    <div class="col-md-12">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="active_only" name="active_only" {% if active_only %}checked{% endif %}>
-                            <label class="form-check-label" for="active_only">
-                                Solo mostrar dispositivos activos
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="col-12">
-                        <button type="submit" class="btn btn-primary me-2">Aplicar Filtros</button>
-                        <a href="/ui/devices" class="btn btn-outline-secondary">Limpiar Filtros</a>
-                    </div>
-                </form>
+            
+            <!-- Filtro por campo específico -->
+            <div class="col-md-2 mb-2">
+                <label for="search_field" class="form-label">Buscar en:</label>
+                <select class="form-select" id="search_field" name="search_field">
+                    <option value="all" {% if search_field == 'all' %}selected{% endif %}>Todos los campos</option>
+                    <option value="name" {% if search_field == 'name' %}selected{% endif %}>Nombre</option>
+                    <option value="location" {% if search_field == 'location' %}selected{% endif %}>Ubicación</option>
+                    <option value="tienda" {% if search_field == 'tienda' %}selected{% endif %}>Tienda</option>
+                    <option value="model" {% if search_field == 'model' %}selected{% endif %}>Modelo</option>
+                    <option value="ip" {% if search_field == 'ip' %}selected{% endif %}>Dirección IP</option>
+                    <option value="lista" {% if search_field == 'lista' %}selected{% endif %}>Lista</option>
+                </select>
             </div>
-        </div>
+            
+            <!-- Filtro por Tiendas -->
+            <div class="col-md-2 mb-2">
+                <label for="tienda_filter" class="form-label">Tiendas:</label>
+                <select class="form-select" id="tienda_filter" name="tienda_filter">
+                    <option value="">Todas las tiendas</option>
+                    <option value="SDQ">SDQ</option>
+                    <option value="STI">STI</option>
+                    <option value="PUJ">PUJ</option>
+                    <option value="LRM">LRM</option>
+                    <option value="BAY">BAY</option>
+                    <option value="PON">PON</option>
+                    <option value="CAR">CAR</option>
+                    <option value="ESC">ESC</option>
+                </select>
+            </div>
+
+            <!-- Contador de resultados -->
+            <div class="col-md-3 mb-3">
+                <label class="form-label">Resultados:</label>
+                <div class="form-control-plaintext">
+                    <span id="resultsCounter" class="badge bg-info">{{ devices|length if devices else 0 }} dispositivos</span>
+                </div>
+            </div>
+            
+            <div class="col-md-12">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="active_only" name="active_only" {% if active_only %}checked{% endif %}>
+                    <label class="form-check-label" for="active_only">
+                        Solo mostrar dispositivos activos
+                    </label>
+                </div>
+            </div>
+            
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary me-2">Aplicar Filtros</button>
+                <a href="/ui/devices" class="btn btn-outline-secondary">Limpiar Filtros</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+</div>
         
         {% if devices %}
         <div class="table-responsive">
@@ -114,21 +149,42 @@
     </div>
 </div>
 {% endblock %}
+
 {% block extra_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('search');
     const searchField = document.getElementById('search_field');
+    const tiendaFilter = document.getElementById('tienda_filter');
     const activeOnly = document.getElementById('active_only');
+    const clearSearchBtn = document.getElementById('clearSearch');
+    const clearFiltersBtn = document.getElementById('clearFilters');
+    const resultsCounter = document.getElementById('resultsCounter');
     const tableRows = document.querySelectorAll('tbody tr');
+    
+    // Función para actualizar el contador de resultados
+    function updateResultsCounter(visibleCount) {
+        if (resultsCounter) {
+            resultsCounter.textContent = `${visibleCount} dispositivo${visibleCount !== 1 ? 's' : ''}`;
+            resultsCounter.className = `badge ${visibleCount > 0 ? 'bg-info' : 'bg-warning'}`;
+        }
+    }
     
     // Función para filtrar la tabla en tiempo real
     function filterTable() {
-        const searchTerm = searchInput.value.toLowerCase();
-        const field = searchField.value;
-        const showActiveOnly = activeOnly.checked;
+        const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+        const field = searchField ? searchField.value : 'all';
+        const selectedTienda = tiendaFilter ? tiendaFilter.value.toLowerCase() : '';
+        const showActiveOnly = activeOnly ? activeOnly.checked : false;
+        
+        let visibleCount = 0;
         
         tableRows.forEach(row => {
+            // Verificar que la fila tiene suficientes celdas
+            if (row.cells.length < 9) {
+                return;
+            }
+            
             // Obtener valores de las celdas
             const id = row.cells[0].textContent.toLowerCase();
             const name = row.cells[1].textContent.toLowerCase();
@@ -146,9 +202,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Si no hay término de búsqueda y pasó el filtro de actividad, mostrar
+            // Verificar filtro de tienda
+            if (selectedTienda && !tienda.includes(selectedTienda)) {
+                row.style.display = 'none';
+                return;
+            }
+            
+            // Si no hay término de búsqueda y pasó los filtros anteriores, mostrar
             if (!searchTerm) {
                 row.style.display = '';
+                visibleCount++;
                 return;
             }
             
@@ -171,7 +234,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 case 'ip':
                     match = ipLan.includes(searchTerm) || ipWlan.includes(searchTerm);
                     break;
-                    case 'lista':	
+                case 'lista':
                     match = playlist.includes(searchTerm);
                     break;
                 default: // 'all'
@@ -186,36 +249,195 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Mostrar u ocultar según el resultado
-            row.style.display = match ? '' : 'none';
+            if (match) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
         });
         
-        // Mostrar mensaje si no hay resultados
-        const visibleRows = document.querySelectorAll('tbody tr:not([style*="display: none"])');
-        const noResultsMessage = document.querySelector('.alert-info');
-        const tableContainer = document.querySelector('.table-responsive');
+        // Actualizar contador
+        updateResultsCounter(visibleCount);
         
-        if (visibleRows.length === 0) {
-            if (tableContainer) tableContainer.style.display = 'none';
-            if (noResultsMessage) {
-                noResultsMessage.style.display = '';
-                noResultsMessage.textContent = 'No hay dispositivos que coincidan con los criterios de búsqueda.';
-            } else {
-                // Crear mensaje si no existe
-                const alert = document.createElement('div');
-                alert.className = 'alert alert-info';
-                alert.textContent = 'No hay dispositivos que coincidan con los criterios de búsqueda.';
-                tableContainer.parentNode.appendChild(alert);
+        // Gestionar mensaje de "no hay resultados"
+        updateNoResultsMessage(visibleCount, searchTerm, showActiveOnly, selectedTienda);
+    }
+    
+    // Función para actualizar el mensaje cuando no hay resultados
+    function updateNoResultsMessage(visibleCount, searchTerm, showActiveOnly, selectedTienda) {
+        const tableContainer = document.querySelector('.table-responsive');
+        const existingAlert = document.querySelector('.js-no-results-alert');
+        
+        // Remover mensaje existente si hay uno
+        if (existingAlert) {
+            existingAlert.remove();
+        }
+        
+        if (visibleCount === 0) {
+            // Ocultar tabla
+            if (tableContainer) {
+                tableContainer.style.display = 'none';
+            }
+            
+            // Crear y mostrar mensaje de "no hay resultados"
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-info js-no-results-alert';
+            
+            let message = 'No hay dispositivos que coincidan con los criterios de búsqueda.';
+            
+            // Crear mensaje más específico
+            let criteria = [];
+            if (searchTerm) criteria.push(`término "${searchTerm}"`);
+            if (selectedTienda) criteria.push(`tienda "${selectedTienda.toUpperCase()}"`);
+            if (showActiveOnly) criteria.push('dispositivos activos');
+            
+            if (criteria.length > 0) {
+                message = `No hay dispositivos que coincidan con: ${criteria.join(', ')}.`;
+            }
+            
+            alert.textContent = message;
+            
+            // Insertar después del contenedor de la tabla
+            if (tableContainer && tableContainer.parentNode) {
+                tableContainer.parentNode.insertBefore(alert, tableContainer.nextSibling);
             }
         } else {
-            if (tableContainer) tableContainer.style.display = '';
-            if (noResultsMessage) noResultsMessage.style.display = 'none';
+            // Mostrar tabla
+            if (tableContainer) {
+                tableContainer.style.display = '';
+            }
         }
     }
     
+    // Función para limpiar todos los filtros
+    function clearAllFilters() {
+        if (searchInput) searchInput.value = '';
+        if (searchField) searchField.value = 'all';
+        if (tiendaFilter) tiendaFilter.value = '';
+        if (activeOnly) activeOnly.checked = false;
+        filterTable();
+    }
+    
+    // Función para aplicar filtro rápido por tienda
+    function filterByTienda(tiendaName) {
+        if (tiendaFilter) {
+            tiendaFilter.value = tiendaName;
+            // También actualizar el campo de búsqueda para mostrar visualmente qué se está filtrando
+            if (searchInput) searchInput.value = '';
+            if (searchField) searchField.value = 'tienda';
+            filterTable();
+        }
+    }
+    
+    // Función para aplicar filtro rápido por ubicación
+    function filterByLocation(locationName) {
+        if (searchInput) searchInput.value = locationName;
+        if (searchField) searchField.value = 'location';
+        if (tiendaFilter) tiendaFilter.value = ''; // Limpiar filtro de tienda
+        filterTable();
+    }
+    
+    // Función para obtener tiendas únicas
+    function getUniqueTiendas() {
+        const tiendas = new Set();
+        tableRows.forEach(row => {
+            if (row.cells.length >= 4) {
+                const tienda = row.cells[3].textContent.trim();
+                if (tienda && tienda !== 'No especificada' && tienda !== '') {
+                    tiendas.add(tienda);
+                }
+            }
+        });
+        return Array.from(tiendas).sort();
+    }
+    
+    // Función para obtener ubicaciones únicas
+    function getUniqueLocations() {
+        const locations = new Set();
+        tableRows.forEach(row => {
+            if (row.cells.length >= 3) {
+                const location = row.cells[2].textContent.trim();
+                if (location && location !== 'No especificada' && location !== '') {
+                    locations.add(location);
+                }
+            }
+        });
+        return Array.from(locations).sort();
+    }
+    
+    
     // Añadir listeners para filtrado en tiempo real
-    if (searchInput) searchInput.addEventListener('input', filterTable);
-    if (searchField) searchField.addEventListener('change', filterTable);
-    if (activeOnly) activeOnly.addEventListener('change', filterTable);
+    if (searchInput) {
+        searchInput.addEventListener('input', filterTable);
+        searchInput.addEventListener('keyup', filterTable);
+    }
+    
+    if (searchField) {
+        searchField.addEventListener('change', filterTable);
+    }
+    
+    if (tiendaFilter) {
+        tiendaFilter.addEventListener('change', filterTable);
+    }
+    
+    if (activeOnly) {
+        activeOnly.addEventListener('change', filterTable);
+    }
+    
+    // Botón para limpiar solo la búsqueda
+    if (clearSearchBtn) {
+        clearSearchBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (searchInput) {
+                searchInput.value = '';
+                filterTable();
+            }
+        });
+    }
+    
+    // Botón para limpiar todos los filtros
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            clearAllFilters();
+        });
+    }
+    
+    // Aplicar filtro inicial si hay parámetros en la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialSearch = urlParams.get('search');
+    const initialField = urlParams.get('search_field');
+    const initialTienda = urlParams.get('tienda_filter');
+    const initialActive = urlParams.get('active_only');
+    
+    if (initialSearch && searchInput) {
+        searchInput.value = initialSearch;
+    }
+    if (initialField && searchField) {
+        searchField.value = initialField;
+    }
+    if (initialTienda && tiendaFilter) {
+        tiendaFilter.value = initialTienda;
+    }
+    if (initialActive && activeOnly) {
+        activeOnly.checked = initialActive === 'on';
+    }
+    
+    // Crear filtros rápidos
+    createQuickFilters();
+    
+    // Aplicar filtro inicial
+    filterTable();
+    
+    // Exponer funciones globalmente para uso desde otros scripts
+    window.deviceFilters = {
+        filterByLocation: filterByLocation,
+        filterByTienda: filterByTienda,
+        clearAllFilters: clearAllFilters,
+        getUniqueLocations: getUniqueLocations,
+        getUniqueTiendas: getUniqueTiendas
+    };
 });
 </script>
 {% endblock %}

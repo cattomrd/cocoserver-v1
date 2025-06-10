@@ -4,10 +4,10 @@
 </head>
 <body>
     <div class="container">
-        <h1 class="mb-4 text-center">Plataforma de Gestión de Videos</h1>
+        <h1 class="mb-4 text-center">Gestion de videos y Publicidad</h1>
         
         <!-- Navegación por pestañas -->
-        <ul class="nav nav-pills mb-4" id="mainTab" role="tablist">
+        <ul class="nav nav-pills mb-" id="mainTab" role="tablist">
             <li class="nav-item">
                 <a class="nav-link active" id="videos-tab" data-bs-toggle="tab" href="#videos" role="tab">Videos</a>
             </li>
@@ -152,6 +152,10 @@
                                             <textarea class="form-control" id="playlistDescription" name="description" rows="3"></textarea>
                                         </div>
                                         <div class="mb-3">
+                                            <label for="playlistStartDate" class="form-label">Fecha de Inicio (opcional)</label>
+                                            <input type="datetime-local" class="form-control" id="playlistStartDate" name="expiration_date">
+                                        </div>
+                                        <div class="mb-3">
                                             <label for="playlistExpiration" class="form-label">Fecha de Expiración (opcional)</label>
                                             <input type="datetime-local" class="form-control" id="playlistExpiration" name="expiration_date">
                                         </div>
@@ -166,71 +170,154 @@
                         </div>
                     </div>
                 </div>
-                    <!-- Buscador de listas de reproducción -->
-                    <div class="row mb-3">
-                        <div class="col-md-8">
-                            <div class="input-group">
-                                <input type="text" id="playlistSearchInput" class="form-control" placeholder="Buscar listas por título o descripción...">
-                                <button class="btn btn-outline-primary" type="button" id="clearPlaylistSearch">
-                                    <i class="fas fa-times"></i> Limpiar
-                                </button>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <span id="playlistCountBadge" class="badge bg-info">0 listas</span>
-                        </div>
+<!-- Buscador y controles de listas de reproducción -->
+<div class="row mb-3">
+    <div class="col-md-6">
+        <div class="input-group">
+            <input type="text" id="playlistSearchInput" class="form-control" placeholder="Buscar listas por título o descripción...">
+            <button class="btn btn-outline-primary" type="button" id="clearPlaylistSearch">
+                <i class="fas fa-times"></i> Limpiar
+            </button>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="playlistFilterStatus">
+            <option value="all">Todas las listas</option>
+            <option value="active">Listas activas</option>
+            <option value="inactive">Listas inactivas</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="playlistPageSizeSelect">
+            <option value="25">25 por página</option>
+            <option value="50">50 por página</option>
+            <option value="100" selected>100 por página</option>
+            <option value="200">200 por página</option>
+            <option value="500">Todas las listas</option>
+        </select>
+    </div>
+</div>
+
+<!-- Información de resultados y paginación -->
+<div class="row mb-2">
+    <div class="col-md-6">
+        <span id="playlistCountBadge" class="badge bg-info fs-6">0 listas</span>
+    </div>
+    <div class="col-md-6 text-end">
+        <small class="text-muted" id="playlistPaginationInfo">
+            Mostrando 0 - 0 de 0 resultados
+        </small>
+    </div>
+</div>
+
+<!-- Tabla de listas de reproducción -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Listas de Reproducción</h5>
+                <div class="d-flex gap-2">
+                    <!-- Botones de navegación de páginas -->
+                    <div class="btn-group" role="group" aria-label="Navegación de páginas">
+                        <button type="button" class="btn btn-outline-primary btn-sm" 
+                                id="firstPlaylistPageBtn" onclick="goToFirstPlaylistPage()" 
+                                title="Primera página">
+                            <i class="fas fa-angle-double-left"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" 
+                                id="prevPlaylistPageBtn" onclick="goToPrevPlaylistPage()" 
+                                title="Página anterior">
+                            <i class="fas fa-angle-left"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" 
+                                id="nextPlaylistPageBtn" onclick="goToNextPlaylistPage()" 
+                                title="Página siguiente">
+                            <i class="fas fa-angle-right"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" 
+                                id="lastPlaylistPageBtn" onclick="goToLastPlaylistPage()" 
+                                title="Última página">
+                            <i class="fas fa-angle-double-right"></i>
+                        </button>
                     </div>
-                <div class="row mb-3">
-                    <div class="col-md-12">
-                        <div class="form-group">
-                            <label for="playlistFilterStatus" class="form-label">Filtrar por estado:</label>
-                            <select class="form-select form-select-lg" id="playlistFilterStatus" style="font-size: 1rem;">
-                                <option value="all">Todas las listas</option>
-                                <option value="active">Listas activas</option>
-                                <option value="inactive">Listas inactivas</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0">Listas de Reproducción</h5>
-                            </div>
-                            <div class="card-body">
-                                <!-- Vista de tabla para playlists -->
-                                <div class="table-responsive">
-                                    <table class="table table-striped table-hover" id="playlistsTable">
-                                        <thead>
-                                            <tr>
-                                                <th>Título</th>
-                                                <th>Descripción</th>
-                                                <th>Videos</th>
-                                                <th>Expiración</th>
-                                                <th>Estado</th>
-                                                <th>Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="playlistsList">
-                                            <!-- Las listas se cargarán aquí dinámicamente -->
-                                            <tr>
-                                                <td colspan="7" class="text-center py-3" id="playlistsLoading">
-                                                    <div class="spinner-border text-primary" role="status">
-                                                        <span class="visually-hidden">Cargando...</span>
-                                                    </div>
-                                                    <p class="mt-2">Cargando listas de reproducción...</p>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
+                    
+                    <!-- Indicador de página actual -->
+                    <div class="d-flex align-items-center">
+                        <small class="text-muted me-2">Página</small>
+                        <input type="number" id="playlistPageInput" class="form-control form-control-sm text-center" 
+                               style="width: 60px;" min="1" value="1" 
+                               onchange="goToPlaylistPage(parseInt(this.value))"
+                               onkeypress="if(event.key==='Enter') goToPlaylistPage(parseInt(this.value))">
+                        <small class="text-muted ms-2">de <span id="totalPlaylistPages">1</span></small>
                     </div>
                 </div>
             </div>
+            <div class="card-body p-0">
+                <!-- Vista de tabla para playlists -->
+                <div class="table-responsive" style="min-height: 300px;">
+                    <table class="table table-striped table-hover mb-0" id="playlistsTable">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>
+                                    <button class="btn btn-link text-white text-decoration-none p-0" 
+                                            onclick="sortPlaylistTable('title')" 
+                                            title="Ordenar por título">
+                                        Título <i class="fas fa-sort ms-1"></i>
+                                    </button>
+                                </th>
+                                <th>Descripción</th>
+                                <th>
+                                    <button class="btn btn-link text-white text-decoration-none p-0" 
+                                            onclick="sortPlaylistTable('video_count')" 
+                                            title="Ordenar por número de videos">
+                                        Videos <i class="fas fa-sort ms-1"></i>
+                                    </button>
+                                </th>
+                                <th>
+                                    <button class="btn btn-link text-white text-decoration-none p-0" 
+                                            onclick="sortPlaylistTable('expiration_date')" 
+                                            title="Ordenar por fecha de expiración">
+                                        Expiración <i class="fas fa-sort ms-1"></i>
+                                    </button>
+                                </th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="playlistsList">
+                            <!-- Las listas se cargarán aquí dinámicamente -->
+                            <tr>
+                                <td colspan="6" class="text-center py-3" id="playlistsLoading">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Cargando...</span>
+                                    </div>
+                                    <p class="mt-2">Cargando listas de reproducción...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Footer con información adicional de paginación -->
+            <div class="card-footer bg-light">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i>
+                            Tip: Usa los filtros y búsqueda para encontrar listas específicas
+                        </small>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <small class="text-muted" id="playlistPaginationFooter">
+                            <!-- Información adicional de paginación -->
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
             
             <!-- Pestaña de Raspberry Pi -->
             <div class="tab-pane fade" id="raspberry" role="tabpanel">
@@ -435,7 +522,11 @@
                         <label for="editPlaylistDescription" class="form-label">Descripción</label>
                         <textarea class="form-control" id="editPlaylistDescription" rows="3"></textarea>
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-2">
+                        <label for="playlistStartDate" class="form-label">Fecha de Inicio (opcional)</label>
+                        <input type="datetime-local" class="form-control" id="playlistStartDate" name="expiration_date">
+                    </div>
+                    <div class="mb-2">
                         <label for="editPlaylistExpiration" class="form-label">Fecha de Expiración (opcional)</label>
                         <input type="datetime-local" class="form-control" id="editPlaylistExpiration">
                     </div>
@@ -455,493 +546,64 @@
 {% endblock %}
 {% block extra_scripts %}
     <!-- Scripts -->
+     <script>
+        // Función actualizada para manejar los botones de paginación
+function updatePlaylistPaginationButtons() {
+    const firstBtn = document.getElementById('firstPlaylistPageBtn');
+    const prevBtn = document.getElementById('prevPlaylistPageBtn');
+    const nextBtn = document.getElementById('nextPlaylistPageBtn');
+    const lastBtn = document.getElementById('lastPlaylistPageBtn');
+    const pageInput = document.getElementById('playlistPageInput');
+    const totalPagesSpan = document.getElementById('totalPlaylistPages');
+    const paginationFooter = document.getElementById('playlistPaginationFooter');
+    
+    if (firstBtn) firstBtn.disabled = currentPlaylistPage <= 1;
+    if (prevBtn) prevBtn.disabled = currentPlaylistPage <= 1;
+    if (nextBtn) nextBtn.disabled = currentPlaylistPage >= totalPlaylistPages;
+    if (lastBtn) lastBtn.disabled = currentPlaylistPage >= totalPlaylistPages;
+    
+    if (pageInput) {
+        pageInput.value = currentPlaylistPage;
+        pageInput.max = totalPlaylistPages;
+    }
+    
+    if (totalPagesSpan) {
+        totalPagesSpan.textContent = totalPlaylistPages;
+    }
+    
+    if (paginationFooter) {
+        const startItem = totalPlaylistItems > 0 ? (currentPlaylistPage - 1) * playlistPageSize + 1 : 0;
+        const endItem = Math.min(currentPlaylistPage * playlistPageSize, totalPlaylistItems);
+        paginationFooter.innerHTML = `
+            Página ${currentPlaylistPage} de ${totalPlaylistPages} 
+            <span class="text-primary">(${startItem}-${endItem} de ${totalPlaylistItems})</span>
+        `;
+    }
+}
+
+// Actualizar la función existente para incluir los nuevos controles
+function updatePlaylistPaginationInfo() {
+    const startItem = totalPlaylistItems > 0 ? (currentPlaylistPage - 1) * playlistPageSize + 1 : 0;
+    const endItem = Math.min(currentPlaylistPage * playlistPageSize, totalPlaylistItems);
+    
+    const playlistCountBadge = document.getElementById('playlistCountBadge');
+    if (playlistCountBadge) {
+        playlistCountBadge.textContent = `${totalPlaylistItems} listas`;
+    }
+    
+    const paginationInfo = document.getElementById('playlistPaginationInfo');
+    if (paginationInfo) {
+        paginationInfo.textContent = `Mostrando ${startItem} - ${endItem} de ${totalPlaylistItems} resultados`;
+    }
+    
+    // Llamar a la función de actualización de botones
+    updatePlaylistPaginationButtons();
+}
+     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/main.js"></script>
-    <script src="/static/js/search.js"></script>
-    <!-- Script para modificar la carga de videos en formato tabla -->
-    <script>
-    // Sobrescribir la función loadVideos para usar formato de tabla
-    window.originalLoadVideos = window.loadVideos;
-    window.loadVideos = async function(filter = 'all') {
-        try {
-            document.getElementById('videosLoading').style.display = 'block';
-            
-            console.log("Solicitando videos desde:", `${API_URL}/videos/`);
-            
-            const response = await fetch(`${API_URL}/videos/`);
-            console.log("Respuesta de la API:", response.status, response.statusText);
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error("Error en respuesta:", errorText);
-                throw new Error(`Error de servidor: ${response.status} - ${response.statusText}`);
-            }
-            
-            const responseData = await response.json();
-            console.log("Datos recibidos:", responseData);
-            
-            allVideos = responseData;
-            
-            const videosList = document.getElementById('videosList');
-            videosList.innerHTML = '';
-            
-            if (!Array.isArray(allVideos)) {
-                console.error("Datos recibidos no son un array:", allVideos);
-                throw new Error("Formato de datos inválido");
-            }
-            
-            // Filtrar videos según el criterio seleccionado
-            let filteredVideos = allVideos;
-            if (filter === 'active') {
-                filteredVideos = allVideos.filter(video => !video.expiration_date || !isExpired(video.expiration_date));
-            } else if (filter === 'expired') {
-                filteredVideos = allVideos.filter(video => video.expiration_date && isExpired(video.expiration_date));
-            }
-            
-            if (filteredVideos.length === 0) {
-                videosList.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center py-5">
-                            <p>No hay videos disponibles. ¡Sube tu primer video!</p>
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-            
-            filteredVideos.forEach(video => {
-                const isVideoExpired = video.expiration_date && isExpired(video.expiration_date);
-                const row = document.createElement('tr');
-                row.className = isVideoExpired ? 'table-danger' : '';
-                
-                row.innerHTML = `
-                    <td>${video.title}</td>
-                    <td>${video.description || '<span class="text-muted">Sin descripción</span>'}</td>
-                    <td>${formatDate(video.upload_date)}</td>
-                    <td>
-                        ${video.expiration_date ? 
-                            `<span class="badge ${isVideoExpired ? 'bg-danger' : 'bg-info'}">
-                                ${isVideoExpired ? 'Expirado' : 'Expira'}: ${formatDate(video.expiration_date)}
-                            </span>` : 
-                            '<span class="text-muted">Sin expiración</span>'}
-                    </td>
-                    <td>
-                        <span class="badge ${isVideoExpired ? 'bg-danger' : 'bg-success'}">
-                            ${isVideoExpired ? 'Expirado' : 'Activo'}
-                        </span>
-                    </td>
-                    <td>
-                        <div class="btn-group">
-                            <a href="${API_URL}/videos/${video.id}/download" class="btn btn-outline-primary">
-                                <i class="fas fa-download"></i> Descargar
-                            </a>
-                            <button class="btn btn-outline-secondary" onclick="editVideo(${video.id})">
-                                <i class="fas fa-edit"></i> Editar
-                            </button>
-                            <button class="btn btn-outline-danger" onclick="deleteVideo(${video.id})">
-                                <i class="fas fa-trash"></i> Eliminar
-                            </button>
-                        </div>
-                    </td>
-                `;
-                videosList.appendChild(row);
-            });
-        } catch (error) {
-            console.error('Error al cargar videos:', error);
-            document.getElementById('videosList').innerHTML = `
-                <tr>
-                    <td colspan="7" class="text-center py-5">
-                        <div class="alert alert-danger">Error al cargar videos: ${error.message}</div>
-                    </td>
-                </tr>
-            `;
-        } finally {
-            document.getElementById('videosLoading').style.display = 'none';
-        }
-    };
-
-    // Sobrescribir la función para cargar listas de reproducción en formato tabla
-    window.originalLoadPlaylists = window.loadPlaylists;
-    window.loadPlaylists = async function(filter = 'all') {
-        try {
-            const response = await fetch(`${API_URL}/playlists/`);
-            if (!response.ok) throw new Error('Error al cargar playlists');
-            
-            allPlaylists = await response.json();
-            
-            const playlistsList = document.getElementById('playlistsList');
-            playlistsList.innerHTML = '';
-            
-            // Filtrar playlists según el criterio seleccionado
-            let filteredPlaylists = allPlaylists;
-            if (filter === 'active') {
-                filteredPlaylists = allPlaylists.filter(playlist => isPlaylistActive(playlist));
-            } else if (filter === 'inactive') {
-                filteredPlaylists = allPlaylists.filter(playlist => !isPlaylistActive(playlist));
-            }
-            
-            if (filteredPlaylists.length === 0) {
-                playlistsList.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center py-5">
-                            <p>No hay listas de reproducción disponibles. ¡Crea tu primera lista!</p>
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-            
-            filteredPlaylists.forEach(playlist => {
-                const active = isPlaylistActive(playlist);
-                const expirationText = playlist.expiration_date 
-                    ? `${isExpired(playlist.expiration_date) ? 'Expiró' : 'Expira'}: ${formatDate(playlist.expiration_date)}`
-                    : 'Sin fecha de expiración';
-                    
-                const row = document.createElement('tr');
-                row.className = active ? '' : 'table-danger';
-                
-                row.innerHTML = `
-                    <td>${playlist.title}</td>
-                    <td>${playlist.description || '<span class="text-muted">Sin descripción</span>'}</td>
-                    <td>
-                        <span class="badge bg-secondary">${playlist.videos.length} videos</span>
-                    </td>
-                    <td>
-                        <span class="badge bg-info">${expirationText}</span>
-                    </td>
-                    <td>
-                        <span class="badge ${active ? 'bg-success' : 'bg-danger'}">
-                            ${active ? 'Activa' : 'Inactiva'}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn btn-primary" onclick="openPlaylistDetail(${playlist.id})">
-                            <i class="fas fa-eye"></i> Ver Detalles
-                        </button>
-                    </td>
-                `;
-                playlistsList.appendChild(row);
-            });
-        } catch (error) {
-            console.error('Error al cargar playlists:', error);
-            document.getElementById('playlistsList').innerHTML = `
-                <tr>
-                    <td colspan="7" class="text-center py-5">
-                        <div class="alert alert-danger">Error al cargar listas de reproducción: ${error.message}</div>
-                    </td>
-                </tr>
-            `;
-        } finally {
-            document.getElementById('playlistsLoading').style.display = 'none';
-        }
-    };
-
-    // Modificar la función openPlaylistDetail para mostrar videos en tabla
-    window.originalOpenPlaylistDetail = window.openPlaylistDetail;
-    window.openPlaylistDetail = async function(playlistId) {
-        currentPlaylistId = playlistId;
-        try {
-            const response = await fetch(`${API_URL}/playlists/${playlistId}`);
-            if (!response.ok) throw new Error('Error al cargar detalles de la playlist');
-            
-            const playlist = await response.json();
-            
-            // Código existente para mostrar información de la playlist...
-            document.getElementById('playlistDetailTitle').textContent = playlist.title;
-            document.getElementById('playlistDetailDescription').textContent = playlist.description || 'Sin descripción';
-            document.getElementById('playlistDetailDate').textContent = `Creada: ${formatDate(playlist.creation_date)}`;
-            
-            // Fecha de expiración
-            const expirationBadge = document.getElementById('playlistDetailExpirationDate');
-            if (playlist.expiration_date) {
-                const expired = isExpired(playlist.expiration_date);
-                expirationBadge.className = `badge ${expired ? 'bg-danger' : 'bg-info'}`;
-                expirationBadge.textContent = `${expired ? 'Expiró' : 'Expira'}: ${formatDate(playlist.expiration_date)}`;
-            } else {
-                expirationBadge.className = 'badge bg-secondary';
-                expirationBadge.textContent = 'Sin fecha de expiración';
-            }
-            
-            // Estado de la playlist
-            const statusBadge = document.getElementById('playlistDetailStatus');
-            const isActive = isPlaylistActive(playlist);
-            statusBadge.className = `badge ${isActive ? 'bg-success' : 'bg-danger'}`;
-            statusBadge.textContent = isActive ? 'Activa' : 'Inactiva';
-            
-            // Configurar botones
-            document.getElementById('playlistDownloadBtn').onclick = () => {
-                window.location.href = `${API_URL}/playlists/${playlistId}/download`;
-            };
-            
-            // Configurar botón de editar
-            document.getElementById('editPlaylistBtn').onclick = () => {
-                preparePlaylistForEditing(playlist);
-            };
-            
-            // Configurar botón para eliminar playlist
-            document.getElementById('deletePlaylistBtn').onclick = () => {
-                if (confirm('¿Estás seguro de que deseas eliminar esta lista de reproducción?')) {
-                    deletePlaylist(playlistId);
-                }
-            };
-            
-            // Mostrar videos en la playlist (formato tabla)
-            const playlistVideos = document.getElementById('playlistVideos');
-            playlistVideos.innerHTML = '';
-            
-            if (playlist.videos.length === 0) {
-                playlistVideos.innerHTML = '<tr><td colspan="4" class="text-center">No hay videos en esta lista</td></tr>';
-            } else {
-                playlist.videos.forEach(video => {
-                    const videoExpired = video.expiration_date && isExpired(video.expiration_date);
-                    const videoRow = document.createElement('tr');
-                    videoRow.className = videoExpired ? 'table-danger' : '';
-                    
-                    videoRow.innerHTML = `
-                        <td>${video.title}</td>
-                        <td>${video.description || '<span class="text-muted">Sin descripción</span>'}</td>
-                        <td>
-                            ${video.expiration_date ? 
-                                `<span class="badge ${videoExpired ? 'bg-danger' : 'bg-info'}">
-                                    ${videoExpired ? 'Expirado' : 'Expira'}: ${formatDate(video.expiration_date)}
-                                </span>` : 
-                                '<span class="text-muted">Sin expiración</span>'}
-                        </td>
-                        <td>
-                            <button class="btn btn-outline-danger" onclick="removeVideoFromPlaylist(${playlistId}, ${video.id})">
-                                <i class="fas fa-times"></i> Eliminar
-                            </button>
-                        </td>
-                    `;
-                    playlistVideos.appendChild(videoRow);
-                });
-            }
-            
-            // Cargar videos disponibles para agregar (solo los no expirados)
-            const addVideoSelect = document.getElementById('addVideoSelect');
-            addVideoSelect.innerHTML = '<option value="">Seleccionar video...</option>';
-            
-            // Filtrar videos que no están en la playlist y que no han expirado
-            const playlistVideoIds = new Set(playlist.videos.map(v => v.id));
-            const availableVideos = allVideos.filter(video => 
-                !playlistVideoIds.has(video.id) && 
-                (!video.expiration_date || !isExpired(video.expiration_date))
-            );
-            
-            if (availableVideos.length === 0) {
-                addVideoSelect.innerHTML += '<option disabled>No hay videos disponibles para agregar</option>';
-            } else {
-                availableVideos.forEach(video => {
-                    const option = document.createElement('option');
-                    option.value = video.id;
-                    option.textContent = video.title;
-                    addVideoSelect.appendChild(option);
-                });
-            }
-            
-            // Configurar botón para agregar video
-            document.getElementById('addVideoBtn').onclick = () => {
-                const videoId = addVideoSelect.value;
-                if (videoId) {
-                    addVideoToPlaylist(playlistId, parseInt(videoId));
-                } else {
-                    alert('Por favor, selecciona un video para agregar a la lista');
-                }
-            };
-            
-            // Mostrar y configurar sección de dispositivos
-            await loadPlaylistDevices(playlistId);
-            await loadAvailableDevices(playlistId);
-            
-            // Configurar botón para agregar dispositivo
-            document.getElementById('addDeviceBtn').onclick = () => {
-                const deviceId = document.getElementById('addDeviceSelect').value;
-                if (deviceId) {
-                    addDeviceToPlaylist(playlistId, deviceId);
-                } else {
-                    alert('Por favor, selecciona un dispositivo para asignar a la lista');
-                }
-            };
-            
-            // Mostrar el modal
-            const modal = new bootstrap.Modal(document.getElementById('playlistDetailModal'));
-            modal.show();
-            
-        } catch (error) {
-            console.error('Error al cargar detalles de la playlist:', error);
-            alert(`Error al cargar los detalles de la lista de reproducción: ${error.message}`);
-        }
-    };
-
-    // Modificar la función loadPlaylistDevices para mostrar dispositivos en tabla
-    window.originalLoadPlaylistDevices = window.loadPlaylistDevices;
-    window.loadPlaylistDevices = async function(playlistId) {
-        try {
-            const response = await fetch(`${API_URL}/device-playlists/playlist/${playlistId}/devices`);
-            if (!response.ok) throw new Error('Error al cargar dispositivos asignados');
-            
-            const assignedDevices = await response.json();
-            
-            // Obtener el contenedor de dispositivos
-            const devicesContainer = document.getElementById('assignedDevicesContainer');
-            if (!devicesContainer) return;
-            
-            // Limpiar contenido actual
-            if (assignedDevices.length === 0) {
-                devicesContainer.innerHTML = '<p class="text-center">No hay dispositivos asignados a esta lista</p>';
-                return;
-            }
-            
-            // Crear la tabla de dispositivos asignados
-            const table = document.createElement('table');
-            table.className = 'table table-sm table-hover';
-            table.innerHTML = `
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Nombre</th>
-                        <th>Ubicación</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            `;
-            
-            const tbody = table.querySelector('tbody');
-            
-            assignedDevices.forEach(device => {
-                const deviceRow = document.createElement('tr');
-                deviceRow.className = device.is_active ? '' : 'table-warning';
-                
-                deviceRow.innerHTML = `
-                    <td>${device.device_id}</td>
-                    <td>${device.name}</td>
-                    <td>${device.location || ''} ${device.tienda ? ' - ' + device.tienda : ''}</td>
-                    <td>
-                        <span class="badge ${device.is_active ? 'bg-success' : 'bg-danger'}">
-                            ${device.is_active ? 'Activo' : 'Inactivo'}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn btn-outline-danger" onclick="removeDeviceFromPlaylist('${device.device_id}', ${playlistId})">
-                            <i class="fas fa-times"></i> Eliminar
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(deviceRow);
-            });
-            
-            devicesContainer.innerHTML = '';
-            devicesContainer.appendChild(table);
-            
-        } catch (error) {
-            console.error('Error al cargar dispositivos asignados:', error);
-            const devicesContainer = document.getElementById('assignedDevicesContainer');
-            if (devicesContainer) {
-                devicesContainer.innerHTML = `<div class="alert alert-danger">Error al cargar dispositivos: ${error.message}</div>`;
-            }
-        }
-    };
-
-    // Modificar la función loadRaspberryActivePlaylists para usar tablas
-    window.originalLoadRaspberryActivePlaylists = window.loadRaspberryActivePlaylists;
-    window.loadRaspberryActivePlaylists = async function() {
-        try {
-            const response = await fetch(`${API_URL}/raspberry/playlists/active`);
-            if (!response.ok) throw new Error('Error al cargar playlists activas');
-            
-            const activePlaylists = await response.json();
-            
-            const raspberryActiveList = document.getElementById('raspberryActiveList');
-            raspberryActiveList.innerHTML = '';
-            
-            if (activePlaylists.length === 0) {
-                raspberryActiveList.innerHTML = `
-                    <div class="alert alert-warning">
-                        No hay listas de reproducción activas para dispositivos Raspberry Pi
-                    </div>
-                `;
-                return;
-            }
-            
-            const table = document.createElement('table');
-            table.className = 'table table-striped';
-            table.innerHTML = `
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Título</th>
-                        <th>Expiración</th>
-                        <th>Videos</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            `;
-            
-            const tbody = table.querySelector('tbody');
-            
-            activePlaylists.forEach(playlist => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${playlist.id}</td>
-                    <td>${playlist.title}</td>
-                    <td>${playlist.expiration_date ? formatDate(playlist.expiration_date) : 'Sin expiración'}</td>
-                    <td>${playlist.videos.length} videos</td>
-                    <td>
-                        <button class="btn btn-primary" onclick="openPlaylistDetail(${playlist.id})">
-                            <i class="fas fa-eye"></i> Ver
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-            
-            raspberryActiveList.appendChild(table);
-            
-        } catch (error) {
-            console.error('Error al cargar playlists activas para Raspberry Pi:', error);
-            document.getElementById('raspberryActiveList').innerHTML = `
-                <div class="alert alert-danger">
-                    Error al cargar listas de reproducción activas: ${error.message}
-                </div>
-            `;
-        }
-    };
-
-    // Ajustar la función addDeviceToPlaylist que parece estar incompleta en el código original
-    window.addDeviceToPlaylist = async function(playlistId, deviceId) {
-        try {
-            const response = await fetch(`${API_URL}/device-playlists/`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    device_id: deviceId,
-                    playlist_id: parseInt(playlistId)
-                }),
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Error al añadir el dispositivo');
-            }
-            
-            alert('Dispositivo añadido a la lista correctamente');
-            
-            // Recargar dispositivos
-            await loadPlaylistDevices(playlistId);
-            await loadAvailableDevices(playlistId);
-            
-        } catch (error) {
-            console.error('Error al añadir dispositivo a playlist:', error);
-            alert(`Error al añadir el dispositivo a la lista: ${error.message}`);
-        }
-    };
-    </script>
+    <!-- <script src="/static/js/search.js"></script>
+    Script para modificar la carga de videos en formato tabla -->
 {% endblock %}
 </body>
 </html>

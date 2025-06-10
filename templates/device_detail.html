@@ -6,7 +6,7 @@
     <input type="hidden" id="device-id" value="{{ device.device_id }}">
 
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Dispositivo {{device.name}}</h1>
+        <h1>Dispositivo {{device.tienda}} - {{ device.location if device.location else 'No especificada' }}</h1>
         <a href="/ui/devices" class="btn btn-outline-secondary">Volver a la lista</a>
     </div>
     
@@ -25,6 +25,9 @@
                 </a>
                 <button type="button" class="btn btn-primary" id="screenshotButton">
                     <i class="bi bi-camera"></i> Capturar Pantalla
+                </button>
+                <button type="button" class="btn btn-warning" id="restartButton" data-bs-toggle="modal" data-bs-target="#restartDeviceModal">
+                    <i class="bi bi-power"></i> Reiniciar
                 </button>
             </div>
         </div>
@@ -482,7 +485,17 @@
                         <form id="basicInfoForm" action="/ui/devices/{{ device.device_id }}/update" method="post">
                             <div class="mb-3">
                                 <label for="tienda" class="form-label">Tienda</label>
-                                <input type="text" class="form-control" id="tienda" name="tienda" value="{{ device.tienda or '' }}">
+                                <select class="form-control" id="tienda" name="tienda">
+                                    <option value="">Seleccionar tienda...</option>
+                                    <option value="SDQ" {% if device.tienda == 'SDQ' %}selected{% endif %}>SDQ</option>
+                                    <option value="STI" {% if device.tienda == 'STI' %}selected{% endif %}>STI</option>
+                                    <option value="PUJ" {% if device.tienda == 'PUJ' %}selected{% endif %}>PUJ</option>
+                                    <option value="LRM" {% if device.tienda == 'LRM' %}selected{% endif %}>LRM</option>
+                                    <option value="BAY" {% if device.tienda == 'BAY' %}selected{% endif %}>BAY</option>
+                                    <option value="PON" {% if device.tienda == 'PON' %}selected{% endif %}>PON</option>
+                                    <option value="CAR" {% if device.tienda == 'CAR' %}selected{% endif %}>CAR</option>
+                                    <option value="ESC" {% if device.tienda == 'ESC' %}selected{% endif %}>ESC</option>
+                                </select>
                             </div>
                             <div class="mb-3">
                                 <label for="location" class="form-label">Ubicación</label>
@@ -613,12 +626,39 @@
         </div>
     </div>
 </div>
+
+<!-- Modal de confirmación para reinicio -->
+<div class="modal fade" id="restartDeviceModal" tabindex="-1" aria-labelledby="restartDeviceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="restartDeviceModalLabel">Confirmar Reinicio</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro que desea reiniciar el dispositivo <strong>{{ device.name }}</strong>?</p>
+                <p class="text-warning">El dispositivo no estará disponible durante el proceso de reinicio.</p>
+                <div class="d-flex justify-content-center mt-3">
+                    <div class="spinner-border text-primary d-none" id="restartSpinner" role="status">
+                        <span class="visually-hidden">Reiniciando...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning" id="confirmRestartBtn">Reiniciar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_scripts %}
 <!-- Cargar nuestro archivo JavaScript separado -->
 <script src="/static/js/detail.js"></script>
 <script src="/static/js/service_manager.js"></script>
+<script src="/static/js/restart_buttomn.js"></script>
 
 
 {% endblock %}

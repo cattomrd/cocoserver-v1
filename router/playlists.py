@@ -1,3 +1,5 @@
+# Actualización para router/playlists.py - Solo las funciones modificadas
+
 import os
 import uuid
 import json
@@ -7,6 +9,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
 from sqlalchemy.sql import text
+from fastapi.staticfiles import StaticFiles
 
 from models.database import get_db
 from models.models import Playlist, Video, PlaylistVideo
@@ -18,6 +21,8 @@ router = APIRouter(
     tags=["playlists"]
 )
 
+# router.mount("static", StaticFiles(directory="static/"), name="static")
+
 # Directorio para archivos de playlist
 PLAYLIST_DIR = "playlists"
 
@@ -26,6 +31,7 @@ def create_playlist(
     playlist: PlaylistCreate, 
     db: Session = Depends(get_db)
 ):
+    # Crear playlist con start_date
     db_playlist = Playlist(**playlist.dict())
     db.add(db_playlist)
     db.commit()
@@ -35,7 +41,7 @@ def create_playlist(
 @router.get("/", response_model=List[PlaylistResponse])
 def read_playlists(
     skip: int = 0, 
-    limit: int = 100, 
+    limit: int = None,  # Cambiar de 100 a None para permitir sin límite
     active_only: bool = False,
     db: Session = Depends(get_db)
 ):
@@ -48,8 +54,110 @@ def read_playlists(
             (Playlist.expiration_date == None) | (Playlist.expiration_date > now)
         )
     
-    playlists = query.offset(skip).limit(limit).all()
+    # Aplicar offset
+    if skip > 0:
+        query = query.offset(skip)
+    
+    # Aplicar límite solo si se especifica
+    if limit is not None and limit > 0:
+        query = query.limit(limit)
+    
+    playlists = query.all()
+    
+    # Log para debugging
+    print(f"Consultando playlists: skip={skip}, limit={limit}, total_encontradas={len(playlists)}")
+    
     return playlists
+    
+# También puedes agregar un nuevo endpoint específico para obtener el conteo total
+@router.get("/count")
+def get_playlists_count(
+    active_only: bool = False,
+    db: Session = Depends(get_db)
+):
+    """
+    Obtener el número total de playlists sin cargar los datos
+    """
+    query = db.query(Playlist)
+    
+    if active_only:
+        now = datetime.now()
+        query = query.filter(
+            Playlist.is_active == True,
+            (Playlist.expiration_date == None) | (Playlist.expiration_date > now)
+        )
+    
+    total = query.count()
+    
+    return {
+        "total": total,
+        "active_only": active_only
+    }
+
+# Y un endpoint para paginación del lado del servidor si lo prefieres
+@router.get("/paginated")
+def get_playlists_paginated(
+    page: int = 1,
+    page_size: int = 100,
+    active_only: bool = False,
+    search: str = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint con paginación del lado del servidor
+    """
+    query = db.query(Playlist)
+    
+    # Filtro por estado activo
+    if active_only:
+        now = datetime.now()
+        query = query.filter(
+            Playlist.is_active == True,
+            (Playlist.expiration_date == None) | (Playlist.expiration_date > now)
+        )
+    
+    # Búsqueda por texto
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            (Playlist.title.ilike(search_term)) |
+            (Playlist.description.ilike(search_term))
+        )
+    
+    # Ordenamiento
+    if sort_by == "title":
+        order_column = Playlist.title
+    elif sort_by == "created_at":
+        order_column = Playlist.created_at
+    elif sort_by == "expiration_date":
+        order_column = Playlist.expiration_date
+    else:
+        order_column = Playlist.created_at
+    
+    if sort_order.lower() == "desc":
+        query = query.order_by(order_column.desc())
+    else:
+        query = query.order_by(order_column.asc())
+    
+    # Conteo total antes de la paginación
+    total_items = query.count()
+    total_pages = (total_items + page_size - 1) // page_size
+    
+    # Aplicar paginación
+    skip = (page - 1) * page_size
+    playlists = query.offset(skip).limit(page_size).all()
+    
+    return {
+        "items": playlists,
+        "page": page,
+        "page_size": page_size,
+        "total_items": total_items,
+        "total_pages": total_pages,
+        "has_next": page < total_pages,
+        "has_prev": page > 1
+    }
 
 @router.get("/{playlist_id}", response_model=PlaylistResponse)
 def read_playlist(
@@ -71,7 +179,7 @@ def update_playlist(
     if db_playlist is None:
         raise HTTPException(status_code=404, detail="Lista de reproducción no encontrada")
     
-    # Actualizar solo los campos proporcionados
+    # Actualizar solo los campos proporcionados (incluyendo start_date)
     update_data = playlist_update.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_playlist, key, value)
@@ -80,6 +188,61 @@ def update_playlist(
     db.refresh(db_playlist)
     return db_playlist
 
+@router.get("/active", response_model=List[PlaylistResponse])
+def get_active_playlists(
+    db: Session = Depends(get_db)
+):
+    """
+    Devuelve todas las playlists activas considerando fechas de inicio y fin
+    """
+    now = datetime.now()
+    active_playlists = db.query(Playlist).filter(
+        Playlist.is_active == True,
+        # Ha empezado (o no tiene fecha de inicio)
+        (Playlist.start_date == None) | (Playlist.start_date <= now),
+        # No ha expirado (o no tiene fecha de expiración)
+        (Playlist.expiration_date == None) | (Playlist.expiration_date > now)
+    ).all()
+    
+    return active_playlists
+
+@router.get("/{playlist_id}/status")
+def get_playlist_status(
+    playlist_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Obtiene el estado detallado de una playlist considerando fechas
+    """
+    playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
+    if playlist is None:
+        raise HTTPException(status_code=404, detail="Lista de reproducción no encontrada")
+    
+    from utils.helpers import get_playlist_status_info, get_next_status_change
+    
+    # Obtener información de estado
+    status_info = get_playlist_status_info(playlist)
+    
+    # Obtener próximo cambio de estado
+    next_change = get_next_status_change(playlist)
+    
+    # Información adicional
+    result = {
+        "playlist": {
+            "id": playlist.id,
+            "title": playlist.title,
+            "description": playlist.description,
+            "is_active_flag": playlist.is_active,
+            "start_date": playlist.start_date.isoformat() if playlist.start_date else None,
+            "expiration_date": playlist.expiration_date.isoformat() if playlist.expiration_date else None,
+        },
+        "status": status_info,
+        "next_change": next_change
+    }
+    
+    return result
+
+# Resto de las funciones permanecen igual...
 @router.delete("/{playlist_id}")
 def delete_playlist(
     playlist_id: int, 
@@ -119,7 +282,6 @@ def add_video_to_playlist(
     ).first()
     
     if video_in_playlist:
-        # Si ya está, simplemente retornar un mensaje de éxito
         return {"message": "El video ya está en la lista de reproducción"}
     
     # Obtener la posición máxima actual
@@ -201,10 +363,11 @@ def download_playlist(
     if db_playlist is None:
         raise HTTPException(status_code=404, detail="Lista de reproducción no encontrada")
     
+    # Usar la nueva función helper
     if not is_playlist_active(db_playlist):
         raise HTTPException(
             status_code=403, 
-            detail="Esta lista de reproducción no está activa o ha expirado"
+            detail="Esta lista de reproducción no está activa o no está en su período de actividad"
         )
     
     # Crear un archivo JSON con la información de la playlist y los videos
@@ -212,6 +375,7 @@ def download_playlist(
         "id": db_playlist.id,
         "title": db_playlist.title,
         "description": db_playlist.description,
+        "start_date": db_playlist.start_date.isoformat() if db_playlist.start_date else None,
         "expiration_date": db_playlist.expiration_date.isoformat() if db_playlist.expiration_date else None,
         "videos": [
             {
@@ -240,21 +404,6 @@ def download_playlist(
         filename=f"playlist_{db_playlist.title.replace(' ', '_')}.json", 
         media_type="application/json"
     )
-
-@router.get("/active", response_model=List[PlaylistResponse])
-def get_active_playlists(
-    db: Session = Depends(get_db)
-):
-    """
-    Devuelve todas las playlists activas
-    """
-    now = datetime.now()
-    active_playlists = db.query(Playlist).filter(
-        Playlist.is_active == True,
-        (Playlist.expiration_date == None) | (Playlist.expiration_date > now)
-    ).all()
-    
-    return active_playlists
 
 @router.get("/{playlist_id}/active_videos")
 def get_active_videos_in_playlist(

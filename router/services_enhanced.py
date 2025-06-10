@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any, Union, List
 import httpx
 import asyncio
 import os
+import subprocess
 import paramiko
 import logging
 from datetime import datetime
@@ -23,6 +24,14 @@ router = APIRouter(
 
 logger = logging.getLogger(__name__)
 
+
+import subprocess
+import requests
+from fastapi import HTTPException, Depends, Response
+from sqlalchemy.orm import Session
+import logging
+
+logger = logging.getLogger(__name__)
 
 @router.get("/devices/{device_id}/screenshot")
 async def get_device_screenshot(device_id: str, db: Session = Depends(get_db)):
@@ -42,13 +51,47 @@ async def get_device_screenshot(device_id: str, db: Session = Depends(get_db)):
             logger.error(f"El dispositivo {device_id} no está activo")
             raise HTTPException(status_code=400, detail="El dispositivo no está activo")
         
-        # Obtener dirección IP del dispositivo (preferiblemente LAN)
-        device_ip = device.ip_address_lan or device.ip_address_wifi
+        # Función para hacer ping a una IP
+        def ping_ip(ip_address):
+            """Hace ping a una IP y retorna True si responde"""
+            try:
+                # Para Windows usar -n, para Linux/Mac usar -c
+                import platform
+                param = "-n" if platform.system().lower() == "windows" else "-c"
+                
+                result = subprocess.run(
+                    ['ping', param, '1', ip_address], 
+                    capture_output=True, 
+                    text=True, 
+                    timeout=5
+                )
+                return result.returncode == 0
+            except (subprocess.TimeoutExpired, subprocess.SubprocessError):
+                return False
+        
+        # Determinar la IP a usar (preferir WiFi, fallback a LAN)
+        device_ip = None
+        
+        # Primero intentar con WiFi
+        if device.ip_address_wifi:
+            logger.info(f"Probando conectividad WiFi: {device.ip_address_wifi}")
+            if ping_ip(device.ip_address_wifi):
+                device_ip = device.ip_address_wifi
+                logger.info(f"Dispositivo accesible via WiFi: {device_ip}")
+        
+        # Si WiFi no responde, intentar con LAN
+        if not device_ip and device.ip_address_lan:
+            logger.info(f"Probando conectividad LAN: {device.ip_address_lan}")
+            if ping_ip(device.ip_address_lan):
+                device_ip = device.ip_address_lan
+                logger.info(f"Dispositivo accesible via LAN: {device_ip}")
+        
+        # Si ninguna IP responde
         if not device_ip:
-            logger.error(f"No se encontró una dirección IP válida para el dispositivo {device_id}")
+            logger.error(f"El dispositivo {device_id} no responde a ping en ninguna IP")
             raise HTTPException(
                 status_code=400, 
-                detail="No se encontró una dirección IP válida para el dispositivo"
+                detail="El dispositivo no está accesible en la red"
             )
         
         # URL del endpoint de captura de pantalla en el cliente

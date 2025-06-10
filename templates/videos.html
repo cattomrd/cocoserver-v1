@@ -545,65 +545,13 @@
 </div>
 {% endblock %}
 {% block extra_scripts %}
-    <!-- Scripts -->
-     <script>
-        // Función actualizada para manejar los botones de paginación
-function updatePlaylistPaginationButtons() {
-    const firstBtn = document.getElementById('firstPlaylistPageBtn');
-    const prevBtn = document.getElementById('prevPlaylistPageBtn');
-    const nextBtn = document.getElementById('nextPlaylistPageBtn');
-    const lastBtn = document.getElementById('lastPlaylistPageBtn');
-    const pageInput = document.getElementById('playlistPageInput');
-    const totalPagesSpan = document.getElementById('totalPlaylistPages');
-    const paginationFooter = document.getElementById('playlistPaginationFooter');
-    
-    if (firstBtn) firstBtn.disabled = currentPlaylistPage <= 1;
-    if (prevBtn) prevBtn.disabled = currentPlaylistPage <= 1;
-    if (nextBtn) nextBtn.disabled = currentPlaylistPage >= totalPlaylistPages;
-    if (lastBtn) lastBtn.disabled = currentPlaylistPage >= totalPlaylistPages;
-    
-    if (pageInput) {
-        pageInput.value = currentPlaylistPage;
-        pageInput.max = totalPlaylistPages;
-    }
-    
-    if (totalPagesSpan) {
-        totalPagesSpan.textContent = totalPlaylistPages;
-    }
-    
-    if (paginationFooter) {
-        const startItem = totalPlaylistItems > 0 ? (currentPlaylistPage - 1) * playlistPageSize + 1 : 0;
-        const endItem = Math.min(currentPlaylistPage * playlistPageSize, totalPlaylistItems);
-        paginationFooter.innerHTML = `
-            Página ${currentPlaylistPage} de ${totalPlaylistPages} 
-            <span class="text-primary">(${startItem}-${endItem} de ${totalPlaylistItems})</span>
-        `;
-    }
-}
 
-// Actualizar la función existente para incluir los nuevos controles
-function updatePlaylistPaginationInfo() {
-    const startItem = totalPlaylistItems > 0 ? (currentPlaylistPage - 1) * playlistPageSize + 1 : 0;
-    const endItem = Math.min(currentPlaylistPage * playlistPageSize, totalPlaylistItems);
-    
-    const playlistCountBadge = document.getElementById('playlistCountBadge');
-    if (playlistCountBadge) {
-        playlistCountBadge.textContent = `${totalPlaylistItems} listas`;
-    }
-    
-    const paginationInfo = document.getElementById('playlistPaginationInfo');
-    if (paginationInfo) {
-        paginationInfo.textContent = `Mostrando ${startItem} - ${endItem} de ${totalPlaylistItems} resultados`;
-    }
-    
-    // Llamar a la función de actualización de botones
-    updatePlaylistPaginationButtons();
-}
-     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/playlist-pagination.js"></script>
     <script src="/static/js/main.js"></script>
     <!-- <script src="/static/js/search.js"></script>
     Script para modificar la carga de videos en formato tabla -->
+
 {% endblock %}
 </body>
 </html>

@@ -189,9 +189,9 @@
     </div>
     <div class="col-md-3">
         <select class="form-select" id="playlistPageSizeSelect">
-            <option value="25">25 por página</option>
-            <option value="50">50 por página</option>
-            <option value="100" selected>100 por página</option>
+            <option value="25" selected >25 por página</option>
+            <option value="50"  >50 por página</option>
+            <option value="100" >100 por página</option>
             <option value="200">200 por página</option>
             <option value="500">Todas las listas</option>
         </select>
@@ -601,7 +601,7 @@
         // Variables globales para paginación
         let playlistPagination = {
             currentPage: 1,
-            pageSize: 100,
+            pageSize: 25,
             totalItems: 0,
             totalPages: 1,
             filteredData: [],

@@ -545,13 +545,392 @@
 </div>
 {% endblock %}
 {% block extra_scripts %}
+    <!-- CSS adicional para paginación -->
+    <style>
+        .table th button {
+            border: none !important;
+            background: none !important;
+            font-weight: bold !important;
+            color: inherit !important;
+        }
 
+        .table th button:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+            color: inherit !important;
+        }
+
+        .table th button:focus {
+            box-shadow: none !important;
+            color: inherit !important;
+        }
+
+        .table-warning {
+            --bs-table-bg: #fff3cd;
+        }
+
+        .btn-group .btn:first-child {
+            border-top-left-radius: 0.375rem;
+            border-bottom-left-radius: 0.375rem;
+        }
+
+        .btn-group .btn:last-child {
+            border-top-right-radius: 0.375rem;
+            border-bottom-right-radius: 0.375rem;
+        }
+
+        #playlistPageInput {
+            max-width: 80px;
+        }
+
+        .table th button i.fa-sort-up,
+        .table th button i.fa-sort-down {
+            color: #0d6efd !important;
+        }
+    </style>
+
+    <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/js/playlist-pagination.js"></script>
+    
+    <!-- Cargar main.js PRIMERO -->
     <script src="/static/js/main.js"></script>
-    <!-- <script src="/static/js/search.js"></script>
-    Script para modificar la carga de videos en formato tabla -->
+    
+    <!-- Script de paginación DESPUÉS para no interferir con videos -->
+    <script>
+        // SOLO agregar funcionalidad de paginación SIN sobrescribir loadPlaylists
+        (function() {
+            console.log('Inicializando paginación de playlists...');
 
+            // Variables específicas para paginación
+            let playlistPagination = {
+                currentPage: 1,
+                pageSize: 100,
+                totalItems: 0,
+                totalPages: 1,
+                filteredData: [],
+                searchTerm: '',
+                filter: 'all',
+                sortField: '',
+                sortDirection: 'asc'
+            };
+
+            // Funciones auxiliares (solo para paginación)
+            function isPlaylistActivePagination(playlist) {
+                if (!playlist.is_active) return false;
+                if (!playlist.expiration_date) return true;
+                return new Date(playlist.expiration_date) > new Date();
+            }
+
+            function isExpiredPagination(dateString) {
+                return new Date(dateString) < new Date();
+            }
+
+            function formatDatePagination(dateString) {
+                if (!dateString) return 'N/A';
+                return new Date(dateString).toLocaleString('es-ES', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+
+            function escapeHtmlPagination(text) {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // Debounce para búsqueda
+            function debouncePagination(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+
+            // Aplicar filtros y mostrar página actual
+            function applyFiltersAndDisplayPage() {
+                if (!window.allPlaylists) {
+                    console.log('allPlaylists no está disponible aún');
+                    return;
+                }
+
+                let filtered = window.allPlaylists;
+                
+                // Filtrar por estado
+                if (playlistPagination.filter === 'active') {
+                    filtered = filtered.filter(playlist => isPlaylistActivePagination(playlist));
+                } else if (playlistPagination.filter === 'inactive') {
+                    filtered = filtered.filter(playlist => !isPlaylistActivePagination(playlist));
+                }
+
+                // Filtrar por búsqueda
+                if (playlistPagination.searchTerm) {
+                    filtered = filtered.filter(playlist => 
+                        (playlist.title || '').toLowerCase().includes(playlistPagination.searchTerm) ||
+                        (playlist.description || '').toLowerCase().includes(playlistPagination.searchTerm)
+                    );
+                }
+
+                playlistPagination.filteredData = filtered;
+                playlistPagination.totalItems = filtered.length;
+                playlistPagination.totalPages = Math.ceil(playlistPagination.totalItems / playlistPagination.pageSize);
+                
+                // Ajustar página actual
+                if (playlistPagination.currentPage > playlistPagination.totalPages && playlistPagination.totalPages > 0) {
+                    playlistPagination.currentPage = playlistPagination.totalPages;
+                }
+                if (playlistPagination.currentPage < 1) {
+                    playlistPagination.currentPage = 1;
+                }
+
+                displayCurrentPage();
+                updatePaginationInfo();
+                updatePaginationButtons();
+            }
+
+            // Mostrar página actual
+            function displayCurrentPage() {
+                const startIndex = (playlistPagination.currentPage - 1) * playlistPagination.pageSize;
+                const endIndex = Math.min(startIndex + playlistPagination.pageSize, playlistPagination.totalItems);
+                const pageData = playlistPagination.filteredData.slice(startIndex, endIndex);
+
+                const playlistsList = document.getElementById('playlistsList');
+                if (!playlistsList) return;
+                
+                if (pageData.length === 0) {
+                    playlistsList.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="text-muted">
+                                    <i class="fas fa-search fa-3x mb-3"></i>
+                                    <p class="mb-0">No se encontraron listas de reproducción</p>
+                                    ${playlistPagination.searchTerm ? '<p class="small">Intenta con otros términos de búsqueda</p>' : ''}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                const rows = pageData.map(playlist => {
+                    const active = isPlaylistActivePagination(playlist);
+                    const expirationText = playlist.expiration_date 
+                        ? `${isExpiredPagination(playlist.expiration_date) ? 'Expiró' : 'Expira'}: ${formatDatePagination(playlist.expiration_date)}`
+                        : 'Sin expiración';
+
+                    return `
+                        <tr class="${active ? '' : 'table-warning'}">
+                            <td>
+                                <strong>${escapeHtmlPagination(playlist.title || 'Sin título')}</strong>
+                            </td>
+                            <td>
+                                <span class="text-muted">${escapeHtmlPagination(playlist.description || 'Sin descripción')}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">${playlist.videos ? playlist.videos.length : 0} videos</span>
+                            </td>
+                            <td>
+                                <small class="text-muted">${expirationText}</small>
+                            </td>
+                            <td>
+                                <span class="badge ${active ? 'bg-success' : 'bg-danger'}">
+                                    ${active ? 'Activa' : 'Inactiva'}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-primary btn-sm" onclick="openPlaylistDetail(${playlist.id})">
+                                    <i class="fas fa-eye"></i> Ver Detalles
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                playlistsList.innerHTML = rows;
+            }
+
+            // Actualizar información de paginación
+            function updatePaginationInfo() {
+                const startItem = playlistPagination.totalItems > 0 ? (playlistPagination.currentPage - 1) * playlistPagination.pageSize + 1 : 0;
+                const endItem = Math.min(playlistPagination.currentPage * playlistPagination.pageSize, playlistPagination.totalItems);
+                
+                const playlistCountBadge = document.getElementById('playlistCountBadge');
+                if (playlistCountBadge) {
+                    playlistCountBadge.textContent = `${playlistPagination.totalItems} listas`;
+                }
+                
+                const paginationInfo = document.getElementById('playlistPaginationInfo');
+                if (paginationInfo) {
+                    paginationInfo.textContent = `Mostrando ${startItem} - ${endItem} de ${playlistPagination.totalItems} resultados`;
+                }
+            }
+
+            // Actualizar botones de paginación
+            function updatePaginationButtons() {
+                const firstBtn = document.getElementById('firstPlaylistPageBtn');
+                const prevBtn = document.getElementById('prevPlaylistPageBtn');
+                const nextBtn = document.getElementById('nextPlaylistPageBtn');
+                const lastBtn = document.getElementById('lastPlaylistPageBtn');
+                const pageInput = document.getElementById('playlistPageInput');
+                const totalPagesSpan = document.getElementById('totalPlaylistPages');
+                const paginationFooter = document.getElementById('playlistPaginationFooter');
+                
+                if (firstBtn) firstBtn.disabled = playlistPagination.currentPage <= 1;
+                if (prevBtn) prevBtn.disabled = playlistPagination.currentPage <= 1;
+                if (nextBtn) nextBtn.disabled = playlistPagination.currentPage >= playlistPagination.totalPages;
+                if (lastBtn) lastBtn.disabled = playlistPagination.currentPage >= playlistPagination.totalPages;
+                
+                if (pageInput) {
+                    pageInput.value = playlistPagination.currentPage;
+                    pageInput.max = playlistPagination.totalPages;
+                }
+                
+                if (totalPagesSpan) {
+                    totalPagesSpan.textContent = playlistPagination.totalPages;
+                }
+                
+                if (paginationFooter) {
+                    const startItem = playlistPagination.totalItems > 0 ? (playlistPagination.currentPage - 1) * playlistPagination.pageSize + 1 : 0;
+                    const endItem = Math.min(playlistPagination.currentPage * playlistPagination.pageSize, playlistPagination.totalItems);
+                    paginationFooter.innerHTML = `
+                        Página ${playlistPagination.currentPage} de ${playlistPagination.totalPages} 
+                        <span class="text-primary">(${startItem}-${endItem} de ${playlistPagination.totalItems})</span>
+                    `;
+                }
+            }
+
+            // Funciones públicas para navegación
+            window.goToPlaylistPage = function(page) {
+                if (page >= 1 && page <= playlistPagination.totalPages && page !== playlistPagination.currentPage) {
+                    playlistPagination.currentPage = page;
+                    displayCurrentPage();
+                    updatePaginationInfo();
+                    updatePaginationButtons();
+                }
+            };
+
+            window.goToFirstPlaylistPage = function() {
+                window.goToPlaylistPage(1);
+            };
+
+            window.goToPrevPlaylistPage = function() {
+                if (playlistPagination.currentPage > 1) {
+                    window.goToPlaylistPage(playlistPagination.currentPage - 1);
+                }
+            };
+
+            window.goToNextPlaylistPage = function() {
+                if (playlistPagination.currentPage < playlistPagination.totalPages) {
+                    window.goToPlaylistPage(playlistPagination.currentPage + 1);
+                }
+            };
+
+            window.goToLastPlaylistPage = function() {
+                window.goToPlaylistPage(playlistPagination.totalPages);
+            };
+
+            window.sortPlaylistTable = function(field) {
+                console.log('Función de ordenamiento no implementada aún');
+            };
+
+            // Interceptar la función loadPlaylists para agregar paginación
+            function interceptPlaylistLoading() {
+                // Guardar la función original si existe
+                const originalLoadPlaylists = window.loadPlaylists;
+                
+                // Crear nueva función que llame a la original Y agregue paginación
+                window.loadPlaylists = async function(filter = 'all') {
+                    console.log('loadPlaylists interceptado para paginación');
+                    
+                    // Llamar a la función original
+                    if (originalLoadPlaylists) {
+                        await originalLoadPlaylists(filter);
+                    }
+                    
+                    // Aplicar paginación después de que se carguen los datos
+                    setTimeout(() => {
+                        playlistPagination.filter = filter;
+                        playlistPagination.currentPage = 1;
+                        applyFiltersAndDisplayPage();
+                    }, 100);
+                };
+            }
+
+            // Event listeners
+            function setupEventListeners() {
+                // Filtro de estado
+                const playlistFilterStatus = document.getElementById('playlistFilterStatus');
+                if (playlistFilterStatus) {
+                    playlistFilterStatus.addEventListener('change', function() {
+                        playlistPagination.filter = this.value;
+                        playlistPagination.currentPage = 1;
+                        applyFiltersAndDisplayPage();
+                    });
+                }
+
+                // Búsqueda
+                const playlistSearchInput = document.getElementById('playlistSearchInput');
+                if (playlistSearchInput) {
+                    playlistSearchInput.addEventListener('input', debouncePagination(function() {
+                        playlistPagination.searchTerm = this.value.toLowerCase().trim();
+                        playlistPagination.currentPage = 1;
+                        applyFiltersAndDisplayPage();
+                    }, 300));
+                }
+
+                // Limpiar búsqueda
+                const clearPlaylistSearchBtn = document.getElementById('clearPlaylistSearch');
+                if (clearPlaylistSearchBtn) {
+                    clearPlaylistSearchBtn.addEventListener('click', function() {
+                        const searchInput = document.getElementById('playlistSearchInput');
+                        if (searchInput) {
+                            searchInput.value = '';
+                            playlistPagination.searchTerm = '';
+                            playlistPagination.currentPage = 1;
+                            applyFiltersAndDisplayPage();
+                        }
+                    });
+                }
+
+                // Selector de tamaño de página
+                const playlistPageSizeSelect = document.getElementById('playlistPageSizeSelect');
+                if (playlistPageSizeSelect) {
+                    playlistPageSizeSelect.addEventListener('change', function() {
+                        playlistPagination.pageSize = parseInt(this.value);
+                        playlistPagination.currentPage = 1;
+                        applyFiltersAndDisplayPage();
+                    });
+                }
+
+                console.log('Event listeners de paginación configurados');
+            }
+
+            // Inicializar cuando DOM esté listo
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    setTimeout(() => {
+                        interceptPlaylistLoading();
+                        setupEventListeners();
+                        console.log('Paginación de playlists inicializada');
+                    }, 500);
+                });
+            } else {
+                setTimeout(() => {
+                    interceptPlaylistLoading();
+                    setupEventListeners();
+                    console.log('Paginación de playlists inicializada');
+                }, 500);
+            }
+        })();
+    </script>
 {% endblock %}
 </body>
 </html>

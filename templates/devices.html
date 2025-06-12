@@ -1,148 +1,317 @@
-<!-- Archivo app/templates/devices.html con columna Lista añadida -->
 {% extends "base.html" %}
 
 {% block content %}
 <div class="row">
     <div class="col-12">
         <h1 class="mb-4">Dispositivos Registrados</h1>
- <!-- Modificar el bloque de filtros existente para incluir el botón de limpiar -->
-<div class="card mb-4">
-    <div class="card-header bg-light">
-        <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Filtros</h5>
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="clearFilters">
-                <i class="bi bi-x-circle"></i> Limpiar todos
-            </button>
-        </div>
-    </div>
-    <div class="card-body">
-        <form action="/ui/devices" method="get" class="row g-3">
-            <!-- Campo de búsqueda -->
-            <div class="col-md-4 mb-2">
-                <label for="search" class="form-label">Buscar dispositivos:</label>
-                <div class="input-group">
-                    <input type="text" class="form-control" id="search" name="search" 
-                            placeholder="Nombre, ubicación, modelo..." value="{{ search_term if search_term else '' }}">
-                    <button type="button" class="btn btn-outline-secondary" id="clearSearch" title="Limpiar búsqueda">
-                        <i class="bi bi-x"></i>
+        
+        <!-- Modificar el bloque de filtros existente para incluir el botón de limpiar -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Filtros</h5>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="clearFilters">
+                        <i class="bi bi-x-circle"></i> Limpiar todos
                     </button>
                 </div>
             </div>
-            
-            <!-- Filtro por campo específico -->
-            <div class="col-md-2 mb-2">
-                <label for="search_field" class="form-label">Buscar en:</label>
-                <select class="form-select" id="search_field" name="search_field">
-                    <option value="all" {% if search_field == 'all' %}selected{% endif %}>Todos los campos</option>
-                    <option value="name" {% if search_field == 'name' %}selected{% endif %}>Nombre</option>
-                    <option value="location" {% if search_field == 'location' %}selected{% endif %}>Ubicación</option>
-                    <option value="tienda" {% if search_field == 'tienda' %}selected{% endif %}>Tienda</option>
-                    <option value="model" {% if search_field == 'model' %}selected{% endif %}>Modelo</option>
-                    <option value="ip" {% if search_field == 'ip' %}selected{% endif %}>Dirección IP</option>
-                    <option value="lista" {% if search_field == 'lista' %}selected{% endif %}>Lista</option>
-                </select>
-            </div>
-            
-            <!-- Filtro por Tiendas -->
-            <div class="col-md-2 mb-2">
-                <label for="tienda_filter" class="form-label">Tiendas:</label>
-                <select class="form-select" id="tienda_filter" name="tienda_filter">
-                    <option value="">Todas las tiendas</option>
-                    <option value="SDQ">SDQ</option>
-                    <option value="STI">STI</option>
-                    <option value="PUJ">PUJ</option>
-                    <option value="LRM">LRM</option>
-                    <option value="BAY">BAY</option>
-                    <option value="PON">PON</option>
-                    <option value="CAR">CAR</option>
-                    <option value="ESC">ESC</option>
-                </select>
-            </div>
+            <div class="card-body">
+                <form action="/ui/devices" method="get" class="row g-3">
+                    <!-- Campo de búsqueda -->
+                    <div class="col-md-4 mb-2">
+                        <label for="search" class="form-label">Buscar dispositivos:</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="search" name="search" 
+                                    placeholder="Nombre, ubicación, modelo..." value="{{ search_term if search_term else '' }}">
+                            <button type="button" class="btn btn-outline-secondary" id="clearSearch" title="Limpiar búsqueda">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Filtro por campo específico -->
+                    <div class="col-md-2 mb-2">
+                        <label for="search_field" class="form-label">Buscar en:</label>
+                        <select class="form-select" id="search_field" name="search_field">
+                            <option value="all" {% if search_field == 'all' %}selected{% endif %}>Todos los campos</option>
+                            <option value="name" {% if search_field == 'name' %}selected{% endif %}>Nombre</option>
+                            <option value="location" {% if search_field == 'location' %}selected{% endif %}>Ubicación</option>
+                            <option value="tienda" {% if search_field == 'tienda' %}selected{% endif %}>Tienda</option>
+                            <option value="model" {% if search_field == 'model' %}selected{% endif %}>Modelo</option>
+                            <option value="ip" {% if search_field == 'ip' %}selected{% endif %}>Dirección IP</option>
+                            <option value="lista" {% if search_field == 'lista' %}selected{% endif %}>Lista</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Filtro por Tiendas -->
+                    <div class="col-md-2 mb-2">
+                        <label for="tienda_filter" class="form-label">Tiendas:</label>
+                        <select class="form-select" id="tienda_filter" name="tienda_filter">
+                            <option value="">Todas las tiendas</option>
+                            <option value="SDQ">SDQ</option>
+                            <option value="STI">STI</option>
+                            <option value="PUJ">PUJ</option>
+                            <option value="LRM">LRM</option>
+                            <option value="BAY">BAY</option>
+                            <option value="PON">PON</option>
+                            <option value="CAR">CAR</option>
+                            <option value="ESC">ESC</option>
+                        </select>
+                    </div>
 
-            <!-- Contador de resultados -->
-            <div class="col-md-3 mb-3">
-                <label class="form-label">Resultados:</label>
-                <div class="form-control-plaintext">
-                    <span id="resultsCounter" class="badge bg-info">{{ devices|length if devices else 0 }} dispositivos</span>
-                </div>
-            </div>
-            
-            <div class="col-md-12">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="active_only" name="active_only" {% if active_only %}checked{% endif %}>
-                    <label class="form-check-label" for="active_only">
-                        Solo mostrar dispositivos activos
-                    </label>
-                </div>
-            </div>
-            
-            <div class="col-12">
-                <button type="submit" class="btn btn-primary me-2">Aplicar Filtros</button>
-                <a href="/ui/devices" class="btn btn-outline-secondary">Limpiar Filtros</a>
-            </div>
-        </form>
-    </div>
-</div>
+                    <!-- Contador de resultados y selector de tamaño de página -->
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label">Resultados:</label>
+                        <div class="form-control-plaintext">
+                            <span id="resultsCounter" class="badge bg-info">{{ devices|length if devices else 0 }} dispositivos</span>
+                        </div>
+                    </div>
 
+                    <!-- Selector de elementos por página -->
+                    <div class="col-md-2 mb-3">
+                        <label for="pageSize" class="form-label">Por página:</label>
+                        <select class="form-select" id="pageSize">
+                            <option value="10">10</option>
+                            <option value="25" selected >25</option>
+                            <option value="50" >50</option>
+                            <option value="100">100</option>
+                            <option value="all">Todos</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="active_only" name="active_only" {% if active_only %}checked{% endif %}>
+                            <label class="form-check-label" for="active_only">
+                                Solo mostrar dispositivos activos
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary me-2">Aplicar Filtros</button>
+                        <a href="/ui/devices" class="btn btn-outline-secondary">Limpiar Filtros</a>
+                    </div>
+                </form>
+            </div>
+        </div>
 
-</div>
-        
         {% if devices %}
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
+        <!-- Controles de paginación superiores -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="d-flex align-items-center">
+                    <span class="me-3 text-muted">Mostrando <span id="showingFrom">1</span> a <span id="showingTo">50</span> de <span id="totalRecords">{{ devices|length }}</span> dispositivos</span>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="d-flex justify-content-end" id="topPagination">
+                    <!-- Paginación se generará dinámicamente -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Vista de tabla para pantallas grandes -->
+        <div class="table-responsive d-none d-lg-block">
+            <table class="table table-striped table-hover table-sm">
                 <thead class="table-dark">
                     <tr>
-                        <th>ID</th>
-                        <th>Nombre</th>
-                        <th>Ubicacion</th>
-                        <th>Tienda</th>                       
-                        <th>Modelo</th>
-                        <th>IP LAN</th>
-                        <th>IP WLAN</th>
-                        <th>Estado</th>
-                        <th>Lista</th>
-                        <th>Última Actividad</th>
-                        <th>Acciones</th>
+                        <th class="text-center" style="width: 60px;">
+                            <button type="button" class="btn p-0 text-white" onclick="sortTable('device_id')">
+                                ID <i class="fas fa-sort" id="sort-device_id"></i>
+                            </button>
+                        </th>
+                        <th style="width: 140px;">
+                            <button type="button" class="btn p-0 text-white" onclick="sortTable('name')">
+                                Nombre <i class="fas fa-sort" id="sort-name"></i>
+                            </button>
+                        </th>
+                        <th style="width: 120px;">
+                            <button type="button" class="btn p-0 text-white" onclick="sortTable('location')">
+                                Ubicación <i class="fas fa-sort" id="sort-location"></i>
+                            </button>
+                        </th>
+                        <th class="text-center" style="width: 60px;">
+                            <button type="button" class="btn p-0 text-white" onclick="sortTable('tienda')">
+                                Tienda <i class="fas fa-sort" id="sort-tienda"></i>
+                            </button>
+                        </th>
+                        <th style="width: 100px;">
+                            <button type="button" class="btn p-0 text-white" onclick="sortTable('model')">
+                                Modelo <i class="fas fa-sort" id="sort-model"></i>
+                            </button>
+                        </th>
+                        <th class="text-center" style="width: 100px;">IP LAN</th>
+                        <th class="text-center" style="width: 100px;">IP WLAN</th>
+                        <th class="text-center" style="width: 70px;">
+                            <button type="button" class="btn p-0 text-white" onclick="sortTable('is_active')">
+                                Estado <i class="fas fa-sort" id="sort-is_active"></i>
+                            </button>
+                        </th>
+                        <th class="text-center" style="width: 100px;">Lista</th>
+                        <th style="width: 120px;">
+                            <button type="button" class="btn p-0 text-white" onclick="sortTable('last_seen')">
+                                Última Act. <i class="fas fa-sort" id="sort-last_seen"></i>
+                            </button>
+                        </th>
+                        <th class="text-center" style="width: 80px;">Acciones</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="devicesTableBody">
                     {% for device in devices %}
-                    <tr>
-                        <td>{{ device.device_id }}</td>
-                        <td>{{ device.name }}</td>
-                        <td>{{ device.location }}</td>
-                        <td>{{ device.tienda }}</td>
-                        <td>{{ device.model }}</td>
-                        <td>{{ device.ip_address_lan }}</td>
-                        <td>{{ device.ip_address_wifi}}</td>
-                        <td>
+                    <tr data-device-id="{{ device.device_id }}">
+                        <td class="text-center small">{{ device.device_id }}</td>
+                        <td class="small">
+                            <div class="text-truncate" style="max-width: 130px;" title="{{ device.name }}">
+                                {{ device.name }}
+                            </div>
+                        </td>
+                        <td class="small">
+                            <div class="text-truncate" style="max-width: 110px;" title="{{ device.location }}">
+                                {{ device.location }}
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-secondary small">{{ device.tienda }}</span>
+                        </td>
+                        <td class="small">
+                            <div class="text-truncate" style="max-width: 90px;" title="{{ device.model }}">
+                                {{ device.model }}
+                            </div>
+                        </td>
+                        <td class="text-center small font-monospace">{{ device.ip_address_lan }}</td>
+                        <td class="text-center small font-monospace">{{ device.ip_address_wifi}}</td>
+                        <td class="text-center">
                             {% if device.is_active %}
-                            <span class="badge bg-success">Activo</span>
+                            <span class="badge bg-success small">Activo</span>
                             {% else %}
-                            <span class="badge bg-danger">Inactivo</span>
+                            <span class="badge bg-danger small">Inactivo</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="text-center">
                             {% if device.playlists %}
                                 {% for playlist in device.playlists %}
-                                    <span class="badge bg-info">{{ playlist.title }}</span>
-                                    {% if not loop.last %}<br>{% endif %}
+                                    <span class="badge bg-info small d-block mb-1" style="font-size: 0.65rem;">{{ playlist.title }}</span>
                                 {% endfor %}
                             {% else %}
-                                <span class="badge bg-secondary">Sin lista</span>
+                                <span class="badge bg-secondary small">Sin lista</span>
                             {% endif %}
                         </td>
-                        <td>{{ device.last_seen.strftime('%Y-%m-%d %H:%M') }}</td>
-                        <td>
-                            <a href="/ui/devices/{{ device.device_id }}" class="btn btn-sm btn-primary">Detalles</a>
+                        <td class="small">
+                            <div class="text-nowrap">{{ device.last_seen.strftime('%m-%d %H:%M') }}</div>
+                        </td>
+                        <td class="text-center">
+                            <a href="/ui/devices/{{ device.device_id }}" class="btn btn-sm btn-primary px-2 py-1" title="Ver detalles">
+                                <i class="fas fa-eye"></i>
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+
+        <!-- Vista de tarjetas para pantallas medianas -->
+        <div class="d-none d-md-block d-lg-none" id="cardsViewMedium">
+            <div class="row" id="devicesCardsBodyMedium">
+                {% for device in devices %}
+                <div class="col-md-6 mb-3" data-device-id="{{ device.device_id }}">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">{{ device.name }}</h6>
+                            {% if device.is_active %}
+                            <span class="badge bg-success">Activo</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactivo</span>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-sm">
+                                <div class="col-6">
+                                    <p class="mb-1"><strong>ID:</strong> {{ device.device_id }}</p>
+                                    <p class="mb-1"><strong>Ubicación:</strong> {{ device.location }}</p>
+                                    <p class="mb-1"><strong>Tienda:</strong> {{ device.tienda }}</p>
+                                </div>
+                                <div class="col-6">
+                                    <p class="mb-1"><strong>Modelo:</strong> {{ device.model }}</p>
+                                    <p class="mb-1"><strong>IP LAN:</strong> {{ device.ip_address_lan }}</p>
+                                    <p class="mb-1"><strong>IP WLAN:</strong> {{ device.ip_address_wifi }}</p>
+                                </div>
+                            </div>
+                            <hr class="my-2">
+                            <div class="mb-2">
+                                <strong>Lista:</strong>
+                                {% if device.playlists %}
+                                    {% for playlist in device.playlists %}
+                                        <span class="badge bg-info me-1">{{ playlist.title }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="badge bg-secondary">Sin lista</span>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">Última actividad: {{ device.last_seen.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </div>
+                        <div class="card-footer">
+                            <a href="/ui/devices/{{ device.device_id }}" class="btn btn-sm btn-primary w-100">Ver Detalles</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Vista de lista para pantallas pequeñas -->
+        <div class="d-block d-md-none" id="listViewSmall">
+            <div id="devicesListBodySmall">
+                {% for device in devices %}
+                <div class="card mb-2" data-device-id="{{ device.device_id }}">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ device.location }}</h6>
+                                <div class="d-flex align-items-center mb-1">
+                                    <span class="badge bg-secondary me-2">{{ device.tienda }}</span>
+                                    {% if device.is_active %}
+                                    <span class="badge bg-success">Activo</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Inactivo</span>
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted d-block">{{ device.location }} • {{ device.ip_address_wifi }}</small>
+                                <small class="text-muted d-block">{{ device.ip_address_lan}}</small>
+                            </div>
+                            <div class="text-end">
+                                <a href="/ui/devices/{{ device.device_id }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Controles de paginación inferiores -->
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <div class="d-flex align-items-center">
+                    <span class="me-3 text-muted">Ir a página:</span>
+                    <div class="input-group" style="width: 120px;">
+                        <input type="number" class="form-control" id="pageInput" min="1" value="1">
+                        <button class="btn btn-outline-secondary" type="button" onclick="goToPage()">Ir</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="d-flex justify-content-end" id="bottomPagination">
+                    <!-- Paginación se generará dinámicamente -->
+                </div>
+            </div>
+        </div>
+
         {% else %}
-        <div class="alert alert-info">
+        <div class="alert alert-info" id="noResultsAlert">
             No hay dispositivos que coincidan con los criterios de búsqueda.
         </div>
         {% endif %}
@@ -151,8 +320,58 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<style>
+        .table th button {
+            border: none !important;
+            background: none !important;
+            font-weight: bold !important;
+            color: inherit !important;
+        }
+
+        .table th button:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+            color: inherit !important;
+        }
+
+        .table th button:focus {
+            box-shadow: none !important;
+            color: inherit !important;
+        }
+
+        .table-warning {
+            --bs-table-bg: #fff3cd;
+        }
+
+        .btn-group .btn:first-child {
+            border-top-left-radius: 0.375rem;
+            border-bottom-left-radius: 0.375rem;
+        }
+
+        .btn-group .btn:last-child {
+            border-top-right-radius: 0.375rem;
+            border-bottom-right-radius: 0.375rem;
+        }
+
+        #playlistPageInput {
+            max-width: 80px;
+        }
+
+        .table th button i.fa-sort-up,
+        .table th button i.fa-sort-down {
+            color: #0d6efd !important;
+        }
+</style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Variables globales para paginación
+    let allDevices = [];
+    let filteredDevices = [];
+    let currentPage = 1;
+    let pageSize = 50;
+    let currentSort = { field: '', direction: 'asc' };
+    
+    // Elementos del DOM
     const searchInput = document.getElementById('search');
     const searchField = document.getElementById('search_field');
     const tiendaFilter = document.getElementById('tienda_filter');
@@ -160,243 +379,459 @@ document.addEventListener('DOMContentLoaded', function() {
     const clearSearchBtn = document.getElementById('clearSearch');
     const clearFiltersBtn = document.getElementById('clearFilters');
     const resultsCounter = document.getElementById('resultsCounter');
-    const tableRows = document.querySelectorAll('tbody tr');
+    const pageSizeSelect = document.getElementById('pageSize');
+    const pageInput = document.getElementById('pageInput');
+    const tableBody = document.getElementById('devicesTableBody');
+    const noResultsAlert = document.getElementById('noResultsAlert');
     
-    // Función para actualizar el contador de resultados
-    function updateResultsCounter(visibleCount) {
-        if (resultsCounter) {
-            resultsCounter.textContent = `${visibleCount} dispositivo${visibleCount !== 1 ? 's' : ''}`;
-            resultsCounter.className = `badge ${visibleCount > 0 ? 'bg-info' : 'bg-warning'}`;
-        }
+    // Inicializar datos desde todas las vistas
+    function initializeData() {
+        allDevices = [];
+        
+        // Obtener datos de la vista de tabla (escritorio)
+        const tableRows = document.querySelectorAll('#devicesTableBody tr');
+        
+        // Obtener datos de las vistas de tarjetas y lista (móvil/tablet)
+        const cardsMedium = document.querySelectorAll('#devicesCardsBodyMedium > div');
+        const listSmall = document.querySelectorAll('#devicesListBodySmall > div');
+        
+        // Usar la vista que tenga datos (normalmente todas tendrán los mismos)
+        const elements = tableRows.length > 0 ? tableRows : 
+                        cardsMedium.length > 0 ? cardsMedium : listSmall;
+        
+        Array.from(elements).forEach((element, index) => {
+            let deviceData;
+            
+            if (element.tagName === 'TR') {
+                // Datos de la tabla
+                deviceData = {
+                    element: element,
+                    device_id: element.cells[0].textContent.trim(),
+                    name: element.cells[1].textContent.trim(),
+                    location: element.cells[2].textContent.trim(),
+                    tienda: element.cells[3].textContent.trim(),
+                    model: element.cells[4].textContent.trim(),
+                    ip_lan: element.cells[5].textContent.trim(),
+                    ip_wlan: element.cells[6].textContent.trim(),
+                    is_active: element.cells[7].textContent.includes('Activo'),
+                    playlist: element.cells[8].textContent.trim(),
+                    last_seen: element.cells[9].textContent.trim()
+                };
+            } else {
+                // Datos de tarjetas o lista (extraer del atributo data-device-id y contenido)
+                const deviceId = element.getAttribute('data-device-id');
+                const nameElement = element.querySelector('h6');
+                const statusElement = element.querySelector('.badge.bg-success, .badge.bg-danger');
+                
+                deviceData = {
+                    element: element,
+                    device_id: deviceId,
+                    name: nameElement ? nameElement.textContent.trim() : '',
+                    location: extractTextAfterLabel(element, 'Ubicación:') || extractFromSmallText(element, 0),
+                    tienda: extractTextAfterLabel(element, 'Tienda:') || extractBadgeText(element, 'bg-secondary'),
+                    model: extractTextAfterLabel(element, 'Modelo:') || extractFromSmallText(element, 1),
+                    ip_lan: extractTextAfterLabel(element, 'IP LAN:'),
+                    ip_wlan: extractTextAfterLabel(element, 'IP WLAN:'),
+                    is_active: statusElement ? statusElement.textContent.includes('Activo') : false,
+                    playlist: extractPlaylistText(element),
+                    last_seen: extractLastSeenText(element)
+                };
+            }
+            
+            // Agregar referencias a todas las vistas del mismo dispositivo
+            deviceData.tableElement = document.querySelector(`#devicesTableBody tr[data-device-id="${deviceData.device_id}"]`);
+            deviceData.cardElement = document.querySelector(`#devicesCardsBodyMedium > div[data-device-id="${deviceData.device_id}"]`);
+            deviceData.listElement = document.querySelector(`#devicesListBodySmall > div[data-device-id="${deviceData.device_id}"]`);
+            
+            allDevices.push(deviceData);
+        });
+        
+        filteredDevices = [...allDevices];
     }
     
-    // Función para filtrar la tabla en tiempo real
-    function filterTable() {
+    // Funciones auxiliares para extraer datos de elementos no-tabla
+    function extractTextAfterLabel(element, label) {
+        const textContent = element.textContent;
+        const labelIndex = textContent.indexOf(label);
+        if (labelIndex === -1) return '';
+        
+        const afterLabel = textContent.substring(labelIndex + label.length);
+        const nextLabel = afterLabel.search(/[A-Z][a-z]*:/);
+        
+        return nextLabel === -1 ? 
+            afterLabel.trim() : 
+            afterLabel.substring(0, nextLabel).trim();
+    }
+    
+    function extractFromSmallText(element, index) {
+        const smallElements = element.querySelectorAll('small.text-muted');
+        if (smallElements[index]) {
+            const text = smallElements[index].textContent;
+            const parts = text.split('•');
+            return parts[index] ? parts[index].trim() : text.trim();
+        }
+        return '';
+    }
+    
+    function extractBadgeText(element, badgeClass) {
+        const badge = element.querySelector(`.badge.${badgeClass}`);
+        return badge ? badge.textContent.trim() : '';
+    }
+    
+    function extractPlaylistText(element) {
+        const playlistBadges = element.querySelectorAll('.badge.bg-info');
+        if (playlistBadges.length > 0) {
+            return Array.from(playlistBadges).map(badge => badge.textContent.trim()).join(' ');
+        }
+        
+        const playlistText = extractTextAfterLabel(element, 'Lista:');
+        return playlistText || 'Sin lista';
+    }
+    
+    function extractLastSeenText(element) {
+        const text = element.textContent;
+        const timePattern = /\d{4}-\d{2}-\d{2} \d{2}:\d{2}/;
+        const match = text.match(timePattern);
+        return match ? match[0] : '';
+    }
+    
+    // Función para filtrar dispositivos
+    function filterDevices() {
         const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
         const field = searchField ? searchField.value : 'all';
         const selectedTienda = tiendaFilter ? tiendaFilter.value.toLowerCase() : '';
         const showActiveOnly = activeOnly ? activeOnly.checked : false;
         
-        let visibleCount = 0;
-        
-        tableRows.forEach(row => {
-            // Verificar que la fila tiene suficientes celdas
-            if (row.cells.length < 9) {
-                return;
+        filteredDevices = allDevices.filter(device => {
+            // Filtro de actividad
+            if (showActiveOnly && !device.is_active) {
+                return false;
             }
             
-            // Obtener valores de las celdas
-            const id = row.cells[0].textContent.toLowerCase();
-            const name = row.cells[1].textContent.toLowerCase();
-            const location = row.cells[2].textContent.toLowerCase();
-            const tienda = row.cells[3].textContent.toLowerCase();
-            const model = row.cells[4].textContent.toLowerCase();
-            const ipLan = row.cells[5].textContent.toLowerCase();
-            const ipWlan = row.cells[6].textContent.toLowerCase();
-            const isActive = row.cells[7].textContent.includes('Activo');
-            const playlist = row.cells[8].textContent.toLowerCase();
-            
-            // Verificar filtro de actividad
-            if (showActiveOnly && !isActive) {
-                row.style.display = 'none';
-                return;
+            // Filtro de tienda
+            if (selectedTienda && !device.tienda.toLowerCase().includes(selectedTienda)) {
+                return false;
             }
             
-            // Verificar filtro de tienda
-            if (selectedTienda && !tienda.includes(selectedTienda)) {
-                row.style.display = 'none';
-                return;
-            }
-            
-            // Si no hay término de búsqueda y pasó los filtros anteriores, mostrar
+            // Filtro de búsqueda
             if (!searchTerm) {
-                row.style.display = '';
-                visibleCount++;
-                return;
+                return true;
             }
-            
-            // Aplicar filtro según el campo seleccionado
-            let match = false;
             
             switch (field) {
                 case 'name':
-                    match = name.includes(searchTerm);
-                    break;
+                    return device.name.toLowerCase().includes(searchTerm);
                 case 'location':
-                    match = location.includes(searchTerm);
-                    break;
+                    return device.location.toLowerCase().includes(searchTerm);
                 case 'tienda':
-                    match = tienda.includes(searchTerm);
-                    break;
+                    return device.tienda.toLowerCase().includes(searchTerm);
                 case 'model':
-                    match = model.includes(searchTerm);
-                    break;
+                    return device.model.toLowerCase().includes(searchTerm);
                 case 'ip':
-                    match = ipLan.includes(searchTerm) || ipWlan.includes(searchTerm);
-                    break;
+                    return device.ip_lan.toLowerCase().includes(searchTerm) || 
+                           device.ip_wlan.toLowerCase().includes(searchTerm);
                 case 'lista':
-                    match = playlist.includes(searchTerm);
-                    break;
+                    return device.playlist.toLowerCase().includes(searchTerm);
                 default: // 'all'
-                    match = id.includes(searchTerm) || 
-                            name.includes(searchTerm) || 
-                            location.includes(searchTerm) || 
-                            tienda.includes(searchTerm) || 
-                            model.includes(searchTerm) || 
-                            ipLan.includes(searchTerm) || 
-                            ipWlan.includes(searchTerm) ||
-                            playlist.includes(searchTerm);
-            }
-            
-            // Mostrar u ocultar según el resultado
-            if (match) {
-                row.style.display = '';
-                visibleCount++;
-            } else {
-                row.style.display = 'none';
+                    return device.device_id.toLowerCase().includes(searchTerm) ||
+                           device.name.toLowerCase().includes(searchTerm) ||
+                           device.location.toLowerCase().includes(searchTerm) ||
+                           device.tienda.toLowerCase().includes(searchTerm) ||
+                           device.model.toLowerCase().includes(searchTerm) ||
+                           device.ip_lan.toLowerCase().includes(searchTerm) ||
+                           device.ip_wlan.toLowerCase().includes(searchTerm) ||
+                           device.playlist.toLowerCase().includes(searchTerm);
             }
         });
         
-        // Actualizar contador
-        updateResultsCounter(visibleCount);
-        
-        // Gestionar mensaje de "no hay resultados"
-        updateNoResultsMessage(visibleCount, searchTerm, showActiveOnly, selectedTienda);
+        currentPage = 1;
+        updateDisplay();
     }
     
-    // Función para actualizar el mensaje cuando no hay resultados
-    function updateNoResultsMessage(visibleCount, searchTerm, showActiveOnly, selectedTienda) {
-        const tableContainer = document.querySelector('.table-responsive');
-        const existingAlert = document.querySelector('.js-no-results-alert');
-        
-        // Remover mensaje existente si hay uno
-        if (existingAlert) {
-            existingAlert.remove();
-        }
-        
-        if (visibleCount === 0) {
-            // Ocultar tabla
-            if (tableContainer) {
-                tableContainer.style.display = 'none';
-            }
-            
-            // Crear y mostrar mensaje de "no hay resultados"
-            const alert = document.createElement('div');
-            alert.className = 'alert alert-info js-no-results-alert';
-            
-            let message = 'No hay dispositivos que coincidan con los criterios de búsqueda.';
-            
-            // Crear mensaje más específico
-            let criteria = [];
-            if (searchTerm) criteria.push(`término "${searchTerm}"`);
-            if (selectedTienda) criteria.push(`tienda "${selectedTienda.toUpperCase()}"`);
-            if (showActiveOnly) criteria.push('dispositivos activos');
-            
-            if (criteria.length > 0) {
-                message = `No hay dispositivos que coincidan con: ${criteria.join(', ')}.`;
-            }
-            
-            alert.textContent = message;
-            
-            // Insertar después del contenedor de la tabla
-            if (tableContainer && tableContainer.parentNode) {
-                tableContainer.parentNode.insertBefore(alert, tableContainer.nextSibling);
-            }
+    // Función para ordenar dispositivos
+    function sortDevices(field) {
+        if (currentSort.field === field) {
+            currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
         } else {
-            // Mostrar tabla
-            if (tableContainer) {
-                tableContainer.style.display = '';
+            currentSort.field = field;
+            currentSort.direction = 'asc';
+        }
+        
+        filteredDevices.sort((a, b) => {
+            let aVal = a[field];
+            let bVal = b[field];
+            
+            // Tratamiento especial para diferentes tipos de datos
+            if (field === 'last_seen') {
+                aVal = new Date(aVal);
+                bVal = new Date(bVal);
+            } else if (field === 'is_active') {
+                aVal = aVal ? 1 : 0;
+                bVal = bVal ? 1 : 0;
+            } else {
+                aVal = String(aVal).toLowerCase();
+                bVal = String(bVal).toLowerCase();
+            }
+            
+            let result = 0;
+            if (aVal < bVal) result = -1;
+            if (aVal > bVal) result = 1;
+            
+            return currentSort.direction === 'desc' ? -result : result;
+        });
+        
+        updateSortIcons();
+        updateDisplay();
+    }
+    
+    // Actualizar iconos de ordenamiento
+    function updateSortIcons() {
+        // Resetear todos los iconos
+        document.querySelectorAll('.table th i[id^="sort-"]').forEach(icon => {
+            icon.className = 'fas fa-sort';
+        });
+        
+        // Actualizar icono activo
+        if (currentSort.field) {
+            const icon = document.getElementById(`sort-${currentSort.field}`);
+            if (icon) {
+                icon.className = currentSort.direction === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
             }
         }
     }
     
-    // Función para limpiar todos los filtros
+    // Función para actualizar la visualización
+    function updateDisplay() {
+        updateResultsCounter();
+        updatePagination();
+        displayCurrentPage();
+        updateNoResultsMessage();
+    }
+    
+    // Actualizar contador de resultados
+    function updateResultsCounter() {
+        const count = filteredDevices.length;
+        if (resultsCounter) {
+            resultsCounter.textContent = `${count} dispositivo${count !== 1 ? 's' : ''}`;
+            resultsCounter.className = `badge ${count > 0 ? 'bg-info' : 'bg-warning'}`;
+        }
+        
+        // Actualizar total de registros
+        const totalRecordsSpan = document.getElementById('totalRecords');
+        if (totalRecordsSpan) {
+            totalRecordsSpan.textContent = count;
+        }
+    }
+    
+    // Actualizar paginación
+    function updatePagination() {
+        const totalPages = pageSize === 'all' ? 1 : Math.ceil(filteredDevices.length / parseInt(pageSize));
+        
+        // Actualizar input de página
+        if (pageInput) {
+            pageInput.max = totalPages;
+            pageInput.value = currentPage;
+        }
+        
+        // Generar paginación
+        generatePagination(totalPages);
+        
+        // Actualizar información de "mostrando"
+        updateShowingInfo(totalPages);
+    }
+    
+    // Generar controles de paginación
+    function generatePagination(totalPages) {
+        const topPagination = document.getElementById('topPagination');
+        const bottomPagination = document.getElementById('bottomPagination');
+        
+        const paginationHTML = createPaginationHTML(totalPages);
+        
+        if (topPagination) topPagination.innerHTML = paginationHTML;
+        if (bottomPagination) bottomPagination.innerHTML = paginationHTML;
+    }
+    
+    // Crear HTML de paginación
+    function createPaginationHTML(totalPages) {
+        if (totalPages <= 1) return '';
+        
+        let html = `
+        <div class="d-flex gap-2">
+            <!-- Botones de navegación de páginas -->
+           <div class="card-header d-flex justify-content-between align-items-center">
+                <button class="btn btn-sm btn-outline-secondary me-2"  
+                        onclick="changePage(1)" 
+                        title="Primera página"
+                        ${currentPage === 1 ? 'disabled' : ''}>
+                    <i class="fas fa-angle-double-left"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary me-2"  
+                        onclick="changePage(${currentPage - 1})" 
+                        title="Página anterior"
+                        ${currentPage === 1 ? 'disabled' : ''}>
+                    <i class="fas fa-angle-left"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary me-2"  
+                        onclick="changePage(${currentPage + 1})" 
+                        title="Página siguiente"
+                        ${currentPage === totalPages ? 'disabled' : ''}>
+                    <i class="fas fa-angle-right"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary me-2" 
+                        onclick="changePage(${totalPages})" 
+                        title="Última página"
+                        ${currentPage === totalPages ? 'disabled' : ''}>
+                    <i class="fas fa-angle-double-right"></i>
+                </button>
+            </div>
+            
+            <!-- Indicador de página actual -->
+            <div class="d-flex align-items-center">
+                <small class="text-muted me-2">Página</small>
+                <input type="number" id="devicePageInput" class="form-control form-control-sm text-center" 
+                       style="width: 60px;" min="1" max="${totalPages}" value="${currentPage}" 
+                       onchange="changePage(parseInt(this.value))"
+                       onkeypress="if(event.key==='Enter') changePage(parseInt(this.value))">
+                <small class="text-muted ms-2">de <span id="totalDevicePages">${totalPages}</span></small>
+            </div>
+        </div>`;
+        
+        return html;
+    }
+    
+    // Actualizar información de "mostrando"
+    function updateShowingInfo(totalPages) {
+        const showingFrom = document.getElementById('showingFrom');
+        const showingTo = document.getElementById('showingTo');
+        
+        if (pageSize === 'all' || filteredDevices.length === 0) {
+            if (showingFrom) showingFrom.textContent = filteredDevices.length > 0 ? '1' : '0';
+            if (showingTo) showingTo.textContent = filteredDevices.length;
+        } else {
+            const from = (currentPage - 1) * parseInt(pageSize) + 1;
+            const to = Math.min(currentPage * parseInt(pageSize), filteredDevices.length);
+            
+            if (showingFrom) showingFrom.textContent = from;
+            if (showingTo) showingTo.textContent = to;
+        }
+    }
+    
+    // Mostrar página actual en todas las vistas
+    function displayCurrentPage() {
+        // Ocultar todas las filas/elementos
+        allDevices.forEach(device => {
+            if (device.tableElement) device.tableElement.style.display = 'none';
+            if (device.cardElement) device.cardElement.style.display = 'none';
+            if (device.listElement) device.listElement.style.display = 'none';
+        });
+        
+        // Mostrar elementos de la página actual
+        if (pageSize === 'all') {
+            filteredDevices.forEach(device => {
+                if (device.tableElement) device.tableElement.style.display = '';
+                if (device.cardElement) device.cardElement.style.display = '';
+                if (device.listElement) device.listElement.style.display = '';
+            });
+        } else {
+            const start = (currentPage - 1) * parseInt(pageSize);
+            const end = start + parseInt(pageSize);
+            
+            filteredDevices.slice(start, end).forEach(device => {
+                if (device.tableElement) device.tableElement.style.display = '';
+                if (device.cardElement) device.cardElement.style.display = '';
+                if (device.listElement) device.listElement.style.display = '';
+            });
+        }
+    }
+    
+    // Actualizar mensaje de "no hay resultados" para todas las vistas
+    function updateNoResultsMessage() {
+        const tableContainer = document.querySelector('.table-responsive');
+        const cardsContainer = document.getElementById('cardsViewMedium');
+        const listContainer = document.getElementById('listViewSmall');
+        
+        if (filteredDevices.length === 0) {
+            if (tableContainer) tableContainer.style.display = 'none';
+            if (cardsContainer) cardsContainer.style.display = 'none';
+            if (listContainer) listContainer.style.display = 'none';
+            if (noResultsAlert) noResultsAlert.style.display = 'block';
+        } else {
+            if (tableContainer) tableContainer.style.display = '';
+            if (cardsContainer) cardsContainer.style.display = '';
+            if (listContainer) listContainer.style.display = '';
+            if (noResultsAlert) noResultsAlert.style.display = 'none';
+        }
+    }
+    
+    // Cambiar página
+    window.changePage = function(page) {
+        const totalPages = pageSize === 'all' ? 1 : Math.ceil(filteredDevices.length / parseInt(pageSize));
+        
+        if (page < 1 || page > totalPages) return;
+        
+        currentPage = page;
+        updateDisplay();
+        
+        // Scroll al top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    
+    // Ir a página específica
+    window.goToPage = function() {
+        const page = parseInt(pageInput.value);
+        if (!isNaN(page)) {
+            changePage(page);
+        }
+    };
+    
+    // Función de ordenamiento global
+    window.sortTable = function(field) {
+        sortDevices(field);
+    };
+    
+    // Cambiar tamaño de página
+    function changePageSize(newSize) {
+        pageSize = newSize;
+        currentPage = 1;
+        updateDisplay();
+    }
+    
+    // Limpiar todos los filtros
     function clearAllFilters() {
         if (searchInput) searchInput.value = '';
         if (searchField) searchField.value = 'all';
         if (tiendaFilter) tiendaFilter.value = '';
         if (activeOnly) activeOnly.checked = false;
-        filterTable();
+        filterDevices();
     }
     
-    // Función para aplicar filtro rápido por tienda
-    function filterByTienda(tiendaName) {
-        if (tiendaFilter) {
-            tiendaFilter.value = tiendaName;
-            // También actualizar el campo de búsqueda para mostrar visualmente qué se está filtrando
-            if (searchInput) searchInput.value = '';
-            if (searchField) searchField.value = 'tienda';
-            filterTable();
-        }
-    }
-    
-    // Función para aplicar filtro rápido por ubicación
-    function filterByLocation(locationName) {
-        if (searchInput) searchInput.value = locationName;
-        if (searchField) searchField.value = 'location';
-        if (tiendaFilter) tiendaFilter.value = ''; // Limpiar filtro de tienda
-        filterTable();
-    }
-    
-    // Función para obtener tiendas únicas
-    function getUniqueTiendas() {
-        const tiendas = new Set();
-        tableRows.forEach(row => {
-            if (row.cells.length >= 4) {
-                const tienda = row.cells[3].textContent.trim();
-                if (tienda && tienda !== 'No especificada' && tienda !== '') {
-                    tiendas.add(tienda);
-                }
-            }
-        });
-        return Array.from(tiendas).sort();
-    }
-    
-    // Función para obtener ubicaciones únicas
-    function getUniqueLocations() {
-        const locations = new Set();
-        tableRows.forEach(row => {
-            if (row.cells.length >= 3) {
-                const location = row.cells[2].textContent.trim();
-                if (location && location !== 'No especificada' && location !== '') {
-                    locations.add(location);
-                }
-            }
-        });
-        return Array.from(locations).sort();
-    }
-    
-    
-    // Añadir listeners para filtrado en tiempo real
+    // Event listeners
     if (searchInput) {
-        searchInput.addEventListener('input', filterTable);
-        searchInput.addEventListener('keyup', filterTable);
+        searchInput.addEventListener('input', filterDevices);
     }
     
     if (searchField) {
-        searchField.addEventListener('change', filterTable);
+        searchField.addEventListener('change', filterDevices);
     }
     
     if (tiendaFilter) {
-        tiendaFilter.addEventListener('change', filterTable);
+        tiendaFilter.addEventListener('change', filterDevices);
     }
     
     if (activeOnly) {
-        activeOnly.addEventListener('change', filterTable);
+        activeOnly.addEventListener('change', filterDevices);
     }
     
-    // Botón para limpiar solo la búsqueda
     if (clearSearchBtn) {
         clearSearchBtn.addEventListener('click', function(e) {
             e.preventDefault();
             if (searchInput) {
                 searchInput.value = '';
-                filterTable();
+                filterDevices();
             }
         });
     }
     
-    // Botón para limpiar todos los filtros
     if (clearFiltersBtn) {
         clearFiltersBtn.addEventListener('click', function(e) {
             e.preventDefault();
@@ -404,40 +839,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Aplicar filtro inicial si hay parámetros en la URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const initialSearch = urlParams.get('search');
-    const initialField = urlParams.get('search_field');
-    const initialTienda = urlParams.get('tienda_filter');
-    const initialActive = urlParams.get('active_only');
-    
-    if (initialSearch && searchInput) {
-        searchInput.value = initialSearch;
-    }
-    if (initialField && searchField) {
-        searchField.value = initialField;
-    }
-    if (initialTienda && tiendaFilter) {
-        tiendaFilter.value = initialTienda;
-    }
-    if (initialActive && activeOnly) {
-        activeOnly.checked = initialActive === 'on';
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', function() {
+            changePageSize(this.value);
+        });
     }
     
-    // Crear filtros rápidos
-    createQuickFilters();
+    if (pageInput) {
+        pageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                goToPage();
+            }
+        });
+    }
     
-    // Aplicar filtro inicial
-    filterTable();
-    
-    // Exponer funciones globalmente para uso desde otros scripts
-    window.deviceFilters = {
-        filterByLocation: filterByLocation,
-        filterByTienda: filterByTienda,
-        clearAllFilters: clearAllFilters,
-        getUniqueLocations: getUniqueLocations,
-        getUniqueTiendas: getUniqueTiendas
-    };
+    // Inicialización
+    initializeData();
+    filterDevices(); // Aplicar filtros iniciales si los hay
 });
 </script>
 {% endblock %}

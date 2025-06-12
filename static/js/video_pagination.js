@@ -11,7 +11,7 @@
     let allVideos = [];
     let videoPagination = {
         currentPage: 1,
-        pageSize: 100,
+        pageSize: 25,
         totalItems: 0,
         totalPages: 1,
         filteredData: [],

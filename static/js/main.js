@@ -1,10 +1,6 @@
 // =============================================
-// MAIN.JS LIMPIO SIN DUPLICACIONES
+// MAIN.JS CORREGIDO - FUNCIONALIDAD COMPLETA
 // =============================================
-
-// Configuración global
-// VARIABLES GLOBALES - DEFINICIÓN EXPLÍCITA
-console.log('Definiendo variables globales...');
 
 // Configuración global
 const API_URL = '/api';
@@ -33,12 +29,6 @@ window.videoPagination = {
 };
 
 let videoPagination = window.videoPagination;
-
-console.log('Variables globales definidas:', {
-    allVideos: window.allVideos,
-    allPlaylists: window.allPlaylists,
-    videoPagination: window.videoPagination
-});
 
 // ===== FUNCIONES HELPER =====
 
@@ -195,24 +185,21 @@ function showToast(message, type = 'success') {
     }
 }
 
-// ===== FUNCIONES DE PAGINACIÓN DE VIDEOS - ÚNICA IMPLEMENTACIÓN =====
+// ===== FUNCIONES DE PAGINACIÓN DE VIDEOS =====
 
 window.applyFiltersAndDisplayPage = function() {
     console.log('=== APLICANDO FILTROS ===');
-    console.log('window.allVideos:', window.allVideos);
-    console.log('allVideos length:', window.allVideos ? window.allVideos.length : 'undefined');
     
-    // VERIFICAR que allVideos existe y es un array
     if (!window.allVideos) {
         console.error('window.allVideos es undefined - inicializando como array vacío');
         window.allVideos = [];
-        allVideos = window.allVideos; // Actualizar alias
+        allVideos = window.allVideos;
     }
     
     if (!Array.isArray(window.allVideos)) {
         console.error('window.allVideos no es un array - convirtiendo a array');
         window.allVideos = Array.isArray(allVideos) ? allVideos : [];
-        allVideos = window.allVideos; // Actualizar alias
+        allVideos = window.allVideos;
     }
     
     if (window.allVideos.length === 0) {
@@ -235,15 +222,12 @@ window.applyFiltersAndDisplayPage = function() {
     }
     
     let filtered = [...window.allVideos];
-    console.log('Videos a filtrar:', filtered.length);
 
     // Filtrar por estado de expiración
     if (videoPagination.filter === 'active') {
         filtered = filtered.filter(video => !video.expiration_date || new Date(video.expiration_date) >= new Date());
-        console.log('Filtro activos aplicado, resultados:', filtered.length);
     } else if (videoPagination.filter === 'expired') {
         filtered = filtered.filter(video => video.expiration_date && new Date(video.expiration_date) < new Date());
-        console.log('Filtro expirados aplicado, resultados:', filtered.length);
     }
 
     // Filtrar por búsqueda
@@ -252,7 +236,6 @@ window.applyFiltersAndDisplayPage = function() {
             (video.title || '').toLowerCase().includes(videoPagination.searchTerm) ||
             (video.description || '').toLowerCase().includes(videoPagination.searchTerm)
         );
-        console.log('Filtro búsqueda aplicado, resultados:', filtered.length);
     }
 
     // Ordenar los datos
@@ -286,12 +269,6 @@ window.applyFiltersAndDisplayPage = function() {
         videoPagination.currentPage = 1;
     }
 
-    console.log('Paginación calculada:', {
-        totalItems: videoPagination.totalItems,
-        totalPages: videoPagination.totalPages,
-        currentPage: videoPagination.currentPage
-    });
-
     // Llamar funciones de display
     if (typeof window.displayCurrentPage === 'function') {
         window.displayCurrentPage();
@@ -302,13 +279,9 @@ window.applyFiltersAndDisplayPage = function() {
     if (typeof window.updatePaginationButtons === 'function') {
         window.updatePaginationButtons();
     }
-    
-    console.log('=== FILTROS APLICADOS CORRECTAMENTE ===');
 };
 
 window.displayCurrentPage = function() {
-    console.log('displayCurrentPage llamada');
-    
     const startIndex = (videoPagination.currentPage - 1) * videoPagination.pageSize;
     const endIndex = Math.min(startIndex + videoPagination.pageSize, videoPagination.totalItems);
     const pageData = videoPagination.filteredData.slice(startIndex, endIndex);
@@ -377,7 +350,6 @@ window.displayCurrentPage = function() {
     }).join('');
 
     videosList.innerHTML = rows;
-    console.log(`Mostrando ${pageData.length} videos en página ${videoPagination.currentPage}`);
 };
 
 window.updatePaginationInfo = function() {
@@ -430,11 +402,10 @@ window.updatePaginationButtons = function() {
     }
 };
 
-// ===== FUNCIONES DE NAVEGACIÓN - ÚNICA IMPLEMENTACIÓN =====
+// ===== FUNCIONES DE NAVEGACIÓN =====
 
 window.goToVideoPage = function(page) {
     page = parseInt(page);
-    console.log('Navegando a página:', page);
     if (page >= 1 && page <= videoPagination.totalPages && page !== videoPagination.currentPage) {
         videoPagination.currentPage = page;
         displayCurrentPage();
@@ -444,31 +415,26 @@ window.goToVideoPage = function(page) {
 };
 
 window.goToFirstVideoPage = function() {
-    console.log('Ir a primera página');
     window.goToVideoPage(1);
 };
 
 window.goToPrevVideoPage = function() {
-    console.log('Ir a página anterior');
     if (videoPagination.currentPage > 1) {
         window.goToVideoPage(videoPagination.currentPage - 1);
     }
 };
 
 window.goToNextVideoPage = function() {
-    console.log('Ir a página siguiente');
     if (videoPagination.currentPage < videoPagination.totalPages) {
         window.goToVideoPage(videoPagination.currentPage + 1);
     }
 };
 
 window.goToLastVideoPage = function() {
-    console.log('Ir a última página');
     window.goToVideoPage(videoPagination.totalPages);
 };
 
 window.sortVideoTable = function(field) {
-    console.log('Ordenando por:', field);
     if (videoPagination.sortField === field) {
         videoPagination.sortOrder = videoPagination.sortOrder === 'asc' ? 'desc' : 'asc';
     } else {
@@ -491,123 +457,8 @@ window.sortVideoTable = function(field) {
 
 // ===== GESTIÓN DE VIDEOS =====
 
-window.applyFiltersAndDisplayPage = function() {
-    console.log('=== APLICANDO FILTROS ===');
-    console.log('window.allVideos:', window.allVideos);
-    console.log('allVideos length:', window.allVideos ? window.allVideos.length : 'undefined');
-    
-    // VERIFICAR que allVideos existe y es un array
-    if (!window.allVideos) {
-        console.error('window.allVideos es undefined - inicializando como array vacío');
-        window.allVideos = [];
-        allVideos = window.allVideos; // Actualizar alias
-    }
-    
-    if (!Array.isArray(window.allVideos)) {
-        console.error('window.allVideos no es un array - convirtiendo a array');
-        window.allVideos = Array.isArray(allVideos) ? allVideos : [];
-        allVideos = window.allVideos; // Actualizar alias
-    }
-    
-    if (window.allVideos.length === 0) {
-        console.warn('window.allVideos está vacío - mostrando mensaje');
-        const videosList = document.getElementById('videosList');
-        if (videosList) {
-            videosList.innerHTML = `
-                <tr>
-                    <td colspan="6" class="text-center py-5">
-                        <div class="text-muted">
-                            <i class="fas fa-info-circle fa-3x mb-3"></i>
-                            <p class="mb-0">No hay videos cargados</p>
-                            <p class="small">Intenta recargar la página o verificar la conexión a la API</p>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }
-        return;
-    }
-    
-    let filtered = [...window.allVideos];
-    console.log('Videos a filtrar:', filtered.length);
-
-    // Filtrar por estado de expiración
-    if (videoPagination.filter === 'active') {
-        filtered = filtered.filter(video => !video.expiration_date || new Date(video.expiration_date) >= new Date());
-        console.log('Filtro activos aplicado, resultados:', filtered.length);
-    } else if (videoPagination.filter === 'expired') {
-        filtered = filtered.filter(video => video.expiration_date && new Date(video.expiration_date) < new Date());
-        console.log('Filtro expirados aplicado, resultados:', filtered.length);
-    }
-
-    // Filtrar por búsqueda
-    if (videoPagination.searchTerm) {
-        filtered = filtered.filter(video => 
-            (video.title || '').toLowerCase().includes(videoPagination.searchTerm) ||
-            (video.description || '').toLowerCase().includes(videoPagination.searchTerm)
-        );
-        console.log('Filtro búsqueda aplicado, resultados:', filtered.length);
-    }
-
-    // Ordenar los datos
-    filtered.sort((a, b) => {
-        let aValue = a[videoPagination.sortField] || '';
-        let bValue = b[videoPagination.sortField] || '';
-        
-        if (videoPagination.sortField.includes('date')) {
-            aValue = new Date(aValue || 0);
-            bValue = new Date(bValue || 0);
-        } else {
-            aValue = aValue.toString().toLowerCase();
-            bValue = bValue.toString().toLowerCase();
-        }
-        
-        if (videoPagination.sortOrder === 'desc') {
-            return bValue > aValue ? 1 : -1;
-        }
-        return aValue > bValue ? 1 : -1;
-    });
-
-    videoPagination.filteredData = filtered;
-    videoPagination.totalItems = filtered.length;
-    videoPagination.totalPages = Math.ceil(videoPagination.totalItems / videoPagination.pageSize);
-    
-    // Ajustar página actual
-    if (videoPagination.currentPage > videoPagination.totalPages && videoPagination.totalPages > 0) {
-        videoPagination.currentPage = videoPagination.totalPages;
-    }
-    if (videoPagination.currentPage < 1) {
-        videoPagination.currentPage = 1;
-    }
-
-    console.log('Paginación calculada:', {
-        totalItems: videoPagination.totalItems,
-        totalPages: videoPagination.totalPages,
-        currentPage: videoPagination.currentPage
-    });
-
-    // Llamar funciones de display
-    if (typeof window.displayCurrentPage === 'function') {
-        window.displayCurrentPage();
-    }
-    if (typeof window.updatePaginationInfo === 'function') {
-        window.updatePaginationInfo();
-    }
-    if (typeof window.updatePaginationButtons === 'function') {
-        window.updatePaginationButtons();
-    }
-    
-    console.log('=== FILTROS APLICADOS CORRECTAMENTE ===');
-};
-
-// =============================================
-// FIX PARA loadVideos
-// =============================================
-// REEMPLAZAR la función loadVideos con esta versión corregida
-
 window.loadVideos = async function(filter = 'all') {
     console.log('=== CARGANDO VIDEOS ===');
-    console.log("Filtro aplicado:", filter);
     
     const videosList = document.getElementById('videosList');
     if (!videosList) {
@@ -628,8 +479,6 @@ window.loadVideos = async function(filter = 'all') {
             </tr>
         `;
         
-        console.log('Haciendo petición a:', `${API_URL}/videos/`);
-        
         // Cargar videos desde la API
         const response = await fetch(`${API_URL}/videos/`);
         
@@ -638,14 +487,12 @@ window.loadVideos = async function(filter = 'all') {
         }
         
         const responseData = await response.json();
-        console.log('Respuesta recibida:', responseData);
         
         // ASIGNAR A VARIABLE GLOBAL
         window.allVideos = Array.isArray(responseData) ? responseData : responseData.items || [];
-        allVideos = window.allVideos; // Actualizar alias
+        allVideos = window.allVideos;
         
         console.log(`Videos cargados en window.allVideos: ${window.allVideos.length}`);
-        console.log('Primer video:', window.allVideos[0]);
         
         // Verificar que se cargaron correctamente
         if (!Array.isArray(window.allVideos)) {
@@ -658,7 +505,6 @@ window.loadVideos = async function(filter = 'all') {
         
         // Aplicar filtros DESPUÉS de asegurar que allVideos existe
         setTimeout(() => {
-            console.log('Aplicando filtros después del timeout...');
             window.applyFiltersAndDisplayPage();
         }, 100);
         
@@ -684,36 +530,7 @@ window.loadVideos = async function(filter = 'all') {
     }
 };
 
-async function testApiConnection() {
-    try {
-        console.log("Probando conexión a API:", `${API_URL}/videos/`);
-        const response = await fetch(`${API_URL}/videos/`);
-        
-        if (!response.ok) {
-            console.error("La API no responde correctamente:", response.status, response.statusText);
-            const errorMessage = document.createElement('div');
-            errorMessage.className = 'alert alert-danger alert-dismissible fade show mt-3';
-            errorMessage.innerHTML = `
-                <strong>Error de conexión</strong>
-                <p>No se puede conectar a la API: ${response.status} ${response.statusText}</p>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            `;
-            document.body.prepend(errorMessage);
-        } else {
-            console.log("Conexión a API exitosa");
-        }
-    } catch (error) {
-        console.error("Error al probar conexión:", error);
-        const errorMessage = document.createElement('div');
-        errorMessage.className = 'alert alert-danger alert-dismissible fade show mt-3';
-        errorMessage.innerHTML = `
-            <strong>Error de conexión</strong>
-            <p>No se puede conectar a la API: ${error.message}</p>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
-        document.body.prepend(errorMessage);
-    }
-}
+
 
 async function uploadVideo(formData) {
     const progressBar = document.querySelector('#uploadProgress .progress-bar');
@@ -1200,18 +1017,24 @@ function filterPlaylistsByTitle(searchText) {
     }
 }
 
+// ===== FUNCIÓN PRINCIPAL PARA ABRIR DETALLES DE PLAYLIST =====
 window.openPlaylistDetail = async function(playlistId) {
     currentPlaylistId = playlistId;
     try {
+        console.log(`Abriendo detalles de playlist ${playlistId}`);
+        
         const response = await fetch(`${API_URL}/playlists/${playlistId}`);
         if (!response.ok) throw new Error('Error al cargar detalles de la playlist');
         
         const playlist = await response.json();
+        console.log('Playlist cargada:', playlist);
         
+        // Mostrar información básica de la playlist
         document.getElementById('playlistDetailTitle').textContent = playlist.title;
         document.getElementById('playlistDetailDescription').textContent = playlist.description || 'Sin descripción';
         document.getElementById('playlistDetailDate').textContent = `Creada: ${formatDate(playlist.creation_date)}`;
         
+        // Mostrar fecha de expiración
         const expirationBadge = document.getElementById('playlistDetailExpirationDate');
         if (playlist.expiration_date) {
             const expired = isExpired(playlist.expiration_date);
@@ -1222,46 +1045,60 @@ window.openPlaylistDetail = async function(playlistId) {
             expirationBadge.textContent = 'Sin fecha de expiración';
         }
         
+        // Mostrar estado de la playlist
         const statusBadge = document.getElementById('playlistDetailStatus');
         const isActive = isPlaylistActive(playlist);
         statusBadge.className = `badge ${isActive ? 'bg-success' : 'bg-danger'}`;
         statusBadge.textContent = isActive ? 'Activa' : 'Inactiva';
         
+        // Configurar botón de descarga
         document.getElementById('playlistDownloadBtn').onclick = () => {
             window.location.href = `${API_URL}/playlists/${playlistId}/download`;
         };
         
-        const playlistVideos = document.getElementById('playlistVideos');
-        playlistVideos.innerHTML = '';
+        // Configurar botón de editar
+        document.getElementById('editPlaylistBtn').onclick = () => {
+            preparePlaylistForEditing(playlist);
+        };
         
-        if (playlist.videos.length === 0) {
-            playlistVideos.innerHTML = '<tr><td colspan="4" class="text-center">No hay videos en esta lista</td></tr>';
-        } else {
-            playlist.videos.forEach(video => {
-                const videoExpired = video.expiration_date && isExpired(video.expiration_date);
-                const videoRow = document.createElement('tr');
-                videoRow.className = videoExpired ? 'table-danger' : '';
-                
-                videoRow.innerHTML = `
-                    <td>${video.title}</td>
-                    <td>${video.description || '<span class="text-muted">Sin descripción</span>'}</td>
-                    <td>
-                        ${video.expiration_date ? 
-                            `<span class="badge ${videoExpired ? 'bg-danger' : 'bg-info'}">
-                                ${videoExpired ? 'Expirado' : 'Expira'}: ${formatDate(video.expiration_date)}
-                            </span>` : 
-                            '<span class="text-muted">Sin expiración</span>'}
-                    </td>
-                    <td>
-                        <button class="btn btn-outline-danger btn-sm" onclick="removeVideoFromPlaylist(${playlistId}, ${video.id})">
-                            <i class="fas fa-times"></i> Eliminar
-                        </button>
-                    </td>
-                `;
-                playlistVideos.appendChild(videoRow);
-            });
-        }
+        // Configurar botón de eliminar
+        document.getElementById('deletePlaylistBtn').onclick = () => {
+            if (confirm('¿Estás seguro de que deseas eliminar esta lista de reproducción?')) {
+                deletePlaylist(playlistId);
+            }
+        };
         
+        // Mostrar videos en la playlist
+        displayPlaylistVideos(playlist);
+        
+        // Cargar videos disponibles para agregar
+        await loadAvailableVideos(playlistId, playlist);
+        
+        // Configurar botón para agregar video
+        document.getElementById('addVideoBtn').onclick = () => {
+            const videoId = document.getElementById('addVideoSelect').value;
+            if (videoId) {
+                addVideoToPlaylist(playlistId, parseInt(videoId));
+            } else {
+                showToast('Por favor, selecciona un video para agregar a la lista', 'error');
+            }
+        };
+        
+        // Cargar dispositivos asignados
+        await loadPlaylistDevices(playlistId);
+        await loadAvailableDevices(playlistId);
+        
+        // Configurar botón para agregar dispositivo
+        document.getElementById('addDeviceBtn').onclick = () => {
+            const deviceId = document.getElementById('addDeviceSelect').value;
+            if (deviceId) {
+                addDeviceToPlaylist(playlistId, deviceId);
+            } else {
+                showToast('Por favor, selecciona un dispositivo para asignar a la lista', 'error');
+            }
+        };
+        
+        // Mostrar el modal
         const modal = new bootstrap.Modal(document.getElementById('playlistDetailModal'));
         modal.show();
         
@@ -1271,10 +1108,135 @@ window.openPlaylistDetail = async function(playlistId) {
     }
 };
 
-window.removeVideoFromPlaylist = async function(playlistId, videoId) {
-    if (!confirm('¿Estás seguro de que deseas eliminar este video de la lista?')) return;
+// ===== FUNCIONES PARA MOSTRAR VIDEOS EN PLAYLIST =====
+function displayPlaylistVideos(playlist) {
+    const playlistVideos = document.getElementById('playlistVideos');
+    playlistVideos.innerHTML = '';
+    
+    if (!playlist.videos || playlist.videos.length === 0) {
+        playlistVideos.innerHTML = '<tr><td colspan="4" class="text-center">No hay videos en esta lista</td></tr>';
+        return;
+    }
+    
+    playlist.videos.forEach(video => {
+        const videoExpired = video.expiration_date && isExpired(video.expiration_date);
+        const videoRow = document.createElement('tr');
+        videoRow.className = videoExpired ? 'table-danger' : '';
+        
+        videoRow.innerHTML = `
+            <td>${escapeHtml(video.title || 'Sin título')}</td>
+            <td>${escapeHtml(video.description || 'Sin descripción')}</td>
+            <td>
+                ${video.expiration_date ? 
+                    `<span class="badge ${videoExpired ? 'bg-danger' : 'bg-info'}">
+                        ${videoExpired ? 'Expirado' : 'Expira'}: ${formatDate(video.expiration_date)}
+                    </span>` : 
+                    '<span class="text-muted">Sin expiración</span>'}
+            </td>
+            <td>
+                <button class="btn btn-outline-danger btn-sm" onclick="removeVideoFromPlaylist(${playlist.id}, ${video.id})">
+                    <i class="fas fa-times"></i> Eliminar
+                </button>
+            </td>
+        `;
+        playlistVideos.appendChild(videoRow);
+    });
+}
+
+// ===== FUNCIONES PARA CARGAR VIDEOS DISPONIBLES =====
+async function loadAvailableVideos(playlistId, playlist) {
+    const addVideoSelect = document.getElementById('addVideoSelect');
+    if (!addVideoSelect) {
+        console.error("No se encontró el select para añadir videos");
+        return;
+    }
     
     try {
+        addVideoSelect.innerHTML = '<option value="">Cargando videos...</option>';
+        
+        // Asegurarnos de que allVideos esté disponible
+        if (!allVideos || allVideos.length === 0) {
+            try {
+                const response = await fetch(`${API_URL}/videos/`);
+                if (response.ok) {
+                    allVideos = await response.json();
+                    window.allVideos = allVideos; // Actualizar variable global
+                } else {
+                    throw new Error(`Error al cargar videos: ${response.status} ${response.statusText}`);
+                }
+            } catch (err) {
+                console.error("Error al cargar videos:", err);
+                addVideoSelect.innerHTML = '<option value="">Error al cargar videos disponibles</option>';
+                return;
+            }
+        }
+        
+        // Resetear el select
+        addVideoSelect.innerHTML = '<option value="">Seleccionar video...</option>';
+        
+        // Filtrar videos que no están en la playlist y que no han expirado
+        if (allVideos && allVideos.length > 0) {
+            const playlistVideoIds = new Set((playlist.videos || []).map(v => v.id));
+            const availableVideos = allVideos.filter(video => 
+                !playlistVideoIds.has(video.id) && 
+                (!video.expiration_date || !isExpired(video.expiration_date))
+            );
+            
+            if (availableVideos.length === 0) {
+                addVideoSelect.innerHTML += '<option disabled>No hay videos disponibles para agregar</option>';
+            } else {
+                // Añadir cada video disponible al select
+                availableVideos.forEach(video => {
+                    const option = document.createElement('option');
+                    option.value = video.id;
+                    option.textContent = video.title || `Video ${video.id}`;
+                    addVideoSelect.appendChild(option);
+                });
+            }
+        } else {
+            addVideoSelect.innerHTML += '<option disabled>No hay videos disponibles</option>';
+        }
+    } catch (error) {
+        console.error('Error al cargar videos disponibles:', error);
+        addVideoSelect.innerHTML = '<option value="">Error al cargar videos disponibles</option>';
+    }
+}
+
+// ===== FUNCIONES PARA AGREGAR/ELIMINAR VIDEOS =====
+async function addVideoToPlaylist(playlistId, videoId) {
+    try {
+        console.log(`Agregando video ${videoId} a playlist ${playlistId}`);
+        
+        const response = await fetch(`${API_URL}/playlists/${playlistId}/videos/${videoId}`, {
+            method: 'POST',
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || 'Error al añadir el video');
+        }
+        
+        showToast('Video añadido a la lista correctamente', 'success');
+        
+        // Recargar detalles de la playlist
+        setTimeout(() => {
+            openPlaylistDetail(playlistId);
+        }, 500);
+        
+    } catch (error) {
+        console.error('Error al añadir video a playlist:', error);
+        showToast(`Error al añadir el video a la lista: ${error.message}`, 'error');
+    }
+}
+
+window.removeVideoFromPlaylist = async function(playlistId, videoId) {
+    if (!confirm('¿Estás seguro de que deseas eliminar este video de la lista de reproducción?')) {
+        return;
+    }
+    
+    try {
+        console.log(`Eliminando video ${videoId} de playlist ${playlistId}`);
+        
         const response = await fetch(`${API_URL}/playlists/${playlistId}/videos/${videoId}`, {
             method: 'DELETE',
         });
@@ -1286,6 +1248,7 @@ window.removeVideoFromPlaylist = async function(playlistId, videoId) {
         
         showToast('Video eliminado de la lista correctamente', 'success');
         
+        // Recargar detalles de la playlist
         setTimeout(() => {
             openPlaylistDetail(playlistId);
         }, 500);
@@ -1295,6 +1258,520 @@ window.removeVideoFromPlaylist = async function(playlistId, videoId) {
         showToast(`Error al eliminar el video de la lista: ${error.message}`, 'error');
     }
 };
+
+// ===== FUNCIONES PARA CARGAR DISPOSITIVOS =====
+async function loadPlaylistDevices(playlistId) {
+    console.log("Cargando dispositivos para playlist:", playlistId);
+
+    const devicesContainer = document.getElementById('assignedDevicesContainer');
+    if (!devicesContainer) {
+        console.error("No se encontró el contenedor de dispositivos asignados");
+        return;
+    }
+    
+    try {
+        devicesContainer.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <span class="ms-2">Cargando dispositivos asignados...</span>
+            </div>
+        `;
+
+        const response = await fetch(`${API_URL}/device-playlists/playlist/${playlistId}/devices`);
+        
+        if (!response.ok) {
+            throw new Error(`Error al cargar dispositivos asignados: ${response.status} ${response.statusText}`);
+        }
+        
+        const assignedDevices = await response.json();
+        console.log("Dispositivos asignados recibidos:", assignedDevices);
+        
+        if (!assignedDevices || assignedDevices.length === 0) {
+            devicesContainer.innerHTML = '<p class="text-center">No hay dispositivos asignados a esta lista</p>';
+            return;
+        }
+        
+        const tableHTML = `
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Ubicación</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${assignedDevices.map(device => `
+                        <tr class="${device.is_active ? '' : 'table-warning'}">
+                            <td>${device.device_id}</td>
+                            <td>${device.name || 'Sin nombre'}</td>
+                            <td>${device.location || ''} ${device.tienda ? ' - ' + device.tienda : ''}</td>
+                            <td>
+                                <span class="badge ${device.is_active ? 'bg-success' : 'bg-danger'}">
+                                    ${device.is_active ? 'Activo' : 'Inactivo'}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-outline-danger btn-sm" onclick="removeDeviceFromPlaylist('${device.device_id}', ${playlistId})">
+                                    <i class="fas fa-times"></i> Eliminar
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+        
+        devicesContainer.innerHTML = tableHTML;
+        
+    } catch (error) {
+        console.error('Error al cargar dispositivos asignados:', error);
+        devicesContainer.innerHTML = `<div class="alert alert-danger">Error al cargar dispositivos: ${error.message}</div>`;
+    }
+}
+
+async function loadAvailableDevices(playlistId) {
+    console.log("Cargando dispositivos disponibles para playlist:", playlistId);
+    
+    try {
+        // Obtener todos los dispositivos activos
+        const allDevicesResponse = await fetch(`${API_URL}/devices/?active_only=true`);
+        if (!allDevicesResponse.ok) {
+            throw new Error(`Error al cargar dispositivos: ${allDevicesResponse.status} ${allDevicesResponse.statusText}`);
+        }
+        const allDevices = await allDevicesResponse.json();
+        
+        // Obtener dispositivos ya asignados
+        const assignedDevicesResponse = await fetch(`${API_URL}/device-playlists/playlist/${playlistId}/devices`);
+        if (!assignedDevicesResponse.ok) {
+            throw new Error(`Error al cargar dispositivos asignados: ${assignedDevicesResponse.status} ${assignedDevicesResponse.statusText}`);
+        }
+        const assignedDevices = await assignedDevicesResponse.json();
+        
+        // Filtrar dispositivos que no están asignados
+        const assignedDeviceIds = new Set(assignedDevices.map(d => d.device_id));
+        const availableDevices = allDevices.filter(device => !assignedDeviceIds.has(device.device_id));
+        
+        // Actualizar el select de dispositivos disponibles
+        safeElementOperation('addDeviceSelect', element => {
+            element.innerHTML = '<option value="">Seleccionar dispositivo...</option>';
+            
+            if (availableDevices.length === 0) {
+                element.innerHTML += '<option disabled>No hay dispositivos disponibles para asignar</option>';
+            } else {
+                availableDevices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.device_id;
+                    option.textContent = `${device.name || 'Sin nombre'} (${device.device_id})`;
+                    if (device.location || device.tienda) {
+                        option.textContent += ` - ${device.location || ''} ${device.tienda ? ' - ' + device.tienda : ''}`;
+                    }
+                    element.appendChild(option);
+                });
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error al cargar dispositivos disponibles:', error);
+        safeElementOperation('addDeviceSelect', element => {
+            element.innerHTML = '<option value="">Error al cargar dispositivos</option>';
+        });
+    }
+}
+
+// ===== FUNCIONES PARA AGREGAR/ELIMINAR DISPOSITIVOS =====
+async function addDeviceToPlaylist(playlistId, deviceId) {
+    try {
+        console.log(`Asignando dispositivo ${deviceId} a playlist ${playlistId}`);
+        
+        const response = await fetch(`${API_URL}/device-playlists/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                device_id: deviceId,
+                playlist_id: parseInt(playlistId)
+            }),
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || `Error al asignar el dispositivo: ${response.status}`);
+        }
+        
+        showToast('Dispositivo asignado correctamente a la lista', 'success');
+        
+        // Recargar los dispositivos asignados y disponibles
+        setTimeout(() => {
+            loadPlaylistDevices(playlistId);
+            loadAvailableDevices(playlistId);
+        }, 500);
+        
+    } catch (error) {
+        console.error('Error al asignar dispositivo a playlist:', error);
+        showToast(`Error al asignar el dispositivo a la lista: ${error.message}`, 'error');
+    }
+}
+
+window.removeDeviceFromPlaylist = async function(deviceId, playlistId) {
+    console.log(`Eliminando dispositivo ${deviceId} de playlist ${playlistId}`);
+    
+    try {
+        if (!playlistId || !deviceId) {
+            throw new Error("Faltan datos para la eliminación");
+        }
+        
+        const response = await fetch(`${API_URL}/device-playlists/${deviceId}/${playlistId}`, {
+            method: 'DELETE',
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || `Error al eliminar la asignación: ${response.status} ${response.statusText}`);
+        }
+        
+        showToast('Dispositivo eliminado de la lista correctamente', 'success');
+        
+        // Recargar los dispositivos
+        setTimeout(() => {
+            loadPlaylistDevices(playlistId);
+            loadAvailableDevices(playlistId);
+        }, 500);
+        
+    } catch (error) {
+        console.error('Error al eliminar dispositivo de playlist:', error);
+        showToast(`Error al eliminar el dispositivo de la lista: ${error.message}`, 'error');
+    }
+};
+
+// ===== FUNCIONES PARA EDITAR PLAYLIST =====
+// ===== FUNCIONES CORREGIDAS PARA EDICIÓN DE PLAYLISTS =====
+
+// Función corregida para preparar playlist para edición
+window.preparePlaylistForEditing = function(playlist) {
+    console.log("=== PREPARANDO PLAYLIST PARA EDICIÓN ===");
+    console.log("Playlist recibida:", playlist);
+    
+    try {
+        // Verificar que existan los elementos necesarios
+        const editIdInput = document.getElementById('editPlaylistId');
+        const editTitleInput = document.getElementById('editPlaylistTitle');
+        const editDescriptionInput = document.getElementById('editPlaylistDescription');
+        const editStartDateInput = document.getElementById('editPlaylistStartDate');
+        const editExpirationInput = document.getElementById('editPlaylistExpiration');
+        const editActiveCheckbox = document.getElementById('editPlaylistActive');
+        
+        console.log('Elementos del formulario encontrados:', {
+            editIdInput: !!editIdInput,
+            editTitleInput: !!editTitleInput,
+            editDescriptionInput: !!editDescriptionInput,
+            editStartDateInput: !!editStartDateInput,
+            editExpirationInput: !!editExpirationInput,
+            editActiveCheckbox: !!editActiveCheckbox
+        });
+        
+        if (!editIdInput || !editTitleInput || !editDescriptionInput || !editExpirationInput || !editActiveCheckbox) {
+            throw new Error('No se encontraron todos los campos del formulario de edición');
+        }
+        
+        // Asignar valores a los campos
+        editIdInput.value = playlist.id;
+        editTitleInput.value = playlist.title || '';
+        editDescriptionInput.value = playlist.description || '';
+        
+        console.log('Valores básicos asignados:', {
+            id: editIdInput.value,
+            title: editTitleInput.value,
+            description: editDescriptionInput.value
+        });
+        
+        // Formatear fecha de inicio para el input datetime-local
+        if (playlist.start_date && editStartDateInput) {
+            try {
+                const date = new Date(playlist.start_date);
+                if (!isNaN(date.getTime())) {
+                    const localDatetime = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+                        .toISOString()
+                        .slice(0, 16);
+                    editStartDateInput.value = localDatetime;
+                    console.log('Fecha de inicio configurada:', localDatetime);
+                } else {
+                    editStartDateInput.value = '';
+                    console.log('Fecha de inicio inválida, campo vacío');
+                }
+            } catch (e) {
+                console.error("Error al procesar fecha de inicio:", e);
+                editStartDateInput.value = '';
+            }
+        } else if (editStartDateInput) {
+            editStartDateInput.value = '';
+            console.log('Sin fecha de inicio');
+        }
+        
+        // Formatear fecha de expiración para el input datetime-local
+        if (playlist.expiration_date) {
+            try {
+                const date = new Date(playlist.expiration_date);
+                if (!isNaN(date.getTime())) {
+                    const localDatetime = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+                        .toISOString()
+                        .slice(0, 16);
+                    editExpirationInput.value = localDatetime;
+                    console.log('Fecha de expiración configurada:', localDatetime);
+                } else {
+                    editExpirationInput.value = '';
+                    console.log('Fecha de expiración inválida, campo vacío');
+                }
+            } catch (e) {
+                console.error("Error al procesar fecha de expiración:", e);
+                editExpirationInput.value = '';
+            }
+        } else {
+            editExpirationInput.value = '';
+            console.log('Sin fecha de expiración');
+        }
+        
+        editActiveCheckbox.checked = playlist.is_active || false;
+        console.log('Checkbox activa configurado:', editActiveCheckbox.checked);
+        
+        // Manejar modales
+        const detailModal = document.getElementById('playlistDetailModal');
+        const editModal = document.getElementById('editPlaylistModal');
+        
+        console.log('Modales encontrados:', {
+            detailModal: !!detailModal,
+            editModal: !!editModal
+        });
+        
+        if (!editModal) {
+            throw new Error("No se encontró el modal de edición");
+        }
+        
+        // Cerrar modal de detalles si está abierto
+        if (detailModal && window.bootstrap) {
+            try {
+                const detailModalInstance = bootstrap.Modal.getInstance(detailModal);
+                if (detailModalInstance) {
+                    console.log('Cerrando modal de detalles...');
+                    detailModalInstance.hide();
+                }
+            } catch (e) {
+                console.error("Error al cerrar modal de detalles:", e);
+            }
+        }
+        
+        // Mostrar modal de edición
+        console.log('Intentando mostrar modal de edición...');
+        
+        if (window.bootstrap) {
+            try {
+                // Pequeño delay para asegurar que el modal anterior se cierre completamente
+                setTimeout(() => {
+                    const editModalInstance = new bootstrap.Modal(editModal, {
+                        backdrop: 'static', // Evitar que se cierre al hacer clic fuera
+                        keyboard: true
+                    });
+                    editModalInstance.show();
+                    console.log('Modal de edición mostrado exitosamente');
+                    
+                    // Enfocar el primer campo
+                    setTimeout(() => {
+                        editTitleInput.focus();
+                    }, 300);
+                    
+                }, 300);
+            } catch (e) {
+                console.error("Error al mostrar modal de edición:", e);
+                showToast("Error al abrir el formulario de edición: " + e.message, 'error');
+            }
+        } else {
+            throw new Error('Bootstrap no está disponible');
+        }
+        
+        console.log('=== PLAYLIST PREPARADA EXITOSAMENTE ===');
+        
+    } catch (error) {
+        console.error("=== ERROR AL PREPARAR PLAYLIST ===", error);
+        showToast(`Error: ${error.message}`, 'error');
+    }
+};
+
+// Función corregida para guardar cambios de playlist
+window.savePlaylistChanges = async function() {
+    console.log("=== GUARDANDO CAMBIOS DE PLAYLIST ===");
+    
+    try {
+        const editIdInput = document.getElementById('editPlaylistId');
+        if (!editIdInput || !editIdInput.value) {
+            throw new Error("No se ha definido ID de playlist para editar");
+        }
+        
+        const playlistId = editIdInput.value;
+        console.log('ID de playlist a editar:', playlistId);
+        
+        // Obtener los valores del formulario
+        const editTitleInput = document.getElementById('editPlaylistTitle');
+        const editDescriptionInput = document.getElementById('editPlaylistDescription');
+        const editStartDateInput = document.getElementById('editPlaylistStartDate');
+        const editExpirationInput = document.getElementById('editPlaylistExpiration');
+        const editActiveCheckbox = document.getElementById('editPlaylistActive');
+        
+        if (!editTitleInput || !editDescriptionInput || !editExpirationInput || !editActiveCheckbox) {
+            throw new Error("No se encontraron todos los campos del formulario");
+        }
+        
+        // Validar datos
+        const title = editTitleInput.value.trim();
+        if (!title) {
+            throw new Error("El título no puede estar vacío");
+        }
+        
+        const playlistData = {
+            title: title,
+            description: editDescriptionInput.value.trim() || null,
+            start_date: editStartDateInput ? (editStartDateInput.value || null) : null,
+            expiration_date: editExpirationInput.value || null,
+            is_active: editActiveCheckbox.checked
+        };
+        
+        console.log("Datos a enviar:", playlistData);
+        
+        // Mostrar indicador de carga en el botón
+        const saveBtn = document.getElementById('savePlaylistChangesBtn');
+        const originalText = saveBtn.textContent;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Guardando...';
+        
+        // Enviar petición a la API
+        const response = await fetch(`${API_URL}/playlists/${playlistId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(playlistData),
+        });
+        
+        console.log('Respuesta del servidor:', response.status, response.statusText);
+        
+        if (!response.ok) {
+            let errorMessage = `Error ${response.status}: ${response.statusText}`;
+            
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.detail || errorMessage;
+                console.error('Error detallado:', errorData);
+            } catch (e) {
+                console.error('Error al parsear respuesta de error:', e);
+            }
+            
+            throw new Error(errorMessage);
+        }
+        
+        const updatedPlaylist = await response.json();
+        console.log("Playlist actualizada exitosamente:", updatedPlaylist);
+        
+        // Restaurar botón
+        saveBtn.disabled = false;
+        saveBtn.textContent = originalText;
+        
+        // Mostrar mensaje de éxito
+        showToast('Lista de reproducción actualizada correctamente', 'success');
+        
+        // Cerrar el modal de edición
+        const editModal = document.getElementById('editPlaylistModal');
+        if (editModal && window.bootstrap) {
+            try {
+                const editModalInstance = bootstrap.Modal.getInstance(editModal);
+                if (editModalInstance) {
+                    editModalInstance.hide();
+                    console.log('Modal de edición cerrado');
+                }
+            } catch (e) {
+                console.error("Error al cerrar modal de edición:", e);
+            }
+        }
+        
+        // Recargar datos
+        setTimeout(() => {
+            try {
+                console.log('Recargando datos...');
+                if (typeof window.loadPlaylists === 'function') {
+                    window.loadPlaylists();
+                }
+                
+                // Si hay un currentPlaylistId, reabrir los detalles
+                if (window.currentPlaylistId || currentPlaylistId) {
+                    const id = window.currentPlaylistId || currentPlaylistId;
+                    setTimeout(() => {
+                        if (typeof window.openPlaylistDetail === 'function') {
+                            window.openPlaylistDetail(id);
+                        }
+                    }, 1000);
+                }
+            } catch (error) {
+                console.error("Error al recargar datos:", error);
+            }
+        }, 500);
+        
+        console.log('=== CAMBIOS GUARDADOS EXITOSAMENTE ===');
+        
+    } catch (error) {
+        console.error('=== ERROR AL GUARDAR CAMBIOS ===', error);
+        
+        // Restaurar botón en caso de error
+        const saveBtn = document.getElementById('savePlaylistChangesBtn');
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Guardar Cambios';
+        }
+        
+        showToast(`Error al guardar cambios: ${error.message}`, 'error');
+    }
+};
+
+async function deletePlaylist(playlistId) {
+    try {
+        const response = await fetch(`${API_URL}/playlists/${playlistId}`, {
+            method: 'DELETE',
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || 'Error al eliminar la lista');
+        }
+        
+        showToast('Lista de reproducción eliminada correctamente', 'success');
+        
+        // Cerrar el modal de detalles de manera segura
+        if (window.bootstrap) {
+            try {
+                const modal = document.getElementById('playlistDetailModal');
+                if (modal) {
+                    const modalInstance = bootstrap.Modal.getInstance(modal);
+                    if (modalInstance) {
+                        modalInstance.hide();
+                    }
+                }
+            } catch (e) {
+                console.error("Error al cerrar modal:", e);
+            }
+        }
+        
+        // Recargar playlists
+        setTimeout(() => {
+            loadPlaylists();
+        }, 500);
+        
+    } catch (error) {
+        console.error('Error al eliminar playlist:', error);
+        showToast(`Error al eliminar la lista de reproducción: ${error.message}`, 'error');
+    }
+}
 
 // ===== CONFIGURACIÓN DE EVENT LISTENERS =====
 
@@ -1356,6 +1833,39 @@ function handlePageSizeChange() {
     videoPagination.pageSize = parseInt(this.value);
     videoPagination.currentPage = 1;
     applyFiltersAndDisplayPage();
+}
+
+// ===== FUNCIONES DE PRUEBA DE CONEXIÓN =====
+
+async function testApiConnection() {
+    try {
+        console.log("Probando conexión a API:", `${API_URL}/videos/`);
+        const response = await fetch(`${API_URL}/videos/`);
+        
+        if (!response.ok) {
+            console.error("La API no responde correctamente:", response.status, response.statusText);
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'alert alert-danger alert-dismissible fade show mt-3';
+            errorMessage.innerHTML = `
+                <strong>Error de conexión</strong>
+                <p>No se puede conectar a la API: ${response.status} ${response.statusText}</p>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            document.body.prepend(errorMessage);
+        } else {
+            console.log("Conexión a API exitosa");
+        }
+    } catch (error) {
+        console.error("Error al probar conexión:", error);
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'alert alert-danger alert-dismissible fade show mt-3';
+        errorMessage.innerHTML = `
+            <strong>Error de conexión</strong>
+            <p>No se puede conectar a la API: ${error.message}</p>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        document.body.prepend(errorMessage);
+    }
 }
 
 // ===== INICIALIZACIÓN =====
@@ -1473,6 +1983,10 @@ document.addEventListener('DOMContentLoaded', function() {
         safeElementOperation('saveVideoChangesBtn', element => {
             element.addEventListener('click', saveVideoChanges);
         });
+        
+        safeElementOperation('savePlaylistChangesBtn', element => {
+            element.addEventListener('click', savePlaylistChanges);
+        });
     } catch (e) {
         console.error("Error al configurar botones de guardado:", e);
     }
@@ -1496,3 +2010,19 @@ window.debugVideoPagination = function() {
     console.log('- sortVideoTable:', typeof window.sortVideoTable);
     console.log('=== FIN DIAGNÓSTICO ===');
 };
+
+// ===== EXPONER FUNCIONES GLOBALMENTE =====
+
+// Asegurar que las funciones estén disponibles globalmente
+window.openPlaylistDetail = window.openPlaylistDetail;
+window.removeVideoFromPlaylist = window.removeVideoFromPlaylist;
+window.removeDeviceFromPlaylist = window.removeDeviceFromPlaylist;
+window.loadVideos = window.loadVideos;
+window.loadPlaylists = loadPlaylists;
+window.editVideo = editVideo;
+window.deleteVideo = deleteVideo;
+window.saveVideoChanges = saveVideoChanges;
+window.savePlaylistChanges = savePlaylistChanges;
+window.createPlaylist = createPlaylist;
+
+console.log('main.js cargado completamente - Todas las funciones disponibles');

@@ -32,7 +32,7 @@ async def get_dashboard(request: Request):
     """
     Página principal del dashboard
     """
-    return templates.TemplateResponse("index.html", {"request": request, "title": "Raspberry Pi Registry"})
+    return templates.TemplateResponse("dashboard.html", {"request": request, "title": "Raspberry Pi Registry"})
 
 @router.get("/devices", response_class=HTMLResponse)
 async def get_devices_page(

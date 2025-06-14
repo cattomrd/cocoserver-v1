@@ -1,121 +1,118 @@
-#!/usr/bin/env python3
-# create_admin.py - Script to create an admin user from the command line
+# create_admin.py - Script para crear usuario administrador
 
-import os
 import sys
-import argparse
-from dotenv import load_dotenv
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
-# Load environment variables first
-load_dotenv()
+# Agregar el directorio del proyecto al path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Add the parent directory to sys.path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from models.models import User, Base
+from models.database import SQLALCHEMY_DATABASE_URL
 
-# Import models and utilities after path setup
-from models.database import SessionLocal
-from models.models import User
-from werkzeug.security import generate_password_hash
-
-def create_admin_user(username, password, email, fullname, force=False):
-    """
-    Create an admin user in the database
+def create_admin_user():
+    """Crear usuario administrador por defecto"""
     
-    Args:
-        username (str): Admin username
-        password (str): Admin password
-        email (str): Admin email
-        fullname (str): Admin full name
-        force (bool): Force creation even if users exist
+    # Crear engine y sesión
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     
-    Returns:
-        bool: True if successful, False otherwise
-    """
+    # Crear tablas si no existen
+    Base.metadata.create_all(bind=engine)
+    
     db = SessionLocal()
+    
     try:
-        # Check if any users already exist
-        user_count = db.query(User).count()
-        if user_count > 0 and not force:
-            print("Users already exist in the database. Use --force to override.")
-            return False
+        # Verificar si ya existe un administrador
+        admin_exists = db.query(User).filter(User.is_admin == True).first()
         
-        # Check if username already exists
-        existing_user = db.query(User).filter(User.username == username).first()
-        if existing_user:
-            print(f"Username '{username}' already exists.")
-            return False
+        if admin_exists:
+            print(f"✓ Ya existe un usuario administrador: {admin_exists.username}")
+            return admin_exists
         
-        # Check if email already exists
-        existing_email = db.query(User).filter(User.email == email).first()
-        if existing_email:
-            print(f"Email '{email}' already registered.")
-            return False
+        # Verificar si existe el usuario 'admin'
+        existing_admin = db.query(User).filter(User.username == "admin").first()
         
-        # Create the admin user
+        if existing_admin:
+            # Actualizar permisos de admin si existe pero no es admin
+            existing_admin.is_admin = True
+            existing_admin.is_active = True
+            db.commit()
+            print(f"✓ Usuario 'admin' actualizado con permisos de administrador")
+            return existing_admin
+        
+        # Crear nuevo usuario administrador
+        print("Creando usuario administrador por defecto...")
+        
         admin_user = User(
-            username=username,
-            email=email,
-            fullname=fullname,
-            password_hash=generate_password_hash(password),
+            username="admin",
+            email="admin@localhost",
+            fullname="Administrador del Sistema",
             is_admin=True,
             is_active=True
         )
         
+        # Establecer contraseña
+        admin_user.password = "Ikea,.2010"  # Esto usará el setter que hashea la contraseña
+        
         db.add(admin_user)
         db.commit()
+        db.refresh(admin_user)
         
-        print(f"Admin user '{username}' created successfully.")
-        return True
-    
+        print("✓ Usuario administrador creado exitosamente")
+        print(f"  Usuario: {admin_user.username}")
+        print(f"  Email: {admin_user.email}")
+        print(f"  Contraseña")
+        print("\n⚠️  IMPORTANTE: Cambiar la contraseña por defecto después del primer login")
+        
+        return admin_user
+        
     except Exception as e:
         db.rollback()
-        print(f"Error creating admin user: {str(e)}")
-        return False
-    
+        print(f"✗ Error creando usuario administrador: {str(e)}")
+        return None
     finally:
         db.close()
 
-def main():
-    """
-    Main function to handle command line arguments and create admin user
-    """
-    parser = argparse.ArgumentParser(description='Create an admin user')
-    parser.add_argument('--username', help='Admin username')
-    parser.add_argument('--password', help='Admin password')
-    parser.add_argument('--email', help='Admin email')
-    parser.add_argument('--fullname', help='Admin full name')
-    parser.add_argument('--force', action='store_true', 
-                    help='Force creation even if users exist')
+def verify_user_model():
+    """Verificar que el modelo User funcione correctamente"""
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db = SessionLocal()
     
-    args = parser.parse_args()
-    
-    # Get values from command line arguments or environment variables
-    username = args.username or os.environ.get('APP_USERNAME')
-    password = args.password or os.environ.get('APP_PASSWORD')
-    email = args.email or os.environ.get('APP_EMAIL')
-    fullname = args.fullname or os.environ.get('APP_FULLNAME')
-    
-    # Validate required fields
-    if not username:
-        print("Error: Username is required (use --username or set APP_USERNAME)")
-        sys.exit(1)
-    
-    if not password:
-        print("Error: Password is required (use --password or set APP_PASSWORD)")
-        sys.exit(1)
-    
-    if not email:
-        print("Error: Email is required (use --email or set APP_EMAIL)")
-        sys.exit(1)
-    
-    if not fullname:
-        print("Error: Full name is required (use --fullname or set APP_FULLNAME)")
-        sys.exit(1)
-    
-    # Create the admin user
-    success = create_admin_user(username, password, email, fullname, args.force)
-    
-    sys.exit(0 if success else 1)
+    try:
+        # Intentar consultar usuarios
+        users_count = db.query(User).count()
+        print(f"✓ Modelo User funcional. Usuarios en BD: {users_count}")
+        return True
+    except Exception as e:
+        print(f"✗ Error con modelo User: {str(e)}")
+        return False
+    finally:
+        db.close()
 
 if __name__ == "__main__":
-    main()
+    print("=== Creación de Usuario Administrador ===")
+    
+    # Verificar modelo
+    if not verify_user_model():
+        print("Error: Modelo User no funcional")
+        sys.exit(1)
+    
+    # Crear administrador
+    admin = create_admin_user()
+    
+    if admin:
+        print("\n=== Login Credentials ===")
+        print("URL: http://localhost:8000/ui/login")
+        print("Usuario: admin")
+        print("Contraseña")
+        print("\n=== Next Steps ===")
+        print("1. Iniciar servidor: uvicorn main:app --reload")
+        print("2. Hacer login con las credenciales arriba")
+        print("3. Cambiar contraseña por defecto")
+        print("4. Crear otros usuarios según necesidad")
+    else:
+        print("Error: No se pudo crear usuario administrador")
+        sys.exit(1)

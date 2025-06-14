@@ -59,38 +59,7 @@ def read_playlists(
     
     return playlists
 
-# @router.get("/", response_model=List[PlaylistResponse])
-# def read_playlists(
-#     skip: int = 0, 
-#     limit: int = None,  # Cambiar de 100 a None para permitir sin límite
-#     active_only: bool = False,
-#     db: Session = Depends(get_db)
-# ):
-#     query = db.query(Playlist)
-    
-#     if active_only:
-#         now = datetime.now()
-#         query = query.filter(
-#             Playlist.is_active == True,
-#             (Playlist.expiration_date == None) | (Playlist.expiration_date > now)
-#         )
-    
-#     # Aplicar offset
-#     if skip > 0:
-#         query = query.offset(skip)
-    
-#     # Aplicar límite solo si se especifica
-#     if limit is not None and limit > 0:
-#         query = query.limit(limit)
-    
-#     playlists = query.all()
-    
-#     # Log para debugging
-#     print(f"Consultando playlists: skip={skip}, limit={limit}, total_encontradas={len(playlists)}")
-    
-#     return playlists
-    
-# También puedes agregar un nuevo endpoint específico para obtener el conteo total
+
 @router.get("/count")
 def get_playlists_count(
     active_only: bool = False,

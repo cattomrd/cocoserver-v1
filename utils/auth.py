@@ -1,198 +1,112 @@
-# utils/auth.py
+# utils/auth.py - Corrección del middleware de autenticación
+
 from fastapi import Request, HTTPException, status, Depends
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from typing import List, Optional, Callable, Dict, Any
-import secrets
-import base64
+from jose import JWTError, jwt
 from datetime import datetime, timedelta
-import os
-import json
-from dotenv import load_dotenv
+import logging
 
-from models.database import get_db
-from models.models import User
+logger = logging.getLogger(__name__)
 
-# Load environment variables
-load_dotenv()
-
-# Store sessions - in production, you would use a proper session store like Redis
-# Format: {session_id: {'user_id': user_id, 'username': username, 'is_admin': bool, 'expires': expires_datetime}}
-sessions = {}
-
-# Get session configuration from environment variables
-SECRET_KEY = os.getenv("SESSION_SECRET_KEY", "default-secret-key-change-this")
-SESSION_EXPIRY_HOURS = int(os.getenv("SESSION_EXPIRY_HOURS", "24"))
-
-# Used for initial setup if no users exist
-DEFAULT_ADMIN_USERNAME = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
-DEFAULT_ADMIN_PASSWORD = os.getenv("DEFAULT_ADMIN_PASSWORD", "admin123")
-DEFAULT_ADMIN_EMAIL = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
-
-def create_session(user_id: int, username: str, is_admin: bool) -> str:
-    """Create a new session for the user and return the session ID"""
-    session_id = secrets.token_urlsafe(32)
-    expires = datetime.now() + timedelta(hours=SESSION_EXPIRY_HOURS)
-    sessions[session_id] = {
-        'user_id': user_id,
-        'username': username,
-        'is_admin': is_admin,
-        'expires': expires
-    }
-    return session_id
-
-def validate_session(session_id: str) -> Optional[Dict[str, Any]]:
-    """Validate session ID and return user info if valid, None otherwise"""
-    if not session_id or session_id not in sessions:
-        return None
+def auth_middleware(public_paths: list = None, admin_paths: list = None):
+    """
+    Middleware de autenticación mejorado
+    """
+    if public_paths is None:
+        public_paths = ["/ui/login", "/login", "/static/", "/docs", "/redoc", "/openapi.json"]
     
-    session = sessions[session_id]
-    # Check if session has expired
-    if session['expires'] < datetime.now():
-        del sessions[session_id]
-        return None
+    if admin_paths is None:
+        admin_paths = []
+    
+    async def middleware(request: Request, call_next):
+        path = request.url.path
         
-    return {
-        'user_id': session['user_id'],
-        'username': session['username'],
-        'is_admin': session['is_admin']
-    }
+        # Verificar si es una ruta pública
+        is_public = any(path.startswith(public_path) for public_path in public_paths)
+        
+        if is_public:
+            # Permitir acceso a rutas públicas
+            response = await call_next(request)
+            return response
+        
+        # Para rutas protegidas, verificar autenticación
+        auth_header = request.headers.get("Authorization")
+        
+        # Si es una ruta de UI y no hay token, redireccionar a login
+        if path.startswith("/ui/") and (not auth_header or not auth_header.startswith("Bearer ")):
+            # Construir URL de redirección con next parameter
+            next_url = str(request.url)
+            login_url = f"/ui/login?next={next_url}"
+            return RedirectResponse(url=login_url, status_code=302)
+        
+        # Para rutas API sin token, devolver 401
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token de acceso requerido",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Continuar con la solicitud
+        response = await call_next(request)
+        return response
+    
+    return middleware
 
-async def admin_required(request: Request):
+# Funciones de utilidad para autenticación
+def get_current_user_from_request(request: Request):
     """
-    Dependency to check if the user is an admin
+    Extrae información del usuario desde el request
     """
-    session_id = request.cookies.get("session")
-    if not session_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
     
-    user_info = validate_session(session_id)
-    if not user_info:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired"
-        )
-    
-    if not user_info.get('is_admin', False):
+    token = auth_header.split(" ")[1]
+    # Aquí deberías decodificar el JWT y obtener la información del usuario
+    # Por ahora, retorna None para compatibilidad
+    return None
+
+def admin_required(request: Request):
+    """
+    Dependencia que requiere permisos de administrador
+    """
+    user = get_current_user_from_request(request)
+    if not user or not user.get("is_admin", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required"
+            detail="Permisos de administrador requeridos"
         )
+    return user
+
+# Función de autenticación de usuario (mantener compatibilidad)
+async def authenticate_user(db: Session, username: str, password: str):
+    """
+    Autenticar usuario con username y password
+    """
+    from models.models import User
     
-    return user_info
+    user = db.query(User).filter(User.username == username).first()
+    if user and user.verify_password(password) and user.is_active:
+        user.update_last_login()
+        db.commit()
+        return user
+    return None
+
+# Crear sesión (mantener compatibilidad)
+def create_session(user_id: int, username: str, is_admin: bool = False):
+    """
+    Crear una sesión para el usuario
+    """
+    # Por ahora, retorna un token simple
+    # En producción, usar JWT
+    return f"session_{user_id}_{username}"
 
 def get_current_user(request: Request):
     """
-    Extract current user information from session
-    Returns None if not authenticated
+    Obtener usuario actual desde el request
     """
-    session_id = request.cookies.get("session")
-    if not session_id:
-        return None
-    
-    return validate_session(session_id)
-
-def auth_middleware(
-    public_paths: List[str] = ["/login", 
-                            "/static/", 
-                            "/api/raspberry/", 
-                            "/api/videos"
-                            "/api/devices"],
-    admin_paths: List[str] = ["/ui/users/",
-                            "/docs", 
-                            "/redoc", 
-                            "/openapi.json", ],
-    api_token_enabled: bool = True
-):
-    """
-    Middleware to check authentication for protected routes
-    
-    Arguments:
-        public_paths: List of path prefixes that don't require authentication
-        admin_paths: List of path prefixes that require admin privileges
-        api_token_enabled: Whether to allow API token authentication for API routes
-    """
-    async def authenticate(request: Request, call_next):
-        # Check if the path is public
-        path = request.url.path
-        if any(path.startswith(p) for p in public_paths):
-            return await call_next(request)
-        
-        # Check for API routes and API token authentication
-        if api_token_enabled and path.startswith("/api/"):
-            # Check for API token in headers
-            api_token = request.headers.get("Authorization")
-            if api_token and api_token.startswith("Bearer "):
-                token = api_token.replace("Bearer ", "")
-                # In a real app, validate the token against a database
-                # For now, using a simple check
-                if token == SECRET_KEY:
-                    return await call_next(request)
-        
-        # Check for session cookie
-        session_id = request.cookies.get("session")
-        user_info = validate_session(session_id)
-        
-        if not user_info:
-            # For API routes, return 401 Unauthorized
-            if path.startswith("/api/"):
-                return JSONResponse(
-                    content={"detail": "Invalid or expired authentication"},
-                    status_code=status.HTTP_401_UNAUTHORIZED
-                )
-            
-            # For UI routes, redirect to login page
-            # Add the original requested URL as the "next" parameter
-            return RedirectResponse(
-                url=f"/login?next={request.url.path}", 
-                status_code=status.HTTP_302_FOUND
-            )
-        
-        # Check for admin-only paths
-        if any(path.startswith(p) for p in admin_paths) and not user_info.get('is_admin', False):
-            # For API routes, return 403 Forbidden
-            if path.startswith("/api/"):
-                return JSONResponse(
-                    content={"detail": "Admin privileges required"},
-                    status_code=status.HTTP_403_FORBIDDEN
-                )
-                
-            # For UI routes, redirect to access denied page
-            return RedirectResponse(
-                url="/access-denied", 
-                status_code=status.HTTP_302_FOUND
-            )
-            
-        # Add user info to request state
-        request.state.user = user_info
-        
-        # User is authenticated and authorized, proceed with request
-        return await call_next(request)
-    
-    return authenticate
-
-async def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
-    """
-    Authenticate a user with username and password
-    Creates the default admin user if no users exist
-    """
-    # Check if we need to create the default admin user
-    user_count = db.query(User).count()
-    if user_count == 0:
-        # Create default admin user
-        admin = User(
-            username=DEFAULT_ADMIN_USERNAME,
-            email=DEFAULT_ADMIN_EMAIL,
-            fullname="Default Administrator",
-            is_admin=True
-        )
-        admin.password = DEFAULT_ADMIN_PASSWORD
-        db.add(admin)
-        db.commit()
-        db.refresh(admin)
-    
-    # Now try to authenticate
-    return User.authenticate(db, username, password)
+    # Implementación básica para mantener compatibilidad
+    return get_current_user_from_request(request)

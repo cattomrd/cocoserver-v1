@@ -1,6 +1,6 @@
 # models/schemas.py (reemplaza COMPLETAMENTE el archivo actual si ya existe)
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from datetime import datetime
 from typing import List, Optional, ForwardRef
 import warnings
@@ -72,8 +72,61 @@ class DeviceBase(BaseModel):
     location: Optional[str] = None
     tienda: Optional[str] = None
 
-class DeviceCreate(DeviceBase):
-    pass
+class DeviceCreate(BaseModel):
+    device_id: str
+    name: Optional[str] = None
+    mac_address: Optional[str] = None
+    ip_address_lan: Optional[str] = None
+    ip_address_wifi: Optional[str] = None
+    location: Optional[str] = None
+    tienda: Optional[str] = None
+    is_active: Optional[bool] = True
+    videoloop_enabled: Optional[bool] = True
+    kiosk_enabled: Optional[bool] = False
+    service_logs: Optional[str] = None
+
+    @validator('*', pre=True)
+    def clean_string_fields(cls, v):
+        """Limpia caracteres nulos y de control de todos los campos string"""
+        if isinstance(v, str):
+            # Remover caracteres nulos y otros caracteres problemáticos
+            cleaned = v.replace('\x00', '').replace('\r', '').replace('\n', ' ')
+            # Remover espacios extra y strip
+            return ' '.join(cleaned.split())
+        return v
+
+    @validator('device_id')
+    def validate_device_id(cls, v):
+        """Validar que device_id no esté vacío después de limpieza"""
+        if not v or not v.strip():
+            raise ValueError('device_id no puede estar vacío')
+        return v.strip()
+
+    @validator('mac_address')
+    def validate_mac_address(cls, v):
+        """Validar formato de MAC address si se proporciona"""
+        if v:
+            import re
+            # Patrón básico para MAC address
+            mac_pattern = r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$'
+            if not re.match(mac_pattern, v):
+                raise ValueError('Formato de MAC address inválido')
+        return v
+
+    @validator('ip_address_lan', 'ip_address_wifi')
+    def validate_ip_address(cls, v):
+        """Validar formato de IP address si se proporciona"""
+        if v:
+            import ipaddress
+            try:
+                ipaddress.ip_address(v)
+            except ValueError:
+                raise ValueError('Formato de IP address inválido')
+        return v
+
+    class Config:
+        # Permitir campos extra para compatibilidad
+        extra = "ignore"
 
 class DeviceUpdate(BaseModel):
     name: Optional[str] = None

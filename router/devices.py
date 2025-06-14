@@ -27,21 +27,98 @@ templates = Jinja2Templates(directory="templates")
 
 @router.post("/", response_model=schemas.Device, status_code=status.HTTP_201_CREATED)
 def register_device(device: schemas.DeviceCreate, db: Session = Depends(get_db)):
-    db_device = db.query(models.Device).filter(models.Device.device_id == device.device_id).first()
-    if db_device:
-        raise HTTPException(status_code=400, detail="Device ID already registered")
+    try:
+        # Debug: Imprimir datos recibidos
+        logger.info(f"Datos recibidos para registro: {device.dict()}")
+        
+        # Función para detectar y limpiar caracteres problemáticos
+        def analyze_and_clean_string(value, field_name):
+            if value is None:
+                return None
+            if isinstance(value, str):
+                # Detectar caracteres problemáticos
+                problematic_chars = []
+                for i, char in enumerate(value):
+                    if ord(char) == 0:  # Carácter nulo
+                        problematic_chars.append(f"NUL at position {i}")
+                    elif ord(char) < 32 and char not in ['\t', '\n', '\r']:  # Caracteres de control
+                        problematic_chars.append(f"Control char {ord(char)} at position {i}")
+                
+                if problematic_chars:
+                    logger.warning(f"Campo {field_name} contiene caracteres problemáticos: {problematic_chars}")
+                
+                # Limpiar el string
+                cleaned = ''.join(char for char in value if ord(char) >= 32 or char in ['\t', '\n', '\r'])
+                cleaned = cleaned.replace('\x00', '').replace('\r', '').replace('\n', ' ').strip()
+                
+                if cleaned != value:
+                    logger.info(f"Campo {field_name} limpiado: '{value}' -> '{cleaned}'")
+                
+                return cleaned
+            return value
+        
+        # Verificar dispositivo existente por device_id
+        db_device = db.query(models.Device).filter(models.Device.device_id == device.device_id).first()
+        if db_device:
+            raise HTTPException(status_code=400, detail="Device ID already registered")
+        
+        # Verificar dispositivo existente por MAC address
+        if device.mac_address:
+            db_mac = db.query(models.Device).filter(models.Device.mac_address == device.mac_address).first()
+            if db_mac:
+                raise HTTPException(status_code=400, detail="MAC address already registered")
+        
+        # Limpiar todos los campos del dispositivo
+        device_data = device.dict()
+        cleaned_data = {}
+        
+        for key, value in device_data.items():
+            cleaned_data[key] = analyze_and_clean_string(value, key)
+        
+        # Debug: Imprimir datos después de limpieza
+        logger.info(f"Datos después de limpieza: {cleaned_data}")
+        
+        # Validar campos requeridos
+        if not cleaned_data.get('device_id'):
+            raise HTTPException(status_code=400, detail="Device ID cannot be empty")
+        
+        # Crear el nuevo dispositivo
+        new_device = models.Device(**cleaned_data)
+        db.add(new_device)
+        
+        # Debug: Intentar flush para detectar problemas antes del commit
+        try:
+            db.flush()
+            logger.info("Flush exitoso, procediendo con commit")
+        except Exception as flush_error:
+            logger.error(f"Error en flush: {str(flush_error)}")
+            db.rollback()
+            raise HTTPException(status_code=400, detail=f"Error de validación de datos: {str(flush_error)}")
+        
+        db.commit()
+        db.refresh(new_device)
+        
+        logger.info(f"Device {new_device.device_id} registered successfully")
+        return new_device
+        
+    except HTTPException:
+        raise
+    except ValueError as ve:
+        logger.error(f"ValueError al registrar dispositivo: {str(ve)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Datos inválidos: {str(ve)}. Verifica que no haya caracteres especiales en los campos."
+        )
+    except Exception as e:
+        logger.error(f"Error al registrar dispositivo: {str(e)}")
+        logger.error(f"Tipo de error: {type(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
     
-    db_mac = db.query(models.Device).filter(models.Device.mac_address == device.mac_address).first()
-    if db_mac:
-        raise HTTPException(status_code=400, detail="MAC address already registered")
     
-    # Crear el nuevo dispositivo con todos los campos
-    new_device = models.Device(**device.dict())
-    db.add(new_device)
-    db.commit()
-    db.refresh(new_device)
-    return new_device
-
 @router.get("/", response_model=List[schemas.Device])
 def get_devices(
     skip: int = 0, 

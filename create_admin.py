@@ -4,22 +4,20 @@
 import os
 import sys
 import argparse
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
+
+# Load environment variables first
+load_dotenv()
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Load environment variables
-load_dotenv()
-
-# Import models and utilities
+# Import models and utilities after path setup
 from models.database import SessionLocal
 from models.models import User
-from werkzeug.security import generate_password_hash, check_password_hash
-def create_admin_user(username, password_hash, email, fullname, force=False
-                    ):
+from werkzeug.security import generate_password_hash
+
+def create_admin_user(username, password, email, fullname, force=False):
     """
     Create an admin user in the database
     
@@ -28,10 +26,10 @@ def create_admin_user(username, password_hash, email, fullname, force=False
         password (str): Admin password
         email (str): Admin email
         fullname (str): Admin full name
-        force (bool): Force creation even if users already exist
+        force (bool): Force creation even if users exist
     
     Returns:
-        bool: Success status
+        bool: True if successful, False otherwise
     """
     db = SessionLocal()
     try:
@@ -58,8 +56,9 @@ def create_admin_user(username, password_hash, email, fullname, force=False
             username=username,
             email=email,
             fullname=fullname,
-            password_hash=generate_password_hash(password_hash),
-            is_admin=True
+            password_hash=generate_password_hash(password),
+            is_admin=True,
+            is_active=True
         )
         
         db.add(admin_user)
@@ -77,23 +76,44 @@ def create_admin_user(username, password_hash, email, fullname, force=False
         db.close()
 
 def main():
-    """Command line interface for creating an admin user"""
-    parser = argparse.ArgumentParser(description="Create an admin user for the Raspberry Pi Registry")
-    parser.add_argument("--username", required=True, help="Admin username")
-    parser.add_argument("--password", required=True, help="Admin password")
-    parser.add_argument("--email", required=True, help="Admin email")
-    parser.add_argument("--full-name", required=False, help="Admin full name")
-    parser.add_argument("--force", action="store_true", help="Force creation even if users already exist")
+    """
+    Main function to handle command line arguments and create admin user
+    """
+    parser = argparse.ArgumentParser(description='Create an admin user')
+    parser.add_argument('--username', help='Admin username')
+    parser.add_argument('--password', help='Admin password')
+    parser.add_argument('--email', help='Admin email')
+    parser.add_argument('--fullname', help='Admin full name')
+    parser.add_argument('--force', action='store_true', 
+                    help='Force creation even if users exist')
     
     args = parser.parse_args()
     
-    success = create_admin_user(
-        args.username,
-        args.password,
-        args.email,
-        args.full_name,
-        args.force
-    )
+    # Get values from command line arguments or environment variables
+    username = args.username or os.environ.get('APP_USERNAME')
+    password = args.password or os.environ.get('APP_PASSWORD')
+    email = args.email or os.environ.get('APP_EMAIL')
+    fullname = args.fullname or os.environ.get('APP_FULLNAME')
+    
+    # Validate required fields
+    if not username:
+        print("Error: Username is required (use --username or set APP_USERNAME)")
+        sys.exit(1)
+    
+    if not password:
+        print("Error: Password is required (use --password or set APP_PASSWORD)")
+        sys.exit(1)
+    
+    if not email:
+        print("Error: Email is required (use --email or set APP_EMAIL)")
+        sys.exit(1)
+    
+    if not fullname:
+        print("Error: Full name is required (use --fullname or set APP_FULLNAME)")
+        sys.exit(1)
+    
+    # Create the admin user
+    success = create_admin_user(username, password, email, fullname, args.force)
     
     sys.exit(0 if success else 1)
 

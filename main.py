@@ -20,9 +20,10 @@ from models.database import engine
 
 # Importar los routers
 from router import videos, playlists, raspberry, ui, devices, device_playlists, services_enhanced as services, device_service_api
-from router.auth import router as auth_router
-from router.users import router as users_router
+from router.auth_enhanced import router as auth_router
+from router.users_enhanced import router as users_router
 from router.playlist_checker_api import router as playlist_checker_router
+
 
 # Import the authentication middleware
 from utils.auth import auth_middleware

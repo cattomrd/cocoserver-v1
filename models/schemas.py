@@ -302,3 +302,5 @@ class TokenResponse(BaseModel):
     token_type: str
     expires_in: int
     user: UserResponse
+
+

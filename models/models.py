@@ -5,7 +5,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.orm import relationship
 from typing import Optional
 from datetime import datetime
+from enum import Enum
 from .database import Base
+from passlib.context import CryptContext
 
 # Tabla de relación entre Playlist y Video (modelo asociativo)
 class PlaylistVideo(Base):
@@ -219,31 +221,36 @@ def apply_migration(engine):
     
     print("Migración aplicada correctamente.")
 
-# Ejemplo de uso:
-# from models.database import engine
-# apply_migration(engine)
-
-# Agregar esto al archivo models/models.py después de las clases existentes
-
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint, Float, func
-from sqlalchemy.orm import relationship
-from passlib.context import CryptContext
 
 # Configuración de encriptación de contraseñas
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+class AuthProvider(str, Enum):
+    """Proveedores de autenticación"""
+    LOCAL = "local"
+    ACTIVE_DIRECTORY = "ad"
+    LDAP = "ldap"
 
 class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(50), unique=True, nullable=False)
-    email = Column(String(100), unique=True, nullable=False)
-    password_hash = Column(String(128), nullable=False)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    email = Column(String(100), unique=True, nullable=True, index=True)
+    password_hash = Column(String(128), nullable=True)  # Nullable para usuarios de AD
     fullname = Column(String(100))
-    is_active = Column(Boolean, default=True)
-    is_admin = Column(Boolean, default=False)
+    department = Column(String(100))  # Nuevo campo para departamento
+    is_active = Column(Boolean, default=True, index=True)
+    is_admin = Column(Boolean, default=False, index=True)
+    auth_provider = Column(String(20), default=AuthProvider.LOCAL.value, index=True)  # Proveedor de auth
+    ad_dn = Column(String(500))  # Distinguished Name de AD
+    last_ad_sync = Column(DateTime, nullable=True)  # Última sincronización con AD
     created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     last_login = Column(DateTime, nullable=True)
+    
+    def __repr__(self):
+        return f"<User(id={self.id}, username='{self.username}', auth_provider='{self.auth_provider}')>"
     
     @property
     def password(self):
@@ -251,27 +258,70 @@ class User(Base):
         
     @password.setter
     def password(self, password):
-        self.password_hash = generate_password_hash(password)
+        if password:
+            self.password_hash = pwd_context.hash(password)
+        else:
+            self.password_hash = None
         
-    def verify_password(self, password) -> bool:
-        return check_password_hash(self.password_hash, password)
+    def verify_password(self, password: str) -> bool:
+        """Verifica la contraseña local (solo para usuarios locales)"""
+        if self.auth_provider != AuthProvider.LOCAL.value or not self.password_hash:
+            return False
+        return pwd_context.verify(password, self.password_hash)
     
     def update_last_login(self):
+        """Actualiza la fecha del último login"""
         self.last_login = datetime.now()
     
+    def update_from_ad(self, ad_data: dict):
+        """Actualiza la información del usuario desde Active Directory"""
+        self.email = ad_data.get('email', self.email)
+        self.fullname = ad_data.get('fullname', self.fullname)
+        self.department = ad_data.get('department', self.department)
+        self.is_active = ad_data.get('is_active', self.is_active)
+        self.is_admin = ad_data.get('is_admin', self.is_admin)
+        self.ad_dn = ad_data.get('dn', self.ad_dn)
+        self.last_ad_sync = datetime.now()
+        self.updated_at = datetime.now()
+    
     @classmethod
-    def create_user(cls, db, username: str, email: str, password: str, 
-                    fullname: Optional[str] = None, is_admin: bool = False):
-        """
-        Crear un nuevo usuario en la base de datos
-        """
+    def create_user(cls, db, username: str, email: str = None, password: str = None, 
+                    fullname: str = None, department: str = None, is_admin: bool = False,
+                    auth_provider: str = AuthProvider.LOCAL.value, ad_dn: str = None):
+        """Crear un nuevo usuario en la base de datos"""
         user = cls(
             username=username,
             email=email,
             fullname=fullname,
-            is_admin=is_admin
+            department=department,
+            is_admin=is_admin,
+            auth_provider=auth_provider,
+            ad_dn=ad_dn
         )
-        user.password = password
+        
+        # Solo establecer contraseña para usuarios locales
+        if auth_provider == AuthProvider.LOCAL.value and password:
+            user.password = password
+        
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+    
+    @classmethod
+    def create_from_ad(cls, db, ad_data: dict):
+        """Crear un usuario desde datos de Active Directory"""
+        user = cls(
+            username=ad_data.get('username'),
+            email=ad_data.get('email'),
+            fullname=ad_data.get('fullname'),
+            department=ad_data.get('department'),
+            is_active=ad_data.get('is_active', True),
+            is_admin=ad_data.get('is_admin', False),
+            auth_provider=AuthProvider.ACTIVE_DIRECTORY.value,
+            ad_dn=ad_data.get('dn'),
+            last_ad_sync=datetime.now()
+        )
         
         db.add(user)
         db.commit()
@@ -280,20 +330,86 @@ class User(Base):
     
     @classmethod
     def get_by_username(cls, db, username: str):
-        """
-        Obtener un usuario por su nombre de usuario
-        """
+        """Obtener un usuario por su nombre de usuario"""
         return db.query(cls).filter(cls.username == username).first()
     
     @classmethod
-    def authenticate(cls, db, username: str, password: str):
-        """
-        Autenticar un usuario con nombre de usuario y contraseña
-        Devuelve el usuario si las credenciales son válidas, None en caso contrario
-        """
+    def get_by_email(cls, db, email: str):
+        """Obtener un usuario por su email"""
+        return db.query(cls).filter(cls.email == email).first()
+    
+    @classmethod
+    def get_ad_users(cls, db):
+        """Obtener todos los usuarios de Active Directory"""
+        return db.query(cls).filter(cls.auth_provider == AuthProvider.ACTIVE_DIRECTORY.value).all()
+    
+    @classmethod
+    def get_local_users(cls, db):
+        """Obtener todos los usuarios locales"""
+        return db.query(cls).filter(cls.auth_provider == AuthProvider.LOCAL.value).all()
+    
+    @classmethod
+    def authenticate_local(cls, db, username: str, password: str):
+        """Autenticar un usuario local"""
         user = cls.get_by_username(db, username)
-        if user and user.verify_password(password) and user.is_active:
+        if (user and 
+            user.auth_provider == AuthProvider.LOCAL.value and 
+            user.verify_password(password) and 
+            user.is_active):
             user.update_last_login()
             db.commit()
             return user
         return None
+    
+    def to_dict(self):
+        """Convierte el usuario a diccionario"""
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'fullname': self.fullname,
+            'department': self.department,
+            'is_active': self.is_active,
+            'is_admin': self.is_admin,
+            'auth_provider': self.auth_provider,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None,
+            'last_ad_sync': self.last_ad_sync.isoformat() if self.last_ad_sync else None
+        }
+
+# Clase para logs de sincronización con AD
+class ADSyncLog(Base):
+    __tablename__ = "ad_sync_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    sync_type = Column(String(50), nullable=False)  # 'full', 'user', 'auth'
+    status = Column(String(20), nullable=False)     # 'success', 'error', 'partial'
+    message = Column(Text)
+    users_processed = Column(Integer, default=0)
+    users_created = Column(Integer, default=0)
+    users_updated = Column(Integer, default=0)
+    users_errors = Column(Integer, default=0)
+    duration_seconds = Column(Float)
+    created_at = Column(DateTime, default=datetime.now)
+    
+    @classmethod
+    def create_log(cls, db, sync_type: str, status: str, message: str = None,
+                    users_processed: int = 0, users_created: int = 0, 
+                    users_updated: int = 0, users_errors: int = 0,
+                    duration_seconds: float = 0):
+        """Crear un log de sincronización"""
+        log = cls(
+            sync_type=sync_type,
+            status=status,
+            message=message,
+            users_processed=users_processed,
+            users_created=users_created,
+            users_updated=users_updated,
+            users_errors=users_errors,
+            duration_seconds=duration_seconds
+        )
+        
+        db.add(log)
+        db.commit()
+        db.refresh(log)
+        return log

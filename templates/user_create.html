@@ -563,6 +563,221 @@
                 document.getElementById('searchAdUsers').click();
             }
         });
+
+// Agregar este código JavaScript al final del template user_create.html
+// para mejor debugging y feedback visual
+
+// Función mejorada para mostrar resultados de búsqueda
+function displayAdUsers(users) {
+    const resultsDiv = document.getElementById('adUsersResults');
+    
+    console.log('Mostrando usuarios AD:', users); // Debug en consola
+    
+    if (!users || users.length === 0) {
+        resultsDiv.innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> 
+                No se encontraron usuarios que coincidan con la búsqueda.
+                <br><small>Prueba términos como: "admin", "usuario", o parte del nombre</small>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '<div class="row">';
+    
+    users.forEach((user, index) => {
+        // Verificar que el usuario tenga datos válidos
+        if (!user.username || user.username === 'undefined') {
+            console.warn('Usuario sin username válido:', user);
+            return;
+        }
+        
+        html += `
+            <div class="col-md-6 mb-2">
+                <div class="card ad-user-card" data-username="${user.username}">
+                    <div class="card-body p-2">
+                        <div class="form-check">
+                            <input class="form-check-input user-checkbox" type="checkbox" 
+                                   value="${user.username}" id="user_${user.username}_${index}">
+                            <label class="form-check-label w-100" for="user_${user.username}_${index}">
+                                <strong>${user.username}</strong>
+                                ${user.fullname && user.fullname !== 'undefined' ? 
+                                    '<br><small class="text-muted">' + user.fullname + '</small>' : ''}
+                                ${user.email && user.email !== 'undefined' ? 
+                                    '<br><small class="text-muted"><i class="fas fa-envelope"></i> ' + user.email + '</small>' : ''}
+                                ${user.department && user.department !== 'undefined' ? 
+                                    '<br><span class="badge bg-secondary">' + user.department + '</span>' : ''}
+                                ${user.is_admin ? '<span class="badge bg-warning ms-1">Admin</span>' : ''}
+                                ${!user.is_active ? '<span class="badge bg-danger ms-1">Inactivo</span>' : ''}
+                            </label>
+                        </div>
+                        <small class="text-muted">DN: ${user.dn || 'N/A'}</small>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    resultsDiv.innerHTML = html;
+    
+    // Agregar event listeners
+    document.querySelectorAll('.user-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const card = this.closest('.ad-user-card');
+            if (this.checked) {
+                selectedUsers.add(this.value);
+                card.classList.add('selected');
+            } else {
+                selectedUsers.delete(this.value);
+                card.classList.remove('selected');
+            }
+            updateBulkActionsState();
+        });
+    });
+}
+
+// Función de debug para búsqueda detallada
+async function debugAdSearch() {
+    const query = document.getElementById('adSearch').value;
+    if (!query) {
+        alert('Ingrese un término de búsqueda primero');
+        return;
+    }
+    
+    try {
+        console.log('Ejecutando debug de búsqueda AD...');
+        const response = await fetch(`/ui/users/api/debug-ad-search?query=${encodeURIComponent(query)}`);
+        const result = await response.json();
+        
+        console.log('Resultado debug AD:', result);
+        
+        if (result.success) {
+            // Mostrar información detallada en consola
+            console.group('Debug AD - Información Detallada');
+            console.log('Conexión:', result.debug.connection_info);
+            console.log('Búsqueda:', result.debug.search_info);
+            console.log('Entradas encontradas:', result.debug.entries);
+            console.groupEnd();
+            
+            // Mostrar alerta con resumen
+            alert(`Debug AD:
+Conectado: ${result.debug.connection_info.bound}
+Base DN: ${result.debug.search_info.base_dn}
+Filtro: ${result.debug.search_info.filter}
+Resultados: ${result.debug.search_info.results_count}
+
+Ver consola del navegador (F12) para detalles completos`);
+        } else {
+            alert('Error en debug: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error en debug AD:', error);
+        alert('Error ejecutando debug: ' + error.message);
+    }
+}
+
+// Función para búsqueda simple
+async function testSimpleSearch() {
+    try {
+        console.log('Ejecutando búsqueda simple AD...');
+        const response = await fetch('/ui/users/api/test-simple-search');
+        const result = await response.json();
+        
+        console.log('Resultado búsqueda simple:', result);
+        
+        if (result.success) {
+            alert(`Búsqueda Simple Exitosa:
+Encontrados: ${result.users.length} usuarios
+Base DN: ${result.search_base}
+
+Usuarios:
+${result.users.map(u => `- ${u.username} (${u.fullname})`).join('\n')}
+
+Ver consola para detalles completos`);
+        } else {
+            alert('Error en búsqueda simple: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error en búsqueda simple:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+// Agregar botones de debug al template (agregar después del botón de búsqueda)
+/*
+<div class="mt-2">
+    <button type="button" class="btn btn-sm btn-outline-info" onclick="debugAdSearch()">
+        <i class="fas fa-bug"></i> Debug Búsqueda
+    </button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="testSimpleSearch()">
+        <i class="fas fa-list"></i> Búsqueda Simple
+    </button>
+</div>
+*/
+
+// Mejorar el feedback visual de la búsqueda
+document.getElementById('searchAdUsers').addEventListener('click', async function() {
+    const searchTerm = document.getElementById('adSearch').value;
+    const resultsDiv = document.getElementById('adUsersResults');
+    const spinner = document.getElementById('loadingSpinner');
+    const bulkActions = document.getElementById('bulkActions');
+    
+    if (!searchTerm) {
+        alert('Por favor ingrese un término de búsqueda');
+        return;
+    }
+    
+    console.log(`Buscando usuarios AD con término: "${searchTerm}"`);
+    
+    spinner.style.display = 'block';
+    resultsDiv.innerHTML = '';
+    bulkActions.style.display = 'none';
+    
+    try {
+        const response = await fetch(`/ui/users/api/search-ad-users?query=${encodeURIComponent(searchTerm)}`);
+        const result = await response.json();
+        
+        console.log('Respuesta de búsqueda AD:', result);
+        
+        if (result.success) {
+            if (result.users && result.users.length > 0) {
+                displayAdUsers(result.users);
+                bulkActions.style.display = 'block';
+                
+                // Mostrar mensaje de éxito
+                const successMsg = document.createElement('div');
+                successMsg.className = 'alert alert-success alert-dismissible fade show mt-2';
+                successMsg.innerHTML = `
+                    <i class="fas fa-check"></i> Encontrados ${result.users.length} usuarios en Active Directory
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                resultsDiv.insertBefore(successMsg, resultsDiv.firstChild);
+            } else {
+                displayAdUsers([]); // Mostrará mensaje de no encontrados
+            }
+        } else {
+            resultsDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Error buscando usuarios: ${result.message}
+                    <br><small>Verifique la conexión con Active Directory</small>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error en búsqueda AD:', error);
+        resultsDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-times"></i> Error de conexión: ${error.message}
+                <br><small>Verifique que el servidor esté accesible</small>
+            </div>
+        `;
+    } finally {
+        spinner.style.display = 'none';
+    }
+});
+
     </script>
 </body>
 </html>

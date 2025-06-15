@@ -1,4 +1,8 @@
-# test_ad_connection.py - Script para probar conexión con tu Active Directory
+#!/usr/bin/env python3
+"""
+Script simple para probar Active Directory
+Basado en tu configuración actual que muestra buena conectividad
+"""
 
 import os
 from dotenv import load_dotenv
@@ -6,199 +10,222 @@ from dotenv import load_dotenv
 # Cargar variables de entorno
 load_dotenv()
 
-def test_basic_connection():
-    """Prueba conexión básica con Active Directory"""
+def test_ldap_simple():
+    """Prueba simple de LDAP con tu configuración actual"""
+    print("=== PRUEBA SIMPLE DE ACTIVE DIRECTORY ===")
+    
     try:
-        from ldap3 import Server, Connection, ALL, NTLM, SUBTREE
+        from ldap3 import Server, Connection, ALL, NTLM, SIMPLE, SUBTREE
         
-        # Configuración desde .env
-        ad_server = os.getenv("AD_SERVER", "ldap://172.19.2.241")
-        ad_port = int(os.getenv("AD_PORT", "389"))
-        ad_bind_dn = os.getenv("AD_BIND_DN")
-        ad_bind_password = os.getenv("AD_BIND_PASSWORD")
-        ad_base_dn = os.getenv("AD_BASE_DN")
+        # Tu configuración actual
+        ad_server = "172.19.2.241"  # IP directa
+        ad_port = 389
+        ad_use_ssl = False
+        ad_bind_dn = "IKEASI\\su-jorge.romero"
+        ad_bind_password = os.getenv('AD_BIND_PASSWORD')
+        ad_base_dn = "DC=ikeaspc,DC=ikeasi,DC=com"
         
-        print("=== Configuración de Active Directory ===")
-        print(f"Servidor: {ad_server}")
-        print(f"Puerto: {ad_port}")
-        print(f"Bind DN: {ad_bind_dn}")
+        print(f"Servidor: {ad_server}:{ad_port}")
+        print(f"SSL: {ad_use_ssl}")
+        print(f"Usuario: {ad_bind_dn}")
         print(f"Base DN: {ad_base_dn}")
-        print("=" * 50)
+        print("-" * 50)
         
-        # Paso 1: Crear servidor
-        print("1. Creando servidor...")
-        server = Server(ad_server, port=ad_port, get_info=ALL)
-        print(f"✓ Servidor creado: {server}")
-        
-        # Paso 2: Probar conexión básica
-        print("\n2. Probando conexión básica...")
-        test_conn = Connection(server)
-        if test_conn.bind():
-            print("✓ Conexión básica exitosa")
-            test_conn.unbind()
-        else:
-            print("✗ Fallo conexión básica")
-            return False
-        
-        # Paso 3: Probar autenticación con credenciales
-        print("\n3. Probando autenticación con credenciales...")
-        auth_conn = Connection(
-            server,
-            user=ad_bind_dn,
-            password=ad_bind_password,
-            authentication=NTLM,
-            auto_bind=True
+        # 1. Crear servidor
+        print("\n1. Creando servidor...")
+        server = Server(
+            ad_server,
+            port=ad_port,
+            use_ssl=ad_use_ssl,
+            get_info=ALL
         )
+        print("✅ Servidor creado")
         
-        if auth_conn.bound:
-            print("✓ Autenticación exitosa")
-            
-            # Paso 4: Probar búsqueda básica
-            print("\n4. Probando búsqueda básica...")
-            auth_conn.search(
-                search_base=ad_base_dn,
-                search_filter='(objectClass=*)',
-                search_scope=SUBTREE,
-                attributes=['distinguishedName'],
-                size_limit=5
-            )
-            
-            print(f"✓ Búsqueda exitosa. Encontrados {len(auth_conn.entries)} objetos:")
-            for entry in auth_conn.entries:
-                print(f"  - {entry.distinguishedName}")
-            
-            # Paso 5: Buscar usuarios
-            print("\n5. Buscando usuarios...")
-            user_base_dn = os.getenv("AD_USER_BASE_DN")
-            user_filter = os.getenv("AD_USER_FILTER")
-            
-            auth_conn.search(
-                search_base=user_base_dn,
-                search_filter=user_filter,
-                search_scope=SUBTREE,
-                attributes=['sAMAccountName', 'displayName', 'mail'],
-                size_limit=10
-            )
-            
-            print(f"✓ Encontrados {len(auth_conn.entries)} usuarios:")
-            for entry in auth_conn.entries:
-                username = entry.sAMAccountName.value if hasattr(entry, 'sAMAccountName') else 'N/A'
-                fullname = entry.displayName.value if hasattr(entry, 'displayName') else 'N/A'
-                email = entry.mail.value if hasattr(entry, 'mail') else 'N/A'
-                print(f"  - {username} | {fullname} | {email}")
-            
-            auth_conn.unbind()
-            print("\n🎉 ¡Conexión con Active Directory exitosa!")
-            return True
-            
-        else:
-            print("✗ Fallo autenticación")
-            print(f"Error: {auth_conn.result}")
-            return False
-            
-    except ImportError:
-        print("✗ Error: ldap3 no está instalado. Ejecutar: pip install ldap3")
-        return False
-    except Exception as e:
-        print(f"✗ Error en conexión AD: {str(e)}")
-        print(f"Tipo de error: {type(e).__name__}")
-        return False
-
-def test_specific_user_search():
-    """Buscar un usuario específico"""
-    try:
-        from ldap3 import Server, Connection, ALL, NTLM, SUBTREE
-        
-        # Configuración
-        ad_server = os.getenv("AD_SERVER")
-        ad_port = int(os.getenv("AD_PORT", "389"))
-        ad_bind_dn = os.getenv("AD_BIND_DN")
-        ad_bind_password = os.getenv("AD_BIND_PASSWORD")
-        user_base_dn = os.getenv("AD_USER_BASE_DN")
-        
-        # Conectar
-        server = Server(ad_server, port=ad_port, get_info=ALL)
-        conn = Connection(
-            server,
-            user=ad_bind_dn,
-            password=ad_bind_password,
-            authentication=NTLM,
-            auto_bind=True
-        )
-        
-        if conn.bound:
-            print("\n=== Búsqueda de Usuario Específico ===")
-            
-            # Buscar por tu usuario
-            search_filter = "(sAMAccountName=su-jorge.romero)"
-            
-            conn.search(
-                search_base=user_base_dn,
-                search_filter=search_filter,
-                search_scope=SUBTREE,
-                attributes=['*']  # Obtener todos los atributos
-            )
-            
-            if conn.entries:
-                entry = conn.entries[0]
-                print(f"✓ Usuario encontrado: {entry.distinguishedName}")
-                print("\nAtributos disponibles:")
-                for attr in entry.entry_attributes:
-                    value = getattr(entry, attr).value if hasattr(entry, attr) else None
-                    if value:
-                        print(f"  {attr}: {value}")
+        # 2. Probar conexión anónima
+        print("\n2. Probando conexión anónima...")
+        try:
+            test_conn = Connection(server)
+            if test_conn.bind():
+                print("✅ Conexión anónima exitosa")
+                test_conn.unbind()
             else:
-                print("✗ Usuario no encontrado")
-            
-            conn.unbind()
+                print("⚠️  Conexión anónima falló (normal en muchos AD)")
+        except:
+            print("⚠️  Conexión anónima falló (normal en muchos AD)")
         
-    except Exception as e:
-        print(f"✗ Error buscando usuario: {str(e)}")
-
-def validate_configuration():
-    """Validar configuración antes de probar"""
-    print("=== Validación de Configuración ===")
-    
-    required_vars = [
-        "AD_SERVER", "AD_BIND_DN", "AD_BIND_PASSWORD", 
-        "AD_BASE_DN", "AD_USER_BASE_DN"
-    ]
-    
-    missing_vars = []
-    for var in required_vars:
-        value = os.getenv(var)
-        if not value:
-            missing_vars.append(var)
-        else:
-            # Ocultar contraseña en logs
-            display_value = value if var != "AD_BIND_PASSWORD" else "*" * len(value)
-            print(f"✓ {var}: {display_value}")
-    
-    if missing_vars:
-        print(f"\n✗ Variables faltantes: {', '.join(missing_vars)}")
+        # 3. Probar con NTLM
+        print("\n3. Probando autenticación NTLM...")
+        try:
+            ntlm_conn = Connection(
+                server,
+                user=ad_bind_dn,
+                password=ad_bind_password,
+                authentication=NTLM,
+                auto_bind=True
+            )
+            
+            if ntlm_conn.bound:
+                print("✅ Autenticación NTLM exitosa")
+                
+                # Probar búsqueda básica
+                print("\n4. Probando búsqueda básica...")
+                ntlm_conn.search(
+                    search_base=ad_base_dn,
+                    search_filter='(objectClass=domain)',
+                    search_scope=SUBTREE,
+                    attributes=['distinguishedName', 'name'],
+                    size_limit=5
+                )
+                
+                if ntlm_conn.entries:
+                    print(f"✅ Búsqueda exitosa: {len(ntlm_conn.entries)} entrada(s)")
+                    for entry in ntlm_conn.entries:
+                        print(f"   - {entry.distinguishedName}")
+                else:
+                    print("⚠️  Búsqueda sin resultados")
+                
+                # Probar búsqueda de usuarios
+                print("\n5. Probando búsqueda de usuarios...")
+                user_filter = "(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))"
+                
+                ntlm_conn.search(
+                    search_base=ad_base_dn,
+                    search_filter=user_filter,
+                    search_scope=SUBTREE,
+                    attributes=['sAMAccountName', 'displayName', 'mail'],
+                    size_limit=10
+                )
+                
+                if ntlm_conn.entries:
+                    print(f"✅ Usuarios encontrados: {len(ntlm_conn.entries)}")
+                    for entry in ntlm_conn.entries[:3]:  # Solo los primeros 3
+                        username = getattr(entry, 'sAMAccountName', ['N/A'])[0] if hasattr(entry, 'sAMAccountName') else 'N/A'
+                        fullname = getattr(entry, 'displayName', ['N/A'])[0] if hasattr(entry, 'displayName') else 'N/A'
+                        email = getattr(entry, 'mail', ['N/A'])[0] if hasattr(entry, 'mail') else 'N/A'
+                        print(f"   - {username} | {fullname} | {email}")
+                    
+                    if len(ntlm_conn.entries) > 3:
+                        print(f"   ... y {len(ntlm_conn.entries) - 3} usuarios más")
+                else:
+                    print("⚠️  No se encontraron usuarios")
+                
+                # Buscar tu usuario específico
+                print("\n6. Buscando tu usuario específico...")
+                specific_filter = "(sAMAccountName=su-jorge.romero)"
+                
+                ntlm_conn.search(
+                    search_base=ad_base_dn,
+                    search_filter=specific_filter,
+                    search_scope=SUBTREE,
+                    attributes=['*']
+                )
+                
+                if ntlm_conn.entries:
+                    entry = ntlm_conn.entries[0]
+                    print(f"✅ Tu usuario encontrado: {entry.distinguishedName}")
+                    print("\nAtributos principales:")
+                    
+                    important_attrs = ['sAMAccountName', 'displayName', 'mail', 'department', 'memberOf']
+                    for attr in important_attrs:
+                        if hasattr(entry, attr):
+                            value = getattr(entry, attr)
+                            if isinstance(value, list) and len(value) > 0:
+                                if attr == 'memberOf':
+                                    print(f"   {attr}: {len(value)} grupos")
+                                    for group in value[:3]:  # Solo los primeros 3 grupos
+                                        print(f"      - {group}")
+                                    if len(value) > 3:
+                                        print(f"      ... y {len(value) - 3} más")
+                                else:
+                                    print(f"   {attr}: {value[0]}")
+                            elif not isinstance(value, list):
+                                print(f"   {attr}: {value}")
+                else:
+                    print("❌ Tu usuario no encontrado")
+                
+                ntlm_conn.unbind()
+                print("\n🎉 ¡TODAS LAS PRUEBAS COMPLETADAS CON ÉXITO!")
+                
+                # Generar configuración final
+                print("\n" + "=" * 60)
+                print("🎯 CONFIGURACIÓN FINAL RECOMENDADA")
+                print("=" * 60)
+                print("# Configuración funcional para tu .env:")
+                print(f"AD_SERVER={ad_server}")
+                print(f"AD_PORT={ad_port}")
+                print(f"AD_USE_SSL=false")
+                print(f"AD_BIND_DN=IKEASI\\su-jorge.romero")
+                print("AD_BIND_PASSWORD=Isl@sV@leares,.,2025**")
+                print(f"AD_BASE_DN={ad_base_dn}")
+                print(f"AD_USER_BASE_DN={ad_base_dn}")
+                
+                return True
+                
+            else:
+                print(f"❌ Autenticación NTLM falló: {ntlm_conn.result}")
+                
+        except Exception as ntlm_error:
+            print(f"❌ Error NTLM: {str(ntlm_error)}")
+            
+            # Intentar con SIMPLE como fallback
+            print("\n3b. Probando autenticación SIMPLE como fallback...")
+            try:
+                simple_conn = Connection(
+                    server,
+                    user="su-jorge.romero@ikeasi.com",  # Formato UPN para SIMPLE
+                    password=ad_bind_password,
+                    authentication=SIMPLE,
+                    auto_bind=True
+                )
+                
+                if simple_conn.bound:
+                    print("✅ Autenticación SIMPLE exitosa")
+                    print("   Configuración alternativa:")
+                    print("   AD_BIND_DN=su-jorge.romero@ikeasi.com")
+                    print("   # Cambiar authentication=SIMPLE en el código")
+                    
+                    simple_conn.unbind()
+                    return True
+                else:
+                    print(f"❌ Autenticación SIMPLE falló: {simple_conn.result}")
+                    
+            except Exception as simple_error:
+                print(f"❌ Error SIMPLE: {str(simple_error)}")
+        
         return False
+        
+    except ImportError:
+        print("❌ Error: ldap3 no está instalado")
+        print("Instalar con: pip install ldap3")
+        return False
+    except Exception as e:
+        print(f"❌ Error inesperado: {str(e)}")
+        return False
+
+def main():
+    """Función principal"""
+    print("🔍 PRUEBA SIMPLE DE ACTIVE DIRECTORY")
+    print("Basado en tu configuración actual con buena conectividad")
+    print("=" * 60)
     
-    print("✓ Configuración completa")
-    return True
+    success = test_ldap_simple()
+    
+    if success:
+        print("\n✅ PRUEBA EXITOSA - Active Directory configurado correctamente")
+        print("\nPróximos pasos:")
+        print("1. Usar la configuración mostrada arriba en tu .env")
+        print("2. Actualizar tu servicio AD con la configuración funcional")
+        print("3. Probar desde tu aplicación web")
+    else:
+        print("\n❌ PRUEBA FALLIDA")
+        print("\nPasos para resolver:")
+        print("1. Verificar credenciales con el administrador de AD")
+        print("2. Verificar permisos del usuario su-jorge.romero")
+        print("3. Verificar configuración de dominio IKEASI")
+    
+    return success
 
 if __name__ == "__main__":
-    print("🔍 Probando conexión con Active Directory...\n")
-    
-    # Validar configuración
-    if not validate_configuration():
-        exit(1)
-    
-    # Probar conexión
-    if test_basic_connection():
-        # Si la conexión básica funciona, probar búsqueda específica
-        test_specific_user_search()
-    else:
-        print("\n❌ Conexión con Active Directory falló")
-        print("\n🛠️  Pasos para solucionar:")
-        print("1. Verificar que el servidor AD esté accesible:")
-        print("   ping 172.19.2.241")
-        print("2. Verificar puerto 389 abierto:")
-        print("   telnet 172.19.2.241 389")
-        print("3. Verificar credenciales de su-jorge.romero")
-        print("4. Verificar estructura de DN en Active Directory")
-        print("5. Instalar dependencias: pip install ldap3")
+    import sys
+    success = main()
+    sys.exit(0 if success else 1)

@@ -1,302 +1,234 @@
-# utils/auth_enhanced.py - Servicio de autenticación mejorado con soporte AD
+# utils/auth_enhanced.py - Servicio de autenticación con soporte AD
 
 import logging
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Tuple
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import os
+from typing import Tuple, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from jose import JWTError, jwt
-import time
+from datetime import datetime, timedelta
+import secrets
+import hashlib
 
-from models.database import get_db
-from models.models import User, AuthProvider, ADSyncLog
-from services.ad_service import ad_service
-from config.ad_config import ad_settings
+from models.models import User
 
 logger = logging.getLogger(__name__)
 
-# Configuración JWT
-SECRET_KEY = "your-secret-key-here"  # Cambiar por una clave segura
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 horas
-
-security = HTTPBearer()
-
-class AuthService:
-    """Servicio de autenticación con soporte para múltiples proveedores"""
+class AuthenticationService:
+    """Servicio de autenticación que soporta múltiples proveedores"""
+    
+    def __init__(self):
+        self.session_store = {}  # En producción usar Redis o DB
     
     def authenticate_user(self, db: Session, username: str, password: str) -> Tuple[bool, Optional[User], str]:
         """
-        Autentica un usuario contra múltiples proveedores
+        Autentica un usuario usando múltiples proveedores
         
         Returns:
-            Tuple[bool, Optional[User], str]: (éxito, usuario, mensaje)
+            (success, user, message)
         """
         try:
-            # Primero intentar autenticación local
-            local_user = User.authenticate_local(db, username, password)
-            if local_user:
-                logger.info(f"Autenticación local exitosa para: {username}")
-                return True, local_user, "Autenticación local exitosa"
+            # Limpiar username
+            username = username.strip().lower()
             
-            # Si falla local y AD está habilitado, intentar AD
-            if ad_settings.AD_SYNC_ENABLED:
-                success, ad_user_data = ad_service.authenticate_user(username, password)
-                
-                if success and ad_user_data:
-                    # Verificar si el usuario ya existe en la BD local
-                    existing_user = User.get_by_username(db, username)
-                    
-                    if existing_user:
-                        # Usuario existe, actualizar información desde AD si está configurado
-                        if (existing_user.auth_provider == AuthProvider.ACTIVE_DIRECTORY.value and 
-                            ad_settings.AD_UPDATE_USER_INFO):
-                            existing_user.update_from_ad(ad_user_data)
-                            db.commit()
-                        
-                        existing_user.update_last_login()
-                        db.commit()
-                        
-                        logger.info(f"Autenticación AD exitosa para usuario existente: {username}")
-                        return True, existing_user, "Autenticación AD exitosa"
-                    
-                    elif ad_settings.AD_AUTO_CREATE_USERS:
-                        # Crear nuevo usuario desde AD
-                        new_user = User.create_from_ad(db, ad_user_data)
-                        new_user.update_last_login()
-                        db.commit()
-                        
-                        logger.info(f"Usuario creado desde AD: {username}")
-                        return True, new_user, "Usuario creado desde AD"
-                    
-                    else:
-                        logger.warning(f"Usuario autenticado en AD pero no existe localmente: {username}")
-                        return False, None, "Usuario no autorizado en el sistema local"
-                
+            logger.info(f"Intentando autenticar usuario: {username}")
+            
+            # 1. Primero intentar con usuario local existente
+            local_user = db.query(User).filter(
+                User.username == username,
+                User.is_active == True
+            ).first()
+            
+            if local_user and local_user.auth_provider == "local":
+                # Usuario local - verificar contraseña
+                if local_user.verify_password(password):
+                    local_user.update_last_login()
+                    db.commit()
+                    logger.info(f"Autenticación local exitosa: {username}")
+                    return True, local_user, "Autenticación local exitosa"
                 else:
-                    logger.warning(f"Falló autenticación AD para: {username}")
+                    logger.warning(f"Contraseña incorrecta para usuario local: {username}")
+                    return False, None, "Credenciales inválidas"
             
-            logger.warning(f"Falló autenticación para: {username}")
-            return False, None, "Credenciales inválidas"
+            # 2. Si no es usuario local, intentar con Active Directory
+            if self._is_ad_enabled():
+                logger.info(f"Intentando autenticación AD para: {username}")
+                
+                ad_success, ad_user_data = self._authenticate_with_ad(username, password)
+                
+                if ad_success and ad_user_data:
+                    # Autenticación AD exitosa
+                    logger.info(f"Autenticación AD exitosa: {username}")
+                    
+                    # Crear o actualizar usuario local desde AD
+                    user = self._sync_user_from_ad(db, ad_user_data)
+                    
+                    if user:
+                        user.update_last_login()
+                        user.update_last_ad_sync()
+                        db.commit()
+                        return True, user, "Autenticación Active Directory exitosa"
+                    else:
+                        logger.error(f"Error sincronizando usuario AD: {username}")
+                        return False, None, "Error sincronizando usuario"
+                else:
+                    logger.warning(f"Autenticación AD falló: {username}")
+                    return False, None, "Credenciales de Active Directory inválidas"
+            
+            # 3. No se pudo autenticar con ningún proveedor
+            logger.warning(f"Usuario no encontrado en ningún proveedor: {username}")
+            return False, None, "Usuario no encontrado"
             
         except Exception as e:
             logger.error(f"Error en autenticación de {username}: {str(e)}")
             return False, None, "Error interno de autenticación"
     
-    def create_access_token(self, user: User) -> Dict:
-        """Crea un token de acceso JWT"""
-        try:
-            # Datos del token
-            token_data = {
-                "sub": user.username,
-                "user_id": user.id,
-                "is_admin": user.is_admin,
-                "auth_provider": user.auth_provider,
-                "exp": datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
-                "iat": datetime.utcnow()
-            }
-            
-            # Crear token
-            access_token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
-            
-            return {
-                "access_token": access_token,
-                "token_type": "bearer",
-                "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-                "user": user.to_dict()
-            }
-            
-        except Exception as e:
-            logger.error(f"Error creando token para {user.username}: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error creando token de acceso"
-            )
+    def _is_ad_enabled(self) -> bool:
+        """Verifica si Active Directory está habilitado"""
+        return os.getenv('AD_SYNC_ENABLED', 'false').lower() == 'true'
     
-    def decode_token(self, token: str) -> Optional[Dict]:
-        """Decodifica y valida un token JWT"""
+    def _authenticate_with_ad(self, username: str, password: str) -> Tuple[bool, Optional[Dict]]:
+        """Autentica contra Active Directory"""
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            # Intentar importar el servicio AD
+            from services.ad_service import ad_service
             
-            # Verificar expiración
-            if datetime.fromtimestamp(payload.get("exp", 0)) < datetime.utcnow():
-                return None
+            # Usar el servicio AD para autenticar
+            success, user_data = ad_service.authenticate_user(username, password)
             
-            return payload
-            
-        except JWTError:
-            return None
+            if success and user_data:
+                logger.info(f"AD authentication successful for: {username}")
+                return True, user_data
+            else:
+                logger.warning(f"AD authentication failed for: {username}")
+                return False, None
+                
+        except ImportError:
+            logger.error("AD service not available")
+            return False, None
         except Exception as e:
-            logger.error(f"Error decodificando token: {str(e)}")
-            return None
+            logger.error(f"Error in AD authentication for {username}: {str(e)}")
+            return False, None
     
-    def get_current_user(self, db: Session, token: str) -> Optional[User]:
-        """Obtiene el usuario actual desde el token"""
+    def _sync_user_from_ad(self, db: Session, ad_user_data: Dict) -> Optional[User]:
+        """Sincroniza un usuario desde Active Directory"""
         try:
-            payload = self.decode_token(token)
-            if not payload:
-                return None
-            
-            username = payload.get("sub")
+            username = ad_user_data.get('username')
             if not username:
                 return None
             
-            user = User.get_by_username(db, username)
-            if not user or not user.is_active:
-                return None
+            # Buscar usuario existente
+            user = db.query(User).filter(User.username == username).first()
             
+            # Determinar si es administrador basado en grupos
+            is_admin = self._is_admin_user(ad_user_data)
+            
+            if user:
+                # Actualizar usuario existente
+                user.email = ad_user_data.get('email') or user.email
+                user.fullname = ad_user_data.get('fullname') or user.fullname
+                user.department = ad_user_data.get('department') or user.department
+                user.is_admin = is_admin
+                user.is_active = ad_user_data.get('is_enabled', True)
+                user.auth_provider = 'ad'
+                user.ad_dn = ad_user_data.get('dn')
+                
+                logger.info(f"Usuario AD actualizado: {username}")
+            else:
+                # Crear nuevo usuario
+                user = User(
+                    username=username,
+                    email=ad_user_data.get('email'),
+                    fullname=ad_user_data.get('fullname', username),
+                    department=ad_user_data.get('department'),
+                    is_admin=is_admin,
+                    is_active=ad_user_data.get('is_enabled', True),
+                    auth_provider='ad',
+                    ad_dn=ad_user_data.get('dn'),
+                    password_hash=None  # Usuarios AD no tienen contraseña local
+                )
+                
+                db.add(user)
+                logger.info(f"Nuevo usuario AD creado: {username}")
+            
+            db.commit()
+            db.refresh(user)
             return user
             
         except Exception as e:
-            logger.error(f"Error obteniendo usuario actual: {str(e)}")
+            logger.error(f"Error sincronizando usuario AD: {str(e)}")
+            db.rollback()
             return None
     
-    def sync_users_from_ad(self, db: Session) -> Dict:
-        """Sincroniza usuarios desde Active Directory"""
-        start_time = time.time()
-        stats = {
-            'processed': 0,
-            'created': 0,
-            'updated': 0,
-            'errors': 0,
-            'messages': []
+    def _is_admin_user(self, ad_user_data: Dict) -> bool:
+        """Determina si un usuario de AD debe ser administrador"""
+        try:
+            admin_groups = os.getenv('AD_ADMIN_GROUPS', 'Domain Admins,Administrators').split(',')
+            user_groups = ad_user_data.get('groups', [])
+            
+            for group in user_groups:
+                group_name = group.split(',')[0].replace('CN=', '').strip()
+                if group_name in admin_groups:
+                    return True
+            
+            return False
+            
+        except Exception:
+            return False
+    
+    def create_access_token(self, user: User) -> Dict[str, Any]:
+        """Crea un token de acceso para el usuario"""
+        # Generar session ID
+        session_id = secrets.token_urlsafe(32)
+        
+        # Datos del token
+        token_data = {
+            "session_id": session_id,
+            "user_id": user.id,
+            "username": user.username,
+            "is_admin": user.is_admin,
+            "auth_provider": user.auth_provider,
+            "created_at": datetime.now(),
+            "expires_at": datetime.now() + timedelta(hours=24)
         }
         
-        try:
-            if not ad_settings.AD_SYNC_ENABLED:
-                return {'success': False, 'message': 'Sincronización AD deshabilitada'}
-            
-            # Obtener usuarios de AD
-            logger.info("Iniciando sincronización de usuarios desde AD...")
-            ad_users = ad_service.get_all_users()
-            
-            if not ad_users:
-                message = "No se obtuvieron usuarios de AD"
-                logger.warning(message)
-                return {'success': False, 'message': message}
-            
-            stats['processed'] = len(ad_users)
-            logger.info(f"Procesando {len(ad_users)} usuarios de AD...")
-            
-            for ad_user in ad_users:
-                try:
-                    username = ad_user.get('username')
-                    if not username:
-                        stats['errors'] += 1
-                        continue
-                    
-                    # Verificar si el usuario ya existe
-                    existing_user = User.get_by_username(db, username)
-                    
-                    if existing_user:
-                        # Actualizar usuario existente si es de AD
-                        if existing_user.auth_provider == AuthProvider.ACTIVE_DIRECTORY.value:
-                            existing_user.update_from_ad(ad_user)
-                            stats['updated'] += 1
-                            logger.debug(f"Usuario actualizado: {username}")
-                    else:
-                        # Crear nuevo usuario desde AD
-                        if ad_settings.AD_AUTO_CREATE_USERS:
-                            User.create_from_ad(db, ad_user)
-                            stats['created'] += 1
-                            logger.debug(f"Usuario creado: {username}")
-                
-                except Exception as e:
-                    stats['errors'] += 1
-                    logger.error(f"Error procesando usuario {ad_user.get('username', 'unknown')}: {str(e)}")
-            
-            # Confirmar cambios
-            db.commit()
-            
-            duration = time.time() - start_time
-            message = f"Sincronización completada: {stats['created']} creados, {stats['updated']} actualizados, {stats['errors']} errores"
-            
-            # Crear log de sincronización
-            ADSyncLog.create_log(
-                db=db,
-                sync_type='full',
-                status='success' if stats['errors'] == 0 else 'partial',
-                message=message,
-                users_processed=stats['processed'],
-                users_created=stats['created'],
-                users_updated=stats['updated'],
-                users_errors=stats['errors'],
-                duration_seconds=duration
-            )
-            
-            logger.info(message)
-            return {
-                'success': True,
-                'message': message,
-                'stats': stats,
-                'duration': duration
+        # Guardar en store (en producción usar Redis)
+        self.session_store[session_id] = token_data
+        
+        return {
+            "access_token": session_id,
+            "token_type": "bearer",
+            "expires_in": 86400,  # 24 horas
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "fullname": user.fullname,
+                "email": user.email,
+                "is_admin": user.is_admin,
+                "auth_provider": user.auth_provider
             }
+        }
+    
+    def verify_session(self, session_id: str) -> Optional[Dict]:
+        """Verifica un session ID"""
+        if not session_id:
+            return None
             
-        except Exception as e:
-            db.rollback()
-            duration = time.time() - start_time
-            error_message = f"Error en sincronización AD: {str(e)}"
-            
-            # Crear log de error
-            ADSyncLog.create_log(
-                db=db,
-                sync_type='full',
-                status='error',
-                message=error_message,
-                users_processed=stats['processed'],
-                users_created=stats['created'],
-                users_updated=stats['updated'],
-                users_errors=stats['errors'],
-                duration_seconds=duration
-            )
-            
-            logger.error(error_message)
-            return {
-                'success': False,
-                'message': error_message,
-                'stats': stats,
-                'duration': duration
-            }
+        session_data = self.session_store.get(session_id)
+        if not session_data:
+            return None
+        
+        # Verificar expiración
+        if datetime.now() > session_data['expires_at']:
+            del self.session_store[session_id]
+            return None
+        
+        return session_data
+    
+    def revoke_session(self, session_id: str) -> bool:
+        """Revoca un session ID"""
+        if session_id in self.session_store:
+            del self.session_store[session_id]
+            return True
+        return False
 
 # Instancia global del servicio
-auth_service = AuthService()
-
-# Dependencias de FastAPI
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), 
-                    db: Session = Depends(get_db)) -> User:
-    """Dependencia para obtener el usuario actual autenticado"""
-    if not credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token de acceso requerido",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    user = auth_service.get_current_user(db, credentials.credentials)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token inválido o expirado",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    return user
-
-def admin_required(current_user: User = Depends(get_current_user)) -> User:
-    """Dependencia que requiere permisos de administrador"""
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Permisos de administrador requeridos"
-        )
-    return current_user
-
-def active_user_required(current_user: User = Depends(get_current_user)) -> User:
-    """Dependencia que requiere usuario activo"""
-    if not current_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Usuario inactivo"
-        )
-    return current_user
+auth_service = AuthenticationService()

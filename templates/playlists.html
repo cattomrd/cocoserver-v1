@@ -1,0 +1,478 @@
+<!-- templates/dashboard.html - Dashboard básico -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Sistema de Gestión</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .panel {
+            border: 3px solid #000;
+            background-color: #f9f9f9;
+            padding: 20px;
+        }
+
+        .left-panel {
+            width: 25%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        .drop-zone {
+            width: 150px;
+            height: 150px;
+            border: 3px solid #000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            background-color: #fff;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .drop-zone.drag-over {
+            background-color: #e8f5e8;
+            border-color: #4CAF50;
+            transform: scale(1.05);
+        }
+
+        .drop-zone-text {
+            color: #666;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .dropped-items {
+            width: 100%;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .dropped-item {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            cursor: move;
+        }
+
+        .center-panel {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .playlist-header {
+            background-color: #e0e0e0;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            border-bottom: 2px solid #000;
+            margin-bottom: 20px;
+        }
+
+        .playlist-content {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .video-item {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .video-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .save-button {
+            background-color: #fff;
+            border: 2px solid #000;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        .save-button:hover {
+            background-color: #f0f0f0;
+        }
+
+        .right-panel {
+            width: 25%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #000;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+
+        .video-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .draggable-video {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+            cursor: grab;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .draggable-video:hover {
+            background-color: #f0f0f0;
+            transform: translateX(5px);
+        }
+
+        .draggable-video:active {
+            cursor: grabbing;
+        }
+
+        .draggable-video.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .remove-btn {
+            color: #ff4444;
+            cursor: pointer;
+            float: right;
+            font-weight: bold;
+        }
+
+        .remove-btn:hover {
+            color: #cc0000;
+        }
+
+        .sidebar {
+            min-height: 100vh;
+            background-color: #343a40;
+        }
+        .sidebar .nav-link {
+            color: #adb5bd;
+        }
+        .sidebar .nav-link:hover {
+            color: #fff;
+        }
+        .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #495057;
+        }
+        .main-content {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="text-center text-white mb-4">
+                        <h4><i class="fas fa-video"></i> VideoSystem</h4>
+                        {% if user %}
+                        <small>Bienvenido, {{ user.username }}</small>
+                        {% endif %}
+                    </div>
+                    
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/ui/dashboard">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/ui/videos">
+                                <i class="fas fa-film"></i> Videos
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/ui/playlists">
+                                <i class="fas fa-list"></i> Listas de Reproducción
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/ui/devices">
+                                <i class="fas fa-tv"></i> Dispositivos
+                            </a>
+                        </li>
+                        {% if user and user.is_admin %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="/ui/users">
+                                <i class="fas fa-users"></i> Usuarios
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li class="nav-item mt-3">
+                            <a class="nav-link text-danger" href="/ui/logout">
+                                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Lista De Repruduccion</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-download"></i> Exportar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+
+    <div class="container">
+        <!-- Panel Central -->
+        <div class="panel center-panel">
+            <div class="playlist-header">
+                Lista de Reproducción 1
+            </div>
+            
+            <div class="playlist-content">
+                {% set playlist_videos = playlist_videos or ['Video 2', 'Video 3'] %}
+                {% for video in playlist_videos %}
+                <div class="video-item">
+                    {{ video }}
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="save-button" onclick="savePlaylist()">
+                Guardar
+            </div>
+        </div>
+
+        <!-- Panel Derecho -->
+        <div class="panel right-panel">
+            <input type="text" class="search-box" id="searchBox" placeholder="buscar">
+            
+            <div class="video-list" id="videoList">
+                {% set available_videos = available_videos or ['Video 1', 'Video 2', 'Video 3', 'Video 4', 'Video 5'] %}
+                {% for video in available_videos %}
+                <div class="draggable-video" draggable="true" data-video="{{ video }}">
+                    {{ video }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let draggedElement = null;
+        let droppedItems = [];
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDragAndDrop();
+            initializeSearch();
+        });
+
+        // Funcionalidad de Drag & Drop
+        function initializeDragAndDrop() {
+            const draggableVideos = document.querySelectorAll('.draggable-video');
+            const dropZone = document.getElementById('dropZone');
+            const droppedItemsContainer = document.getElementById('droppedItems');
+
+            // Configurar elementos arrastrables
+            draggableVideos.forEach(video => {
+                video.addEventListener('dragstart', handleDragStart);
+                video.addEventListener('dragend', handleDragEnd);
+            });
+
+            // Configurar zona de drop
+            dropZone.addEventListener('dragover', handleDragOver);
+            dropZone.addEventListener('dragenter', handleDragEnter);
+            dropZone.addEventListener('dragleave', handleDragLeave);
+            dropZone.addEventListener('drop', handleDrop);
+        }
+
+        function handleDragStart(e) {
+            draggedElement = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'copy';
+            e.dataTransfer.setData('text/html', this.outerHTML);
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            draggedElement = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        }
+
+        function handleDragEnter(e) {
+            e.preventDefault();
+            this.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+            
+            if (draggedElement) {
+                const videoName = draggedElement.getAttribute('data-video');
+                addToDroppedItems(videoName);
+            }
+        }
+
+        function addToDroppedItems(videoName) {
+            // Evitar duplicados
+            if (droppedItems.includes(videoName)) {
+                return;
+            }
+
+            droppedItems.push(videoName);
+            
+            const droppedItemsContainer = document.getElementById('droppedItems');
+            const newItem = document.createElement('div');
+            newItem.className = 'dropped-item';
+            newItem.innerHTML = `
+                ${videoName}
+                <span class="remove-btn" onclick="removeItem(this)">×</span>
+            `;
+            droppedItemsContainer.appendChild(newItem);
+        }
+
+        function removeItem(button) {
+            const item = button.parentElement;
+            const videoName = item.textContent.replace('×', '').trim();
+            
+            // Remover del array
+            const index = droppedItems.indexOf(videoName);
+            if (index > -1) {
+                droppedItems.splice(index, 1);
+            }
+            
+            // Remover del DOM
+            item.remove();
+        }
+
+        // Funcionalidad de búsqueda
+        function initializeSearch() {
+            const searchBox = document.getElementById('searchBox');
+            const videoItems = document.querySelectorAll('.draggable-video');
+
+            searchBox.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                
+                videoItems.forEach(video => {
+                    const videoName = video.textContent.toLowerCase();
+                    if (videoName.includes(searchTerm)) {
+                        video.classList.remove('hidden');
+                    } else {
+                        video.classList.add('hidden');
+                    }
+                });
+            });
+        }
+
+        // Función para guardar playlist
+        function savePlaylist() {
+            const playlistData = {
+                dropped_items: droppedItems,
+                timestamp: new Date().toISOString()
+            };
+
+            // Aquí puedes enviar los datos al servidor
+            console.log('Guardando playlist:', playlistData);
+            
+            // Ejemplo de envío con fetch (descomenta para usar)
+            /*
+            fetch('/save_playlist', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(playlistData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Playlist guardada exitosamente');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al guardar playlist');
+            });
+            */
+            
+            alert('Playlist guardada exitosamente');
+        }
+
+        // Función para obtener datos actuales (útil para Jinja2)
+        function getCurrentData() {
+            return {
+                dropped_items: droppedItems.map(item => ({name: item})),
+                playlist_videos: Array.from(document.querySelectorAll('.video-item')).map(el => el.textContent),
+                available_videos: Array.from(document.querySelectorAll('.draggable-video')).map(el => el.getAttribute('data-video'))
+            };
+        }
+    </script>               
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

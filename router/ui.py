@@ -134,6 +134,21 @@ async def get_videos_page(request: Request):
         }
     )
 
+@router.get("/playlists", response_class=HTMLResponse)
+async def get_videos_page(request: Request):
+    """
+    Página de gestión de videos y playlists
+    """
+    # En esta ruta, simplemente renderizamos la plantilla videos.html con los datos básicos
+    # Los datos de videos y playlists se cargarán dinámicamente con JavaScript
+    return templates.TemplateResponse(
+        "playlists.html", 
+        {
+            "request": request, 
+            "title": "Gestión de Videos y Listas"
+        }
+    )
+
 @router.get("/devices/{device_id}", response_class=HTMLResponse)
 async def get_device_detail(
     request: Request, 
